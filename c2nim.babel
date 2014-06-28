@@ -1,0 +1,8 @@
+[Package]
+name          = "c2nim"
+version       = "0.9.6"
+author        = "Andreas Rumpf"
+description   = "c2nim is a tool to translate Ansi C code to Nimrod."
+license       = "MIT"
+
+SkipFiles = "c2nim.exe"
