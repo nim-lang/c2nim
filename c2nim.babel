@@ -5,4 +5,8 @@ author        = "Andreas Rumpf"
 description   = "c2nim is a tool to translate Ansi C code to Nimrod."
 license       = "MIT"
 
-SkipFiles = "c2nim.exe"
+bin = "c2nim"
+
+[Deps]
+Requires: "nimrod >= 0.9.4"
+
