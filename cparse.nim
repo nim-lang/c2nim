@@ -221,10 +221,12 @@ proc expandMacro(p: var TParser, m: TMacro) =
 
 proc getTok(p: var TParser) = 
   rawGetTok(p)
-  if p.tok.xkind == pxSymbol:
+  while p.tok.xkind == pxSymbol:
     var idx = findMacro(p)
     if idx >= 0: 
       expandMacro(p, p.options.macros[idx])
+    else:
+      break
 
 proc parLineInfo(p: TParser): TLineInfo = 
   result = getLineInfo(p.lex)

@@ -1,0 +1,6 @@
+#def GLIB_AVAILABLE_IN_ALL
+#def G_BEGIN_DECLS
+G_BEGIN_DECLS
+GLIB_AVAILABLE_IN_ALL
+int func1(int i);
+void func2(int i);
