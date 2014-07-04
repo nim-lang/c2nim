@@ -12,7 +12,7 @@ import
   clex, cparse
 
 const
-  Version = NimrodVersion
+  Version = "0.9.6" # keep in sync with Babel version. D'oh!
   Usage = """
 c2nim - C to Nimrod source converter
   (c) 2013 Andreas Rumpf

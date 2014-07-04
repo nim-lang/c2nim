@@ -1,1 +1,3 @@
 nimcache
+testsuite/tests/*.nim
+
