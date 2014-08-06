@@ -282,6 +282,35 @@ that ``EXPORT`` is a macro that should be expanded by c2nim too:
 ``#def`` is very similar to C's ``#define``, so in general the macro definition
 can be copied and pasted into a ``#def`` directive.
 
+It can also be used when defines are being referred to, as c2nim currently does not expand defines:
+
+.. code-block:: C
+  #define DEFINE_COMPLEX(R, C) typedef R C[2]
+
+  #define DEFINE_API(X, R, C)   \
+    DEFINE_COMPLEX(R, C);
+
+  DEFINE_API(MANGLE_DOUBLE, double, my_complex);
+..
+
+The above example will fail, to ensure c2nim *processes* these defines and expands them, use c2nim's ``#def`` directive:
+
+.. code-block:: C
+  #ifdef C2NIM
+  #  def DEFINE_COMPLEX(R, C) typedef R C[2]
+  #endif
+
+  #ifndef C2NIM
+  #  define DEFINE_COMPLEX(R, C) typedef R C[2]
+  #endif
+
+  #define DEFINE_API(X, R, C)   \
+    DEFINE_COMPLEX(R, C);
+
+  DEFINE_API(MANGLE_DOUBLE, double, my_complex);
+..
+
+Note: Ensure the original #define is not seen by c2nim (notice the #ifndef C2NIM).
 
 Limitations
 ===========
