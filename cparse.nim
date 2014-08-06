@@ -444,7 +444,7 @@ proc declKeyword(p: TParser, s: string): bool =
   case s
   of  "extern", "static", "auto", "register", "const", "volatile", "restrict",
       "inline", "__inline", "__cdecl", "__stdcall", "__syscall", "__fastcall",
-      "__safecall", "void", "struct", "union", "enum", "typedef",
+      "__safecall", "void", "struct", "union", "enum", "typedef", "size_t",
       "short", "int", "long", "float", "double", "signed", "unsigned", "char": 
     result = true
   of "class":
@@ -460,7 +460,7 @@ proc stmtKeyword(s: string): bool =
 
 proc isIntType(s: string): bool =
   case s
-  of "short", "int", "long", "float", "double", "signed", "unsigned":
+  of "short", "int", "long", "float", "double", "signed", "unsigned", "size_t":
     result = true
 
 proc skipConst(p: var TParser) = 
@@ -547,16 +547,19 @@ proc typeAtom(p: var TParser): PNode =
     var x = ""
     #getTok(p, nil)
     var isUnsigned = false
+    var isSizeT = false
     while p.tok.xkind == pxSymbol and (isIntType(p.tok.s) or p.tok.s == "char"):
       if p.tok.s == "unsigned":
         isUnsigned = true
+      elif p.tok.s == "size_t":
+        isSizeT = true
       elif p.tok.s == "signed" or p.tok.s == "int":
         discard
       else:
         add(x, p.tok.s)
       getTok(p, nil)
     if x.len == 0: x = "int"
-    let xx = if isUnsigned: "cu" & x else: "c" & x
+    let xx = if isSizeT: "csize" elif isUnsigned: "cu" & x else: "c" & x
     result = mangledIdent(xx, p)
   else:
     result = mangledIdent(p.tok.s, p)
