@@ -163,6 +163,8 @@ proc parseMacroArguments(p: var TParser): seq[seq[ref TToken]] =
   result.add(@[])
   var i: array[pxParLe..pxCurlyLe, int]
   var L = 0
+  # we push a context here, so that no token will be overwritten, but we get
+  # fresh tokens instead:
   saveContext(p)
   while true:
     var kind = p.tok.xkind
@@ -206,16 +208,30 @@ proc expandMacro(p: var TParser, m: TMacro) =
     var newList: ref TToken
     new(newList)
     var lastTok = newList
-    for tok in items(m.body): 
-      if tok.xkind == pxMacroParam: 
-        for t in items(arguments[int(tok.iNumber)]):
-          #echo "t: ", t^
-          lastTok.next = t
-          lastTok = t
+    var mergeToken = false
+    template appendTok(t) {.dirty, immediate.} =
+      if mergeToken:
+        mergeToken = false
+        lastTok.s &= t.s
       else:
-        #echo "tok: ", tok^
-        lastTok.next = tok
-        lastTok = tok
+        lastTok.next = t
+        lastTok = t
+    
+    for tok in items(m.body):
+      if tok.xkind == pxMacroParam:
+        # it can happen that parameters are expanded multiple times:
+        # #def foo(x) x x
+        # Therefore we have to copy the token here to avoid wrong aliasing
+        # that leads to an invalid token sequence:
+        for t in items(arguments[int(tok.iNumber)]):
+          var newToken: ref TToken
+          new(newToken); newToken[] = t[]
+          appendTok(newToken)
+      elif tok.xkind == pxDirConc:
+        # implement token merging:
+        mergeToken = true
+      else:
+        appendTok(tok)
     lastTok.next = p.tok
     p.tok = newList.next
 
@@ -223,7 +239,7 @@ proc getTok(p: var TParser) =
   rawGetTok(p)
   while p.tok.xkind == pxSymbol:
     var idx = findMacro(p)
-    if idx >= 0: 
+    if idx >= 0:
       expandMacro(p, p.options.macros[idx])
     else:
       break
@@ -901,7 +917,7 @@ proc otherTypeDef(p: var TParser, section, typ: PNode) =
     var x = parseFunctionPointerDecl(p, t)
     name = x[0]
     t = x[2]
-  else: 
+  else:
     # typedef typ name;
     markTypeIdent(p, t)
     name = skipIdentExport(p)
@@ -1103,7 +1119,7 @@ proc parseTypeDef(p: var TParser): PNode =
       else:
         var t = typeAtom(p)
         otherTypeDef(p, typeSection, t)
-    else: 
+    else:
       var t = typeAtom(p)
       otherTypeDef(p, typeSection, t)
     eat(p, pxSemicolon)

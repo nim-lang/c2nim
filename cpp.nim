@@ -101,9 +101,6 @@ proc parseDefBody(p: var TParser, m: var TMacro, params: seq[string]) =
           tok.iNumber = i
           break
       m.body.add(tok)
-    of pxDirConc: 
-      # just ignore this token: this implements token merging correctly
-      discard
     else:
       m.body.add(p.tok)
     # we do not want macro expansion here:

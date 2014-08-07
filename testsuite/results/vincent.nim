@@ -11,10 +11,10 @@ proc id*(f: proc ()): cint =
 
 proc main*(): cint = 
   var 
-    f: cfloat = 2.0000000000000001e-001
-    g: cfloat = 2.0000000000000000e+000
-    h: cfloat = 1.0000000000000000e+000 + rand()
-    i: cfloat = 1.0000000000000000e+003
+    f: cfloat = 0.2
+    g: cfloat = 2.0
+    h: cfloat = 1.0 + rand()
+    i: cfloat = 1000.0
   var 
     j: cint
     a: cint

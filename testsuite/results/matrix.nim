@@ -153,15 +153,15 @@ when not(defined(_WX_MATRIXH__)):
   # Is the matrix the identity matrix?
   # Each operation checks whether the result is still the identity matrix and sets a flag.
   proc wxTransformMatrix::IsIdentity1*(): bool {.inline, noSideEffect.} = 
-    return wxIsSameDouble(m_matrix[0][0], 1.0000000000000000e+000) and
-        wxIsSameDouble(m_matrix[1][1], 1.0000000000000000e+000) and
-        wxIsSameDouble(m_matrix[2][2], 1.0000000000000000e+000) and
-        wxIsSameDouble(m_matrix[1][0], 0.0000000000000000e+000) and
-        wxIsSameDouble(m_matrix[2][0], 0.0000000000000000e+000) and
-        wxIsSameDouble(m_matrix[0][1], 0.0000000000000000e+000) and
-        wxIsSameDouble(m_matrix[2][1], 0.0000000000000000e+000) and
-        wxIsSameDouble(m_matrix[0][2], 0.0000000000000000e+000) and
-        wxIsSameDouble(m_matrix[1][2], 0.0000000000000000e+000)
+    return wxIsSameDouble(m_matrix[0][0], 1.0) and
+        wxIsSameDouble(m_matrix[1][1], 1.0) and
+        wxIsSameDouble(m_matrix[2][2], 1.0) and
+        wxIsSameDouble(m_matrix[1][0], 0.0) and
+        wxIsSameDouble(m_matrix[2][0], 0.0) and
+        wxIsSameDouble(m_matrix[0][1], 0.0) and
+        wxIsSameDouble(m_matrix[2][1], 0.0) and
+        wxIsSameDouble(m_matrix[0][2], 0.0) and
+        wxIsSameDouble(m_matrix[1][2], 0.0)
 
   # Calculates the determinant of a 2 x 2 matrix
   proc wxCalculateDet*(a11: cdouble; a21: cdouble; a12: cdouble; a22: cdouble): cdouble {.
