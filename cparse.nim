@@ -1531,7 +1531,7 @@ proc leftExpression(p : var TParser, tok : TToken, left : PNode) : PNode =
   of pxBar: # 70
     result = newBinary("or", left, expression(p, 70), p)
   of pxHat: # 80
-    result = newBinary("^", left, expression(p, 80), p)
+    result = newBinary("xor", left, expression(p, 80), p)
   of pxAmp: # 90
     result = newBinary("and", left, expression(p, 90), p)
   of pxEquals: # 100
