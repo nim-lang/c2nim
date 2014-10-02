@@ -122,7 +122,7 @@ proc openLexer*(lex: var TLexer, filename: string, inputstream: PLLStream) =
   lex.fileIdx = filename.fileInfoIdx
 
 proc closeLexer*(lex: var TLexer) = 
-  inc(gLinesCompiled, lex.LineNumber)
+  inc(gLinesCompiled, lex.lineNumber)
   closeBaseLexer(lex)
 
 proc getColumn*(L: TLexer): int = 
@@ -132,11 +132,11 @@ proc getLineInfo*(L: TLexer): TLineInfo =
   result = newLineInfo(L.fileIdx, L.linenumber, getColNumber(L, L.bufpos))
 
 proc lexMessage*(L: TLexer, msg: TMsgKind, arg = "") = 
-  msgs.GlobalError(getLineInfo(L), msg, arg)
+  msgs.globalError(getLineInfo(L), msg, arg)
 
 proc lexMessagePos(L: var TLexer, msg: TMsgKind, pos: int, arg = "") = 
   var info = newLineInfo(L.fileIdx, L.linenumber, pos - L.lineStart)
-  msgs.GlobalError(info, msg, arg)
+  msgs.globalError(info, msg, arg)
 
 proc tokKindToStr*(k: TTokKind): string =
   case k
@@ -440,16 +440,16 @@ proc getString(L: var TLexer, tok: var TToken) =
       inc(pos)
       break
     of CR: 
-      pos = nimlexbase.HandleCR(L, pos)
+      pos = nimlexbase.handleCR(L, pos)
       buf = L.buf
     of LF: 
-      pos = nimlexbase.HandleLF(L, pos)
+      pos = nimlexbase.handleLF(L, pos)
       buf = L.buf
     of nimlexbase.EndOfFile: 
       var line2 = L.linenumber
-      L.LineNumber = line
+      L.lineNumber = line
       lexMessagePos(L, errClosingQuoteExpected, L.lineStart)
-      L.LineNumber = line2
+      L.lineNumber = line2
       break 
     of '\\': 
       # we allow an empty \ for line concatenation, but we don't require it
