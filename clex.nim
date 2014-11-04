@@ -17,9 +17,9 @@ import
 
 const 
   MaxLineLength* = 80         # lines longer than this lead to a warning
-  numChars*: TCharSet = {'0'..'9', 'a'..'z', 'A'..'Z'} 
-  SymChars*: TCharSet = {'a'..'z', 'A'..'Z', '0'..'9', '_', '\x80'..'\xFF'}
-  SymStartChars*: TCharSet = {'a'..'z', 'A'..'Z', '_', '\x80'..'\xFF'}
+  numChars*: set[char] = {'0'..'9', 'a'..'z', 'A'..'Z'} 
+  SymChars*: set[char] = {'a'..'z', 'A'..'Z', '0'..'9', '_', '\x80'..'\xFF'}
+  SymStartChars*: set[char] = {'a'..'z', 'A'..'Z', '_', '\x80'..'\xFF'}
 
 type
   TTokKind* = enum 
@@ -216,7 +216,7 @@ proc `$`(tok: TToken): string =
 proc printTok(tok: TToken) = 
   writeln(stdout, $tok)
   
-proc matchUnderscoreChars(L: var TLexer, tok: var TToken, chars: TCharSet) = 
+proc matchUnderscoreChars(L: var TLexer, tok: var TToken, chars: set[char]) = 
   # matches ([chars]_)*
   var pos = L.bufpos              # use registers for pos, buf
   var buf = L.buf

@@ -465,12 +465,14 @@ proc declKeyword(p: TParser, s: string): bool =
     result = true
   of "class":
     result = p.options.flags.contains(pfCpp)
+  else: discard
 
 proc stmtKeyword(s: string): bool =
   case s
   of  "if", "for", "while", "do", "switch", "break", "continue", "return",
       "goto":
     result = true
+  else: discard
 
 # ------------------- type desc -----------------------------------------------
 
@@ -478,6 +480,7 @@ proc isIntType(s: string): bool =
   case s
   of "short", "int", "long", "float", "double", "signed", "unsigned", "size_t":
     result = true
+  else: discard
 
 proc skipConst(p: var TParser) = 
   while p.tok.xkind == pxSymbol and
@@ -1604,14 +1607,11 @@ proc leftExpression(p : var TParser, tok : TToken, left : PNode) : PNode =
   else:
     result = left
 
-proc expression*(p : var TParser, rbp : int = 0) : PNode =
-  var tok : TToken
-
-  tok = p.tok[]
+proc expression(p: var TParser, rbp: int = 0): PNode =
+  var tok = p.tok[]
   getTok(p, result)
 
   result = startExpression(p, tok)
-
   while rbp < leftBindingPower(p, p.tok):
     tok = p.tok[]
     getTok(p, result)
