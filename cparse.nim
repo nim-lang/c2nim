@@ -732,13 +732,16 @@ proc hashPosition(p: TParser): string =
   let fileInfo = fileInfos[lineInfo.fileIndex]
   result = $hash(fileInfo.shortName & "_" & $lineInfo.line & "_" & $lineInfo.col).uint
 
-proc parseInnerStruct(p: var TParser, stmtList: PNode, isUnion: bool): PNode =
-  getTok(p, nil)
+proc parseInnerStruct(p: var TParser, stmtList: PNode, isUnion: bool, name: string): PNode =
   if p.tok.xkind != pxCurlyLe:
     parMessage(p, errUser, "Expected '{' but found '" & $(p.tok[]) & "'")
   
-  let structName =  if isUnion: "INNER_C_UNION_" & p.hashPosition
-                    else: "INNER_C_STRUCT_" & p.hashPosition
+  var structName: string
+  if name == "":
+    if isUnion: structName = "INNER_C_UNION_" & p.hashPosition
+    else: structName = "INNER_C_STRUCT_" & p.hashPosition
+  else:
+    structName = name & "_" & p.hashPosition
   let typeSection = newNodeP(nkTypeSection, p)
   let newStruct = newNodeP(nkObjectTy, p)
   var pragmas = ast.emptyNode
@@ -766,12 +769,19 @@ proc parseStructBody(p: var TParser, stmtList: PNode, isUnion: bool,
       let gotUnion = if p.tok.s == "union": true   else: false
       saveContext(p)
       getTok(p, nil)
-      if p.tok.xkind == pxSymbol:
+      let prev = p
+      getTok(p, nil)
+      if prev.tok.xkind == pxSymbol and p.tok.xkind != pxCurlyLe:
         backtrackContext(p)
         baseTyp = typeAtom(p)
       else:
         backtrackContext(p)
-        baseTyp = parseInnerStruct(p, stmtList, gotUnion)
+        getTok(p)
+        var name = ""
+        if p.tok.xkind == pxSymbol:
+          name = p.tok.s
+          getTok(p)
+        baseTyp = parseInnerStruct(p, stmtList, gotUnion, name)
         if p.tok.xkind == pxSemiColon:
           let def = newNodeP(nkIdentDefs, p)
           var t = pointer(p, baseTyp)
