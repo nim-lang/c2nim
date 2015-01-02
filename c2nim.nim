@@ -49,6 +49,8 @@ proc parse(infile: string, options: PParserOptions): PNode =
   result = parseUnit(p)
   closeParser(p)
 
+proc isC2nimFile(s: string): bool = splitFile(s).ext.toLower == "c2nim"
+
 proc main(infiles: seq[string], outfile: string,
           options: PParserOptions, concat: bool) =
   var start = getTime()
@@ -56,13 +58,16 @@ proc main(infiles: seq[string], outfile: string,
     var tree = newNode(nkStmtList)
     for infile in infiles:
       let m = parse(infile.addFileExt("h"), options)
-      for n in m: tree.add(n)
+      if not isC2nimFile(infile):
+        for n in m: tree.add(n)
     renderModule(tree, outfile)
   elif infiles.len == 1:
     renderModule(parse(infiles[0], options), outfile)
   else:
     for infile in infiles:
-      renderModule(parse(infile, options), changeFileExt(infile, "nim"))
+      let m = parse(infile, options)
+      if not isC2nimFile(infile):
+        renderModule(m, changeFileExt(infile, "nim"))
   rawMessage(hintSuccessX, [$gLinesCompiled, $(getTime() - start), 
                             formatSize(getTotalMem())])
 
