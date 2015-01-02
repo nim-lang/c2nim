@@ -1,7 +1,7 @@
 #
 #
-#      c2nim - C to Nimrod source converter
-#        (c) Copyright 2013 Andreas Rumpf
+#      c2nim - C to Nim source converter
+#        (c) Copyright 2015 Andreas Rumpf
 #
 #    See the file "copying.txt", included in this
 #    distribution, for details about the copyright.
@@ -12,11 +12,13 @@ import
   clex, cparse
 
 const
-  Version = "0.9.6" # keep in sync with Babel version. D'oh!
+  Version = "0.9.7" # keep in sync with Nimble version. D'oh!
   Usage = """
-c2nim - C to Nimrod source converter
-  (c) 2013 Andreas Rumpf
-Usage: c2nim [options] inputfile [options]
+c2nim - C to Nim source converter
+  (c) 2015 Andreas Rumpf
+Usage: c2nim [options] [optionfile(s)] inputfile(s) [options]
+  Optionfiles are C files with the 'c2nim' extension. These are parsed like
+  other C files but produce no output file.
 Options:
   -o, --out:FILE         set output filename
   --cpp                  process C++ input file
@@ -25,16 +27,16 @@ Options:
   --cdecl                annotate procs with ``{.cdecl.}``
   --stdcall              annotate procs with ``{.stdcall.}``
   --ref                  convert typ* to ref typ (default: ptr typ)
-  --prefix:PREFIX        strip prefix for the generated Nimrod identifiers
+  --prefix:PREFIX        strip prefix for the generated Nim identifiers
                          (multiple --prefix options are supported)
-  --suffix:SUFFIX        strip suffix for the generated Nimrod identifiers
+  --suffix:SUFFIX        strip suffix for the generated Nim identifiers
                          (multiple --suffix options are supported)
   --skipinclude          do not convert ``#include`` to ``import``
   --typeprefixes         generate ``T`` and ``P`` type prefixes
   --skipcomments         do not copy comments
   --ignoreRValueRefs     translate C++'s ``T&&`` to ``T`` instead ``of var T``
   --keepBodies           keep C++'s method bodies
-  --spliceHeader         parse and emit header before source file
+  --concat               concat the list of files into a single .nim file
   -v, --version          write c2nim's version
   -h, --help             show this help
 """
@@ -47,29 +49,33 @@ proc parse(infile: string, options: PParserOptions): PNode =
   result = parseUnit(p)
   closeParser(p)
 
-proc main(infile, outfile: string, options: PParserOptions, spliceHeader: bool) =
+proc main(infiles: seq[string], outfile: string,
+          options: PParserOptions, concat: bool) =
   var start = getTime()
-  if spliceHeader and infile.splitFile.ext == ".c" and existsFile(infile.changeFileExt(".h")):
-    var header_module = parse(infile.changeFileExt(".h"), options)
-    var source_module = parse(infile, options)
-    for n in source_module:
-      addson(header_module, n)
-    renderModule(header_module, outfile)
+  if concat:
+    var tree = newNode(nkStmtList)
+    for infile in infiles:
+      let m = parse(infile.addFileExt("h"), options)
+      for n in m: tree.add(n)
+    renderModule(tree, outfile)
+  elif infiles.len == 1:
+    renderModule(parse(infiles[0], options), outfile)
   else:
-    renderModule(parse(infile, options), outfile)
+    for infile in infiles:
+      renderModule(parse(infile, options), changeFileExt(infile, "nim"))
   rawMessage(hintSuccessX, [$gLinesCompiled, $(getTime() - start), 
                             formatSize(getTotalMem())])
 
 var
-  infile = ""
+  infiles = newSeq[string](0)
   outfile = ""
-  spliceHeader = false
+  concat = false
   parserOptions = newParserOptions()
 for kind, key, val in getopt():
   case kind
-  of cmdArgument: infile = key
+  of cmdArgument: infiles.add key
   of cmdLongOption, cmdShortOption:
-    case key.toLower
+    case key.normalize
     of "help", "h":
       stdout.write(Usage)
       quit(0)
@@ -77,16 +83,21 @@ for kind, key, val in getopt():
       stdout.write(Version & "\n")
       quit(0)
     of "o", "out": outfile = val
-    of "spliceheader": spliceHeader = true
+    of "concat": concat = true
+    of "spliceheader":
+      quit "[Error] 'spliceheader' doesn't exist anymore" &
+           " use a list of files and --concat instead"
     else:
       if not parserOptions.setOption(key, val):
         stdout.writeln("[Error] unknown option: " & key)
   of cmdEnd: assert(false)
-if infile.len == 0:
+if infiles.len == 0:
   # no filename has been given, so we show the help:
   stdout.write(Usage)
 else:
   if outfile.len == 0:
-    outfile = changeFileExt(infile, "nim")
-  infile = addFileExt(infile, "h")
-  main(infile, outfile, parserOptions, spliceHeader)
+    if infiles.len == 1:
+      outfile = changeFileExt(infiles[0], "nim")
+  elif infiles.len > 1 and not concat:
+    quit "--out doesn't work with a list of input files unless you use --concat"
+  main(infiles, outfile, parserOptions, concat)

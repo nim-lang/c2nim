@@ -8,7 +8,7 @@
 #
 
 ## This module implements an Ansi C parser.
-## It translates a C source file into a Nimrod AST. Then the renderer can be
+## It translates a C source file into a Nim AST. Then the renderer can be
 ## used to convert the AST to its text representation.
 
 # TODO
@@ -17,7 +17,7 @@
 # - C++'s "operator" still needs some love
 # - support '#if' in classes
 
-import 
+import
   os, llstream, renderer, clex, idents, strutils, pegs, ast, astalgo, msgs,
   options, strtabs, hashes, algorithm
 
@@ -38,7 +38,7 @@ type
     params: int           # number of parameters
     body: seq[ref TToken] # can contain pxMacroParam tokens
   
-  TParserOptions = object
+  TParserOptions = object ## shared parser state!
     flags: set[TParserFlag]
     prefixes, suffixes: seq[string]
     mangleRules: seq[tuple[pattern: TPeg, frmt: string]]
