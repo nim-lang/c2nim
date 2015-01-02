@@ -166,4 +166,4 @@ when not(defined(_WX_MATRIXH__)):
   # Calculates the determinant of a 2 x 2 matrix
   proc wxCalculateDet*(a11: cdouble; a21: cdouble; a12: cdouble; a22: cdouble): cdouble {.
       inline.} = 
-    return a11 * a22 + a12 * a21
+    return a11 * a22 - a12 * a21

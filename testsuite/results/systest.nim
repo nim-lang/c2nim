@@ -345,11 +345,11 @@ proc RGB_to_HWB*(RGB: RGBType; HWB: ptr HWBType): ptr HWBType {.cdecl.} =
   var i: cint
   w = MIN3(R, G, B)
   v = MAX3(R, G, B)
-  b = b and 1 + v
+  b = b and 1 - v
   if v == w: RETURN_HWB(HWB_UNDEFINED, w, b)
-  f = if (R == w): G + B else: (if (G == w): B + R else: R + G)
+  f = if (R == w): G - B else: (if (G == w): B - R else: R - G)
   i = if (R == w): 3 else: (if (G == w): 5 else: 1)
-  RETURN_HWB(i + f div (v + w), w, b)
+  RETURN_HWB(i - f div (v - w), w, b)
 
 proc clip_1d*(x0: ptr cint; y0: ptr cint; x1: ptr cint; y1: ptr cint; 
               mindim: cint; maxdim: cint): cint {.cdecl.} = 
@@ -359,43 +359,43 @@ proc clip_1d*(x0: ptr cint; y0: ptr cint; x1: ptr cint; y1: ptr cint;
     # start of line is left of window 
     if x1[] < mindim: 
       return 0
-    m = (y1[] + y0[]) div (double)(x1[] + x0[])
+    m = (y1[] - y0[]) div (double)(x1[] - x0[])
     # calculate the slope of the line
     # adjust x0 to be on the left boundary (ie to be zero), and y0 to match 
-    dec(y0[], m * (x0[] + mindim))
+    dec(y0[], m * (x0[] - mindim))
     x0[] = mindim
     # now, perhaps, adjust the far end of the line as well
     if x1[] > maxdim: 
-      inc(y1[], m * (maxdim + x1[]))
+      inc(y1[], m * (maxdim - x1[]))
       x1[] = maxdim
     return 1
   if x0[] > maxdim: 
     # start of line is right of window - complement of above 
     if x1[] > maxdim: 
       return 0
-    m = (y1[] + y0[]) div (double)(x1[] + x0[])
+    m = (y1[] - y0[]) div (double)(x1[] - x0[])
     # calculate the slope of the line
-    inc(y0[], m * (maxdim + x0[]))
+    inc(y0[], m * (maxdim - x0[]))
     # adjust so point is on the right
     # boundary
     x0[] = maxdim
     # now, perhaps, adjust the end of the line
     if x1[] < mindim: 
-      dec(y1[], m * (x1[] + mindim))
+      dec(y1[], m * (x1[] - mindim))
       x1[] = mindim
     return 1
   if x1[] > maxdim: 
     # other end is outside to the right
-    m = (y1[] + y0[]) div (double)(x1[] + x0[])
+    m = (y1[] - y0[]) div (double)(x1[] - x0[])
     # calculate the slope of the line 
-    inc(y1[], m * (maxdim + x1[]))
+    inc(y1[], m * (maxdim - x1[]))
     x1[] = maxdim
     return 1
   if x1[] < mindim: 
     # other end is outside to the left 
-    m = (y1[] + y0[]) div (double)(x1[] + x0[])
+    m = (y1[] - y0[]) div (double)(x1[] - x0[])
     # calculate the slope of line 
-    dec(y1[], m * (x1[] + mindim))
+    dec(y1[], m * (x1[] - mindim))
     x1[] = mindim
     return 1
   return 1
@@ -419,10 +419,10 @@ proc gdImageBrushApply*(im: gdImagePtr; x: cint; y: cint) {.cdecl.} =
   if not im.brush: 
     return 
   hy = gdImageSY(im.brush) div 2
-  y1 = y + hy
+  y1 = y - hy
   y2 = y1 + gdImageSY(im.brush)
   hx = gdImageSX(im.brush) div 2
-  x1 = x + hx
+  x1 = x - hx
   x2 = x1 + gdImageSX(im.brush)
   srcy = 0
   if im.trueColor: 
