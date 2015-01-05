@@ -164,6 +164,7 @@ proc parseStmtList(p: var TParser): PNode =
     of pxDirectiveParLe, pxDirective: 
       case p.tok.s
       of "else", "endif", "elif": break
+      else: discard
     else: discard
     addSon(result, statement(p))
   

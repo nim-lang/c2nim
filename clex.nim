@@ -102,7 +102,7 @@ type
   
   TLexer* = object of TBaseLexer
     fileIdx*: int32
-    inDirective: bool
+    inDirective, debugMode*: bool
   
 proc getTok*(L: var TLexer, tok: var TToken)
 proc printTok*(tok: TToken)
@@ -133,11 +133,13 @@ proc getColumn*(L: TLexer): int =
 proc getLineInfo*(L: TLexer): TLineInfo = 
   result = newLineInfo(L.fileIdx, L.linenumber, getColNumber(L, L.bufpos))
 
-proc lexMessage*(L: TLexer, msg: TMsgKind, arg = "") = 
+proc lexMessage*(L: TLexer, msg: TMsgKind, arg = "") =
+  if L.debugMode: writeStackTrace()
   msgs.globalError(getLineInfo(L), msg, arg)
 
 proc lexMessagePos(L: var TLexer, msg: TMsgKind, pos: int, arg = "") = 
   var info = newLineInfo(L.fileIdx, L.linenumber, pos - L.lineStart)
+  if L.debugMode: writeStackTrace()
   msgs.globalError(info, msg, arg)
 
 proc tokKindToStr*(k: TTokKind): string =

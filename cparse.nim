@@ -47,6 +47,7 @@ type
     macros: seq[TMacro]
     toMangle: PStringTable
     classes: PStringTable
+    debugMode: bool
   PParserOptions* = ref TParserOptions
   
   TParser* = object
@@ -102,6 +103,7 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "keepbodies": incl(parserOptions.flags, pfKeepBodies)
   of "ignorervaluerefs": incl(parserOptions.flags, pfIgnoreRValueRefs)
   of "class": parserOptions.classes[val] = "true"
+  of "debug": parserOptions.debugMode = true
   else: result = false
 
 proc parseUnit*(p: var TParser): PNode
@@ -115,11 +117,11 @@ proc openParser(p: var TParser, filename: string,
                 inputStream: PLLStream, options = newParserOptions()) = 
   openLexer(p.lex, filename, inputStream)
   p.options = options
+  p.lex.debugMode = options.debugMode
   p.backtrack = @[]
   new(p.tok)
 
-proc parMessage(p: TParser, msg: TMsgKind, arg = "") = 
-  #assert false
+proc parMessage(p: TParser, msg: TMsgKind, arg = "") =
   lexMessage(p.lex, msg, arg)
 
 proc closeParser(p: var TParser) = closeLexer(p.lex)
