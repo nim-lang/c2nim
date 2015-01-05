@@ -230,6 +230,13 @@ proc expandMacro(p: var TParser, m: TMacro) =
       elif tok.xkind == pxDirConc:
         # implement token merging:
         mergeToken = true
+      elif tok.xkind == pxMacroParamToStr:
+        var newToken: ref TToken
+        new(newToken)
+        newToken.xkind = pxStrLit; newToken.s = ""
+        for t in items(arguments[int(tok.iNumber)]):
+          newToken.s &= $t[]
+        appendTok(newToken)
       else:
         appendTok(tok)
     lastTok.next = p.tok

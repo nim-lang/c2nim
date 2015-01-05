@@ -25,6 +25,8 @@ type
   TTokKind* = enum 
     pxInvalid, pxEof,         
     pxMacroParam,             # fake token: macro parameter (with its index)
+    pxMacroParamToStr,        # macro parameter (with its index) applied to the
+                              # toString operator (#) in a #define: #param
     pxStarComment,            # /* */ comment
     pxLineComment,            # // comment
     pxDirective,              # #define, etc.
@@ -142,7 +144,7 @@ proc tokKindToStr*(k: TTokKind): string =
   case k
   of pxEof: result = "[EOF]"
   of pxInvalid: result = "[invalid]"
-  of pxMacroParam: result = "[macro param]"
+  of pxMacroParam, pxMacroParamToStr: result = "[macro param]"
   of pxStarComment, pxLineComment: result = "[comment]" 
   of pxStrLit: result = "[string literal]"
   of pxCharLit: result = "[char literal]"

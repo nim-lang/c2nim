@@ -91,13 +91,14 @@ proc parseDefBody(p: var TParser, m: var TMacro, params: seq[string]) =
   saveContext(p)
   while p.tok.xkind notin {pxEof, pxNewLine, pxLineComment}: 
     case p.tok.xkind 
-    of pxSymbol:
-      # is it a parameter reference?
+    of pxSymbol, pxDirective, pxDirectiveParLe:
+      let toString = p.tok.xkind != pxSymbol
+      # is it a parameter reference? (or possibly #param with a toString)
       var tok = p.tok
       for i in 0..high(params):
         if params[i] == p.tok.s: 
           new(tok)
-          tok.xkind = pxMacroParam
+          tok.xkind = if toString: pxMacroParamToStr else: pxMacroParam
           tok.iNumber = i
           break
       m.body.add(tok)
