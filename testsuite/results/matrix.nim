@@ -40,8 +40,8 @@ when not(defined(_WX_MATRIXH__)):
       importc: "wxTransformMatrix", header: "wxmatrix.h".}
   proc constructwxTransformMatrix*(mat: var wxTransformMatrix): wxTransformMatrix {.
       importc: "wxTransformMatrix", header: "wxmatrix.h".}
-  proc destroywxTransformMatrix*() {.importc: "~wxTransformMatrix", 
-                                     header: "wxmatrix.h".}
+  proc destroywxTransformMatrix*(this: var wxTransformMatrix) {.
+      importc: "~wxTransformMatrix", header: "wxmatrix.h".}
   proc GetValue*(this: wxTransformMatrix; col: cint; row: cint): cdouble {.
       noSideEffect, importcpp: "GetValue", header: "wxmatrix.h".}
   proc SetValue*(this: var wxTransformMatrix; col: cint; row: cint; 

@@ -1954,20 +1954,28 @@ proc skipInheritKeyw(p: var TParser) =
                                   p.tok.s == "public"):
     getTok(p)
 
-proc parseConstructor(p: var TParser, pragmas: PNode, 
+proc createThis(p: var TParser): PNode =
+  result = newNodeP(nkIdentDefs, p)
+  var t = newNodeP(nkVarTy, p)
+  t.add(p.currentClass)
+  addSon(result, newIdentNodeP("this", p), t, ast.emptyNode)
+
+proc parseConstructor(p: var TParser, pragmas: PNode,
                       isDestructor: bool; genericParams: PNode): PNode =
   var origName = p.tok.s
   getTok(p)
-  
+
   result = newNodeP(nkProcDef, p)
   var rettyp = if isDestructor: newNodeP(nkNilLit, p)
                else: mangledIdent(origName, p)
-  
+
   let oname = if isDestructor: "destroy" & origName
               else: "construct" & origName
   var name = mangledIdent(oname, p)
   var params = newNodeP(nkFormalParams, p)
   addReturnType(params, rettyp)
+  if isDestructor: params.add(createThis(p))
+
   if p.tok.xkind == pxParLe:
     parseFormalParams(p, params, pragmas)
   if p.tok.xkind == pxSymbol and p.tok.s == "const":
@@ -2006,19 +2014,18 @@ proc parseMethod(p: var TParser, origName: string, rettyp, pragmas: PNode,
   result = newNodeP(nkProcDef, p)
   var params = newNodeP(nkFormalParams, p)
   addReturnType(params, rettyp)
-  var thisDef = newNodeP(nkIdentDefs, p)
+  var thisDef: PNode
   if not isStatic:
     # declare 'this':
-    var t = newNodeP(nkVarTy, p)
-    t.add(p.currentClass)
-    addSon(thisDef, newIdentNodeP("this", p), t, ast.emptyNode)
+    thisDef = createThis(p)
     params.add(thisDef)
+
   parseFormalParams(p, params, pragmas)
   if hasPointlessPar: eat(p, pxParRi)
   if p.tok.xkind == pxSymbol and p.tok.s == "const":
     addSon(pragmas, newIdentNodeP("noSideEffect", p))
     getTok(p, result)
-    if not isStatic:
+    if not thisDef.isNil:
       # fix the type of the 'this' parameter:
       thisDef.sons[1] = thisDef.sons[1].sons[0]
   if pfCDecl in p.options.flags:
