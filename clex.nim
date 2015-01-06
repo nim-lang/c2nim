@@ -73,6 +73,7 @@ type
     pxTilde,                  # ~
     pxTildeAsgn,              # ~=
     pxArrow,                  # ->
+    pxArrowStar,              # ->*
     pxScope,                  # ::
 
     pxStrLit, 
@@ -194,6 +195,7 @@ proc tokKindToStr*(k: TTokKind): string =
   of pxTilde: result = "~"
   of pxTildeAsgn: result = "~="
   of pxArrow: result = "->"
+  of pxArrowStar: result = "->*"
   of pxScope: result = "::"
 
   of pxSymbol: result = "[identifier]"
@@ -216,7 +218,11 @@ proc `$`(tok: TToken): string =
   of pxIntLit, pxInt64Lit: result = $tok.iNumber
   of pxFloatLit: result = $tok.fNumber
   else: result = tokKindToStr(tok.xkind)
-  
+
+proc debugTok*(L: TLexer; tok: TToken): string =
+  result = $tok
+  if L.debugMode: result.add(" (" & $tok.xkind & ")")
+
 proc printTok(tok: TToken) = 
   writeln(stdout, $tok)
   
@@ -351,9 +357,9 @@ proc getNumber(L: var TLexer, tok: var TToken) =
         tok.xkind = pxInt64Lit
       else: 
         tok.xkind = pxIntLit
-  except EInvalidValue: 
+  except ValueError:
     lexMessage(L, errInvalidNumber, tok.s)
-  except EOverflow: 
+  except OverflowError:
     lexMessage(L, errNumberOutOfRange, tok.s)
   # ignore type suffix:
   while L.buf[L.bufpos] in {'A'..'Z', 'a'..'z'}: inc(L.bufpos)
@@ -659,12 +665,15 @@ proc getTok(L: var TLexer, tok: var TToken) =
         inc(L.bufpos)
       else: 
         tok.xkind = pxPlus
-    of '-': 
+    of '-':
       inc(L.bufpos)
-      case L.buf[L.bufpos] 
+      case L.buf[L.bufpos]
       of '>':
         tok.xkind = pxArrow
         inc(L.bufpos)
+        if L.buf[L.bufpos] == '*':
+          tok.xkind = pxArrowStar
+          inc(L.bufpos)
       of '=':
         tok.xkind = pxMinusAsgn
         inc(L.bufpos)

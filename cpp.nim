@@ -278,7 +278,7 @@ proc parseIfDir(p: var TParser): PNode =
   eatNewLine(p, nil)
   parseIfDirAux(p, result)
 
-proc parsePegLit(p: var TParser): TPeg =
+proc parsePegLit(p: var TParser): Peg =
   var col = getColumn(p.lex) + 2
   getTok(p)
   if p.tok.xkind != pxStrLit: expectIdent(p)
