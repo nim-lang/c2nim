@@ -1,18 +1,17 @@
 #
 #
-#      c2nim - C to Nimrod source converter
-#        (c) Copyright 2013 Andreas Rumpf
+#      c2nim - C to Nim source converter
+#        (c) Copyright 2015 Andreas Rumpf
 #
 #    See the file "copying.txt", included in this
 #    distribution, for details about the copyright.
 #
 
-## This module implements an Ansi C parser.
+## This module implements an Ansi C / C++ parser.
 ## It translates a C source file into a Nim AST. Then the renderer can be
 ## used to convert the AST to its text representation.
 
 # TODO
-# - document 'cpp' mode
 # - implement handling of '::': function declarations
 # - C++'s "operator" still needs some love
 # - support '#if' in classes
@@ -21,7 +20,7 @@ import
   os, llstream, renderer, clex, idents, strutils, pegs, ast, astalgo, msgs,
   options, strtabs, hashes, algorithm
 
-type 
+type
   TParserFlag = enum
     pfRefs,             ## use "ref" instead of "ptr" for C's typ*
     pfCDecl,            ## annotate procs with cdecl
@@ -47,7 +46,7 @@ type
     macros: seq[TMacro]
     toMangle: StringTableRef
     classes: StringTableRef
-    debugMode: bool
+    debugMode, followNep1: bool
   PParserOptions* = ref TParserOptions
   
   TParser* = object
@@ -101,6 +100,7 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "ignorervaluerefs": incl(parserOptions.flags, pfIgnoreRValueRefs)
   of "class": parserOptions.classes[val] = "true"
   of "debug": parserOptions.debugMode = true
+  of "nep1": parserOptions.followNep1 = true
   else: result = false
 
 proc parseUnit*(p: var TParser): PNode
@@ -324,36 +324,6 @@ proc newIdentNodeP(ident: string, p: TParser): PNode =
   assert(not ident.isNil)
   result = newIdentNodeP(getIdent(ident), p)
 
-proc mangleRules(s: string, p: TParser): string = 
-  block mangle:
-    for pattern, frmt in items(p.options.mangleRules):
-      if s.match(pattern):
-        result = s.replacef(pattern, frmt)
-        break mangle
-    block prefixes:
-      for prefix in items(p.options.prefixes): 
-        if s.startsWith(prefix): 
-          result = s.substr(prefix.len)
-          break prefixes
-      result = s
-    block suffixes:
-      for suffix in items(p.options.suffixes):
-        if result.endsWith(suffix):
-          setLen(result, result.len - suffix.len)
-          break suffixes
-
-proc mangleName(s: string, p: TParser): string = 
-  if p.options.toMangle.hasKey(s): result = p.options.toMangle[s]
-  else: result = mangleRules(s, p)
-
-proc isPrivate(s: string, p: TParser): bool = 
-  for pattern in items(p.options.privateRules): 
-    if s.match(pattern): return true
-
-proc mangledIdent(ident: string, p: TParser): PNode = 
-  result = newNodeP(nkIdent, p)
-  result.ident = getIdent(mangleName(ident, p))
-
 proc newIdentPair(a, b: string, p: TParser): PNode = 
   result = newNodeP(nkExprColonExpr, p)
   addSon(result, newIdentNodeP(a, p))
@@ -364,54 +334,7 @@ proc newIdentStrLitPair(a, b: string, p: TParser): PNode =
   addSon(result, newIdentNodeP(a, p))
   addSon(result, newStrNodeP(nkStrLit, b, p))
 
-proc addImportToPragma(pragmas: PNode, ident: string, p: TParser) =
-  addSon(pragmas, newIdentStrLitPair("importc", ident, p))
-  if p.options.dynlibSym.len > 0:
-    addSon(pragmas, newIdentPair("dynlib", p.options.dynlibSym, p))
-  else:
-    addSon(pragmas, newIdentStrLitPair("header", p.options.header, p))
-
-proc exportSym(p: TParser, i: PNode, origName: string): PNode = 
-  assert i.kind == nkIdent
-  if p.scopeCounter == 0 and not isPrivate(origName, p):
-    result = newNodeI(nkPostfix, i.info)
-    addSon(result, newIdentNode(getIdent("*"), i.info), i)
-  else:
-    result = i
-
-proc varIdent(ident: string, p: TParser): PNode = 
-  result = exportSym(p, mangledIdent(ident, p), ident)
-  if p.scopeCounter > 0: return
-  if p.options.dynlibSym.len > 0 or p.options.header.len > 0: 
-    var a = result
-    result = newNodeP(nkPragmaExpr, p)
-    var pragmas = newNodeP(nkPragma, p)
-    addSon(result, a)
-    addSon(result, pragmas)
-    addImportToPragma(pragmas, ident, p)
-
-proc fieldIdent(ident: string, p: TParser): PNode = 
-  result = exportSym(p, mangledIdent(ident, p), ident)
-  if p.scopeCounter > 0: return
-  if p.options.header.len > 0: 
-    var a = result
-    result = newNodeP(nkPragmaExpr, p)
-    var pragmas = newNodeP(nkPragma, p)
-    addSon(result, a)
-    addSon(result, pragmas)
-    addSon(pragmas, newIdentStrLitPair("importc", ident, p))
-
-proc doImport(ident: string, pragmas: PNode, p: TParser) = 
-  if p.options.dynlibSym.len > 0 or p.options.header.len > 0: 
-    addImportToPragma(pragmas, ident, p)
-
-proc doImportCpp(ident: string, pragmas: PNode, p: TParser) = 
-  if p.options.dynlibSym.len > 0 or p.options.header.len > 0:
-    addSon(pragmas, newIdentStrLitPair("importcpp", ident, p))
-    if p.options.dynlibSym.len > 0:
-      addSon(pragmas, newIdentPair("dynlib", p.options.dynlibSym, p))
-    else:
-      addSon(pragmas, newIdentStrLitPair("header", p.options.header, p))
+include rules
 
 proc newBinary(opr: string, a, b: PNode, p: TParser): PNode =
   result = newNodeP(nkInfix, p)
@@ -419,23 +342,14 @@ proc newBinary(opr: string, a, b: PNode, p: TParser): PNode =
   addSon(result, a)
   addSon(result, b)
 
-proc skipIdent(p: var TParser): PNode = 
+proc skipIdent(p: var TParser; kind: TSymKind): PNode =
   expectIdent(p)
-  result = mangledIdent(p.tok.s, p)
+  result = mangledIdent(p.tok.s, p, kind)
   getTok(p, result)
 
-proc skipIdentExport(p: var TParser): PNode = 
+proc skipIdentExport(p: var TParser; kind: TSymKind): PNode = 
   expectIdent(p)
-  result = exportSym(p, mangledIdent(p.tok.s, p), p.tok.s)
-  getTok(p, result)
-
-proc skipTypeIdentExport(p: var TParser, prefix='T'): PNode = 
-  expectIdent(p)
-  var n = prefix & mangleName(p.tok.s, p)
-  p.options.toMangle[p.tok.s] = n
-  var i = newNodeP(nkIdent, p)
-  i.ident = getIdent(n)
-  result = exportSym(p, i, p.tok.s)
+  result = exportSym(p, mangledIdent(p.tok.s, p, kind), p.tok.s)
   getTok(p, result)
 
 proc markTypeIdent(p: var TParser, typ: PNode) = 
@@ -450,7 +364,7 @@ proc markTypeIdent(p: var TParser, typ: PNode) =
         t = t.sons[0]
       if prefix.len == 0: prefix.add('T')
     expectIdent(p)
-    p.options.toMangle[p.tok.s] = prefix & mangleRules(p.tok.s, p)
+    p.options.toMangle[p.tok.s] = prefix & mangleRules(p.tok.s, p, skType)
   
 # --------------- parser -----------------------------------------------------
 # We use this parsing rule: If it looks like a declaration, it is one. This
@@ -548,7 +462,7 @@ proc optAngle(p: var TParser, n: PNode): PNode =
   else:
     result = n
 
-proc optScope(p: var TParser, n: PNode): PNode =
+proc optScope(p: var TParser, n: PNode; kind: TSymKind): PNode =
   result = n
   if pfCpp in p.options.flags:
     while p.tok.xkind == pxScope:
@@ -557,7 +471,7 @@ proc optScope(p: var TParser, n: PNode): PNode =
       result.add(a)
       getTok(p, result)
       expectIdent(p)
-      result.add(mangledIdent(p.tok.s, p))
+      result.add(mangledIdent(p.tok.s, p, kind))
       getTok(p, result)
 
 proc typeAtom(p: var TParser): PNode = 
@@ -569,7 +483,7 @@ proc typeAtom(p: var TParser): PNode =
     getTok(p, nil)
   of "struct", "union", "enum": 
     getTok(p, nil)
-    result = skipIdent(p)
+    result = skipIdent(p, skType)
   elif isIntType(p.tok.s):
     var x = ""
     #getTok(p, nil)
@@ -587,11 +501,11 @@ proc typeAtom(p: var TParser): PNode =
       getTok(p, nil)
     if x.len == 0: x = "int"
     let xx = if isSizeT: "csize" elif isUnsigned: "cu" & x else: "c" & x
-    result = mangledIdent(xx, p)
+    result = mangledIdent(xx, p, skDontMangle)
   else:
-    result = mangledIdent(p.tok.s, p)
+    result = mangledIdent(p.tok.s, p, skType)
     getTok(p, result)
-    result = optScope(p, result)
+    result = optScope(p, result, skType)
     result = optAngle(p, result)
     
 proc newPointerTy(p: TParser, typ: PNode): PNode =
@@ -665,10 +579,6 @@ proc parseTypeSuffix(p: var TParser, typ: PNode): PNode =
         # array type:
         result = newNodeP(nkBracketExpr, p)
         addSon(result, newIdentNodeP("array", p))
-        #var r = newNodeP(nkRange, p)
-        #addSon(r, newIntNodeP(nkIntLit, 0, p))
-        #addSon(r, newBinary("-", index, newIntNodeP(nkIntLit, 1, p), p))
-        #addSon(result, r)
         addSon(result, index)
         addSon(result, tmp)
       else:
@@ -692,8 +602,7 @@ proc parseTypeSuffix(p: var TParser, typ: PNode): PNode =
       result = procType
     else: break
 
-proc typeDesc(p: var TParser): PNode = 
-  result = pointer(p, typeAtom(p))
+proc typeDesc(p: var TParser): PNode = pointer(p, typeAtom(p))
 
 proc abstractDeclarator(p: var TParser, a: PNode): PNode
 
@@ -703,13 +612,12 @@ proc directAbstractDeclarator(p: var TParser, a: PNode): PNode =
     if p.tok.xkind in {pxStar, pxAmp, pxAmpAmp}:
       result = abstractDeclarator(p, a)
       eat(p, pxParRi, result)
-  return parseTypeSuffix(p, a)
+  result = parseTypeSuffix(p, a)
 
 proc abstractDeclarator(p: var TParser, a: PNode): PNode =
-  return directAbstractDeclarator(p, pointer(p, a))
+  directAbstractDeclarator(p, pointer(p, a))
 
-proc typeName(p: var TParser): PNode =
-  return abstractDeclarator(p, typeAtom(p))
+proc typeName(p: var TParser): PNode = abstractDeclarator(p, typeAtom(p))
 
 proc parseField(p: var TParser, kind: TNodeKind): PNode =
   if p.tok.xkind == pxParLe: 
@@ -720,7 +628,7 @@ proc parseField(p: var TParser, kind: TNodeKind): PNode =
   else: 
     expectIdent(p)
     if kind == nkRecList: result = fieldIdent(p.tok.s, p) 
-    else: result = mangledIdent(p.tok.s, p)
+    else: result = mangledIdent(p.tok.s, p, skField)
     getTok(p, result)
 
 proc structPragmas(p: TParser, name: PNode, origName: string): PNode = 
@@ -842,7 +750,7 @@ proc declarator(p: var TParser, a: PNode, ident: ptr PNode): PNode
 proc directDeclarator(p: var TParser, a: PNode, ident: ptr PNode): PNode =
   case p.tok.xkind
   of pxSymbol:
-    ident[] = skipIdent(p)
+    ident[] = skipIdent(p, skParam)
   of pxParLe:
     getTok(p, a)
     if p.tok.xkind in {pxStar, pxAmp, pxAmpAmp, pxSymbol}:
@@ -853,7 +761,7 @@ proc directDeclarator(p: var TParser, a: PNode, ident: ptr PNode): PNode =
   return parseTypeSuffix(p, a)
 
 proc declarator(p: var TParser, a: PNode, ident: ptr PNode): PNode =
-  return directDeclarator(p, pointer(p, a), ident)
+  directDeclarator(p, pointer(p, a), ident)
 
 # parameter-declaration
 #   declaration-specifiers declarator
@@ -917,7 +825,7 @@ proc parseFunctionPointerDecl(p: var TParser, rettyp: PNode): PNode =
   if p.tok.xkind == pxStar: getTok(p, params)
   else: parMessage(p, errTokenExpected, "*")
   if p.inTypeDef > 0: markTypeIdent(p, nil)
-  var name = skipIdentExport(p)
+  var name = skipIdentExport(p, if p.inTypeDef > 0: skType else: skVar)
   eat(p, pxParRi, name)
   parseFormalParams(p, params, pragmas)
   addSon(procType, params)
@@ -951,7 +859,7 @@ proc otherTypeDef(p: var TParser, section, typ: PNode) =
   else:
     # typedef typ name;
     markTypeIdent(p, t)
-    name = skipIdentExport(p)
+    name = skipIdentExport(p, skType)
   t = parseTypeSuffix(p, t)
   addTypeDef(section, name, t, ast.emptyNode)
 
@@ -960,7 +868,7 @@ proc parseTrailingDefinedTypes(p: var TParser, section, typ: PNode) =
     getTok(p, nil)
     var newTyp = pointer(p, typ)
     markTypeIdent(p, newTyp)
-    var newName = skipIdentExport(p)
+    var newName = skipIdentExport(p, skType)
     newTyp = parseTypeSuffix(p, newTyp)
     addTypeDef(section, newName, newTyp, ast.emptyNode)
 
@@ -987,7 +895,7 @@ proc enumFields(p: var TParser, constList: PNode): PNode =
   var field: tuple[id: BiggestInt, isNumber: bool, node: PNode]
   var fields = newSeq[type(field)]()
   while true:
-    var e = skipIdent(p)
+    var e = skipIdent(p, skEnumField)
     if p.tok.xkind == pxAsgn: 
       getTok(p, e)
       var c = constantExpression(p)
@@ -1050,15 +958,15 @@ proc parseTypedefStruct(p: var TParser, result: PNode, stmtList: PNode, isUnion:
     var t = parseStruct(p, stmtList, isUnion)
     var origName = p.tok.s
     markTypeIdent(p, nil)
-    var name = skipIdent(p)
+    var name = skipIdent(p, skType)
     addTypeDef(result, structPragmas(p, name, origName), t, ast.emptyNode)
     parseTrailingDefinedTypes(p, result, name)
   elif p.tok.xkind == pxSymbol: 
     # name to be defined or type "struct a", we don't know yet:
     markTypeIdent(p, nil)
     var origName = p.tok.s
-    var nameOrType = skipIdent(p)
-    case p.tok.xkind 
+    var nameOrType = skipIdent(p, skVar)
+    case p.tok.xkind
     of pxCurlyLe:
       var t = parseStruct(p, stmtList, isUnion)
       if p.tok.xkind == pxSymbol: 
@@ -1066,7 +974,7 @@ proc parseTypedefStruct(p: var TParser, result: PNode, stmtList: PNode, isUnion:
         # --> abc is a better type name than tagABC!
         markTypeIdent(p, nil)
         var origName = p.tok.s
-        var name = skipIdent(p)
+        var name = skipIdent(p, skType)
         addTypeDef(result, structPragmas(p, name, origName), t, ast.emptyNode)
         parseTrailingDefinedTypes(p, result, name)
       else:
@@ -1074,7 +982,7 @@ proc parseTypedefStruct(p: var TParser, result: PNode, stmtList: PNode, isUnion:
                    ast.emptyNode)
     of pxSymbol: 
       # typedef struct a a?
-      if mangleName(p.tok.s, p) == nameOrType.ident.s:
+      if mangleName(p.tok.s, p, skType) == nameOrType.ident.s:
         # ignore the declaration:
         getTok(p, nil)
       else:
@@ -1093,7 +1001,7 @@ proc parseTypedefEnum(p: var TParser, result, constSection: PNode) =
     eat(p, pxCurlyRi, t)
     var origName = p.tok.s
     markTypeIdent(p, nil)
-    var name = skipIdent(p)
+    var name = skipIdent(p, skType)
     addTypeDef(result, enumPragmas(p, exportSym(p, name, origName)), t,
               ast.emptyNode)
     parseTrailingDefinedTypes(p, result, name)
@@ -1101,7 +1009,7 @@ proc parseTypedefEnum(p: var TParser, result, constSection: PNode) =
     # name to be defined or type "enum a", we don't know yet:
     markTypeIdent(p, nil)
     var origName = p.tok.s
-    var nameOrType = skipIdent(p)
+    var nameOrType = skipIdent(p, skType)
     case p.tok.xkind 
     of pxCurlyLe:
       getTok(p, result)
@@ -1112,7 +1020,7 @@ proc parseTypedefEnum(p: var TParser, result, constSection: PNode) =
         # --> abc is a better type name than tagABC!
         markTypeIdent(p, nil)
         var origName = p.tok.s
-        var name = skipIdent(p)
+        var name = skipIdent(p, skType)
         addTypeDef(result, enumPragmas(p, exportSym(p, name, origName)), t,
                    ast.emptyNode)
         parseTrailingDefinedTypes(p, result, name)
@@ -1122,7 +1030,7 @@ proc parseTypedefEnum(p: var TParser, result, constSection: PNode) =
                    ast.emptyNode)
     of pxSymbol: 
       # typedef enum a a?
-      if mangleName(p.tok.s, p) == nameOrType.ident.s:
+      if mangleName(p.tok.s, p, skType) == nameOrType.ident.s:
         # ignore the declaration:
         getTok(p, nil)
       else:
@@ -1171,11 +1079,11 @@ proc skipDeclarationSpecifiers(p: var TParser) =
       getTok(p, nil)
     else: break
 
-proc parseInitializer(p: var TParser): PNode = 
-  if p.tok.xkind == pxCurlyLe: 
+proc parseInitializer(p: var TParser): PNode =
+  if p.tok.xkind == pxCurlyLe:
     result = newNodeP(nkBracket, p)
     getTok(p, result)
-    while p.tok.xkind notin {pxEof, pxCurlyRi}: 
+    while p.tok.xkind notin {pxEof, pxCurlyRi}:
       addSon(result, parseInitializer(p))
       opt(p, pxComma, nil)
     eat(p, pxCurlyRi, result)
@@ -1245,7 +1153,7 @@ proc declaration(p: var TParser; genericParams: PNode = ast.emptyNode): PNode =
   case p.tok.xkind
   of pxParLe:
     # really a function!
-    var name = mangledIdent(origName, p)
+    var name = mangledIdent(origName, p, skProc)
     var params = newNodeP(nkFormalParams, p)
     addReturnType(params, rettyp)
     parseFormalParams(p, params, pragmas)
@@ -1287,7 +1195,7 @@ proc enumSpecifier(p: var TParser): PNode =
     var i = 0
     var hasUnknown = false
     while true:
-      var name = skipIdentExport(p)
+      var name = skipIdentExport(p, skEnumField)
       var val: PNode
       if p.tok.xkind == pxAsgn: 
         getTok(p, name)
@@ -1314,7 +1222,7 @@ proc enumSpecifier(p: var TParser): PNode =
   of pxSymbol: 
     var origName = p.tok.s
     markTypeIdent(p, nil)
-    result = skipIdent(p)
+    result = skipIdent(p, skType)
     case p.tok.xkind 
     of pxCurlyLe: 
       closeContext(p)
@@ -1353,8 +1261,7 @@ proc setBaseFlags(n: PNode, base: TNumericalBase) =
   of base8: incl(n.flags, nfBase8)
   of base16: incl(n.flags, nfBase16)
 
-proc startExpression(p : var TParser, tok : TToken) : PNode =
-  #echo "nud ", $tok
+proc startExpression(p: var TParser, tok: TToken): PNode =
   case tok.xkind:
   of pxSymbol:
     if tok.s == "NULL":
@@ -1386,8 +1293,8 @@ proc startExpression(p : var TParser, tok : TToken) : PNode =
       else:
         addSon(result, expression(p, 139))
     else:
-      result = mangledIdent(tok.s, p)
-      result = optScope(p, result)
+      result = mangledIdent(tok.s, p, skProc)
+      result = optScope(p, result, skProc)
       result = optAngle(p, result)
   of pxIntLit: 
     result = newIntNodeP(nkIntLit, tok.iNumber, p)
@@ -1457,7 +1364,7 @@ proc startExpression(p : var TParser, tok : TToken) : PNode =
     raise newException(ERetryParsing, "did not expect " & $tok)
 
 proc leftBindingPower(p: var TParser, tok: ref TToken): int =
-  case tok.xkind:
+  case tok.xkind
   of pxComma:
     return 10
     # throw == 20
@@ -1496,9 +1403,8 @@ proc leftBindingPower(p: var TParser, tok: ref TToken): int =
 
 proc buildStmtList(a: PNode): PNode
 
-proc leftExpression(p : var TParser, tok : TToken, left : PNode) : PNode =
-  #echo "led ", $tok
-  case tok.xkind:
+proc leftExpression(p: var TParser, tok: TToken, left: PNode): PNode =
+  case tok.xkind
   of pxComma: # 10
     # not supported as an expression, turns into a statement list
     result = buildStmtList(left)
@@ -1626,11 +1532,11 @@ proc leftExpression(p : var TParser, tok : TToken, left : PNode) : PNode =
   of pxDot: # 160
     result = newNodeP(nkDotExpr, p)
     addSon(result, left)
-    addSon(result, skipIdent(p))
+    addSon(result, skipIdent(p, skField))
   of pxArrow, pxArrowStar: # 160
     result = newNodeP(nkDotExpr, p)
     addSon(result, left)
-    addSon(result, skipIdent(p))
+    addSon(result, skipIdent(p, skField))
   of pxBracketLe: # 160
     result = newNodeP(nkBracketExpr, p)
     addSon(result, left, expression(p))
@@ -1822,8 +1728,8 @@ proc parseStandaloneStruct(p: var TParser, isUnion: bool;
     origName = p.tok.s
     getTok(p, result)
   if p.tok.xkind in {pxCurlyLe, pxSemiColon}:
-    if origName.len > 0: 
-      var name = mangledIdent(origName, p)
+    if origName.len > 0:
+      var name = mangledIdent(origName, p, skType)
       var t = parseStruct(p, result, isUnion)
       var typeSection = newNodeP(nkTypeSection, p)
       addTypeDef(typeSection, structPragmas(p, name, origName), t, genericParams)
@@ -1967,11 +1873,11 @@ proc parseConstructor(p: var TParser, pragmas: PNode,
 
   result = newNodeP(nkProcDef, p)
   var rettyp = if isDestructor: newNodeP(nkNilLit, p)
-               else: mangledIdent(origName, p)
+               else: mangledIdent(origName, p, skType)
 
   let oname = if isDestructor: "destroy" & origName
               else: "construct" & origName
-  var name = mangledIdent(oname, p)
+  var name = mangledIdent(oname, p, skProc)
   var params = newNodeP(nkFormalParams, p)
   addReturnType(params, rettyp)
   if isDestructor: params.add(createThis(p))
@@ -2110,7 +2016,7 @@ proc parseTemplate(p: var TParser): PNode =
       while true:
         if p.tok.xkind == pxSymbol and 
             (p.tok.s == "class" or p.tok.s == "typename"): getTok(p)
-        result.add skipIdent(p)
+        result.add skipIdent(p, skType)
         if p.tok.xkind != pxComma: break
         getTok(p)
       eat(p, pxAngleRi)
@@ -2247,7 +2153,7 @@ proc parseStandaloneClass(p: var TParser, isStruct: bool;
     markTypeIdent(p, nil)
     origName = p.tok.s
     getTok(p, result)
-    p.currentClass = mangledIdent(origName, p)
+    p.currentClass = mangledIdent(origName, p, skType)
   else:
     p.currentClass = nil
   if p.tok.xkind in {pxCurlyLe, pxSemiColon, pxColon}:
@@ -2257,7 +2163,7 @@ proc parseStandaloneClass(p: var TParser, isStruct: bool;
       var typeSection = newNodeP(nkTypeSection, p)
       addSon(result, typeSection)
       
-      var name = mangledIdent(origName, p)
+      var name = mangledIdent(origName, p, skType)
       var t = parseClass(p, isStruct, result)
       if t.isNil:
         result = newNodeP(nkDiscardStmt, p)
@@ -2306,7 +2212,7 @@ proc statement(p: var TParser): PNode =
       # to break a block, so we convert it to a break statement with label.
       result = newNodeP(nkBreakStmt, p)
       getTok(p)
-      addSon(result, skipIdent(p))
+      addSon(result, skipIdent(p, skLabel))
       eat(p, pxSemicolon)
     of "continue":
       result = newNodeP(nkContinueStmt, p)

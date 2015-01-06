@@ -9,7 +9,7 @@
 
 import
   strutils, os, times, parseopt, llstream, ast, renderer, options, msgs,
-  clex, cparse
+  clex, cparse, postprocessor
 
 const
   Version = "0.9.7" # keep in sync with Nimble version. D'oh!
@@ -33,6 +33,7 @@ Options:
                          (multiple --suffix options are supported)
   --skipinclude          do not convert ``#include`` to ``import``
   --typeprefixes         generate ``T`` and ``P`` type prefixes
+  --nep1                 follow 'NEP 1': Style Guide for Nim Code
   --skipcomments         do not copy comments
   --ignoreRValueRefs     translate C++'s ``T&&`` to ``T`` instead ``of var T``
   --keepBodies           keep C++'s method bodies
@@ -47,7 +48,7 @@ proc parse(infile: string, options: PParserOptions): PNode =
   if stream == nil: rawMessage(errCannotOpenFile, infile)
   var p: TParser
   openParser(p, infile, stream, options)
-  result = parseUnit(p)
+  result = parseUnit(p).postprocess
   closeParser(p)
 
 proc isC2nimFile(s: string): bool = splitFile(s).ext.toLower == "c2nim"

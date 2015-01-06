@@ -1,7 +1,7 @@
 #
 #
-#      c2nim - C to Nimrod source converter
-#        (c) Copyright 2012 Andreas Rumpf
+#      c2nim - C to Nim source converter
+#        (c) Copyright 2015 Andreas Rumpf
 #
 #    See the file "copying.txt", included in this
 #    distribution, for details about the copyright.
@@ -41,7 +41,7 @@ proc parseDefine(p: var TParser): PNode =
     # a macro with parameters:
     result = newNodeP(nkTemplateDef, p)
     getTok(p)
-    addSon(result, skipIdentExport(p))
+    addSon(result, skipIdentExport(p, skTemplate))
     addSon(result, ast.emptyNode)
     eat(p, pxParLe)
     var params = newNodeP(nkFormalParams, p)
@@ -50,7 +50,7 @@ proc parseDefine(p: var TParser): PNode =
     if p.tok.xkind != pxParRi:
       var identDefs = newNodeP(nkIdentDefs, p)
       while p.tok.xkind != pxParRi: 
-        addSon(identDefs, skipIdent(p))
+        addSon(identDefs, skipIdent(p, skParam))
         skipStarCom(p, nil)
         if p.tok.xkind != pxComma: break
         getTok(p)
@@ -72,7 +72,7 @@ proc parseDefine(p: var TParser): PNode =
     while p.tok.xkind == pxDirective and p.tok.s == "define":
       getTok(p) # skip #define
       var c = newNodeP(nkConstDef, p)
-      addSon(c, skipIdentExport(p))
+      addSon(c, skipIdentExport(p, skConst))
       addSon(c, ast.emptyNode)
       skipStarCom(p, c)
       if p.tok.xkind in {pxLineComment, pxNewLine, pxEof}:
@@ -154,7 +154,7 @@ proc parseInclude(p: var TParser): PNode =
 proc definedExprAux(p: var TParser): PNode = 
   result = newNodeP(nkCall, p)
   addSon(result, newIdentNodeP("defined", p))
-  addSon(result, skipIdent(p))
+  addSon(result, skipIdent(p, skDontMangle))
 
 proc parseStmtList(p: var TParser): PNode = 
   result = newNodeP(nkStmtList, p)

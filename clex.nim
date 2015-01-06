@@ -1,7 +1,7 @@
 #
 #
-#      c2nim - C to Nimrod source converter
-#        (c) Copyright 2012 Andreas Rumpf
+#      c2nim - C to Nim source converter
+#        (c) Copyright 2015 Andreas Rumpf
 #
 #    See the file "copying.txt", included in this
 #    distribution, for details about the copyright.
@@ -156,37 +156,37 @@ proc tokKindToStr*(k: TTokKind): string =
   of pxDirConc: result = "##"
   of pxNewLine: result = "[NewLine]"
   of pxAmp: result = "&"                   # &
-  of pxAmpAmp: result = "&&"                # && 
-  of pxAmpAsgn: result = "&="                # &=
-  of pxAmpAmpAsgn: result = "&&="            # &&=
+  of pxAmpAmp: result = "&&"               # && 
+  of pxAmpAsgn: result = "&="              # &=
+  of pxAmpAmpAsgn: result = "&&="          # &&=
   of pxBar: result = "|"                   # |
-  of pxBarBar: result = "||"                # ||
-  of pxBarAsgn: result = "|="               # |=
-  of pxBarBarAsgn: result = "||="            # ||=
+  of pxBarBar: result = "||"               # ||
+  of pxBarAsgn: result = "|="              # |=
+  of pxBarBarAsgn: result = "||="          # ||=
   of pxNot: result = "!"                   # !
   of pxPlusPlus: result = "++"             # ++
-  of pxMinusMinus: result = "--"            # --
+  of pxMinusMinus: result = "--"           # --
   of pxPlus: result = "+"                  # +
-  of pxPlusAsgn: result = "+="              # +=
+  of pxPlusAsgn: result = "+="             # +=
   of pxMinus: result = "-"                 # -
-  of pxMinusAsgn: result = "-="             # -=
+  of pxMinusAsgn: result = "-="            # -=
   of pxMod: result = "%"                   # %
-  of pxModAsgn: result = "%="               # %=
+  of pxModAsgn: result = "%="              # %=
   of pxSlash: result = "/"                 # /
-  of pxSlashAsgn: result = "/="             # /=
+  of pxSlashAsgn: result = "/="            # /=
   of pxStar: result = "*"                  # *
-  of pxStarAsgn: result = "*="              # *=
+  of pxStarAsgn: result = "*="             # *=
   of pxHat: result = "^"                   # ^
-  of pxHatAsgn: result = "^="               # ^=
+  of pxHatAsgn: result = "^="              # ^=
   of pxAsgn: result = "="                  # =
-  of pxEquals: result = "=="                # ==
+  of pxEquals: result = "=="               # ==
   of pxDot: result = "."                   # .
-  of pxDotDotDot: result = "..."             # ...
-  of pxLe: result = "<="                    # <=
+  of pxDotDotDot: result = "..."           # ...
+  of pxLe: result = "<="                   # <=
   of pxLt: result = "<"                    # <
-  of pxGe: result = ">="                    # >=
+  of pxGe: result = ">="                   # >=
   of pxGt: result = ">"                    # >
-  of pxNeq: result = "!="                   # != 
+  of pxNeq: result = "!="                  # != 
   of pxConditional: result = "?"
   of pxShl: result = "<<"
   of pxShlAsgn: result = "<<="
@@ -484,29 +484,29 @@ proc getSymbol(L: var TLexer, tok: var TToken) =
   L.bufpos = pos
   tok.xkind = pxSymbol
 
-proc scanLineComment(L: var TLexer, tok: var TToken) = 
+proc scanLineComment(L: var TLexer, tok: var TToken) =
   var pos = L.bufpos
-  var buf = L.buf 
+  var buf = L.buf
   # a comment ends if the next line does not start with the // on the same
   # column after only whitespace
   tok.xkind = pxLineComment
   var col = getColNumber(L, pos)
-  while true: 
+  while true:
     inc(pos, 2)               # skip //
     add(tok.s, '#')
-    while not (buf[pos] in {CR, LF, nimlexbase.EndOfFile}): 
+    while buf[pos] notin {CR, LF, nimlexbase.EndOfFile}:
       add(tok.s, buf[pos])
       inc(pos)
     pos = handleCRLF(L, pos)
     buf = L.buf
     var indent = 0
-    while buf[pos] == ' ': 
+    while buf[pos] == ' ':
       inc(pos)
       inc(indent)
-    if (col == indent) and (buf[pos] == '/') and (buf[pos + 1] == '/'): 
+    if col == indent and buf[pos] == '/' and buf[pos+1] == '/':
       add(tok.s, "\n")
-    else: 
-      break 
+    else:
+      break
   L.bufpos = pos
 
 proc scanStarComment(L: var TLexer, tok: var TToken) = 
