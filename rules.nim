@@ -17,7 +17,7 @@ proc `=~`(s: string, a: openArray[string]): bool =
 
 proc nep1(s: string, k: TSymKind): string =
   let allUpper = allCharsInSet(s, {'A'..'Z', '0'..'9', '_'})
-  if allUpper and k in {skConst, skEnumField}: return s
+  if allUpper and k in {skConst, skEnumField, skVar}: return s
   var L = s.len
   while L > 0 and s[L-1] == '_': dec L
   result = newStringOfCap(L)

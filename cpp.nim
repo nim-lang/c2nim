@@ -140,7 +140,8 @@ proc parseInclude(p: var TParser): PNode =
   while isDir(p, "include"):
     getTok(p) # skip "include"
     if p.tok.xkind == pxStrLit and pfSkipInclude notin p.options.flags:
-      var file = newStrNodeP(nkStrLit, changeFileExt(p.tok.s, ""), p)
+      let file = mangledIdent(changeFileExt(p.tok.s, ""), p, skVar)
+      #newStrNodeP(nkStrLit, changeFileExt(p.tok.s, ""), p)
       addSon(result, file)
       getTok(p)
       skipStarCom(p, file)
