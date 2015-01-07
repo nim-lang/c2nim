@@ -58,6 +58,7 @@ type
     scopeCounter: int
     hasDeadCodeElimPragma: bool
     currentClass: PNode   # type that needs to be added as 'this' parameter
+    currentClassOrig: string # original class name
     inAngleBracket: int
   
   TReplaceTuple* = array[0..1, string]
@@ -2096,7 +2097,7 @@ proc parseClass(p: var TParser; isStruct: bool; stmtList: PNode): PNode =
         getTok(p, stmtList)
         isStatic = true
       parseCallConv(p, pragmas)
-      if p.tok.xkind == pxSymbol and p.tok.s == p.currentClass.ident.s and 
+      if p.tok.xkind == pxSymbol and p.tok.s == p.currentClassOrig and 
           followedByParLe(p):
         # constructor
         let cons = parseConstructor(p, pragmas, isDestructor=false, tmpl)
@@ -2104,7 +2105,7 @@ proc parseClass(p: var TParser; isStruct: bool; stmtList: PNode): PNode =
       elif p.tok.xkind == pxTilde:
         # destructor
         getTok(p, stmtList)
-        if p.tok.xkind == pxSymbol and p.tok.s == p.currentClass.ident.s:
+        if p.tok.xkind == pxSymbol and p.tok.s == p.currentClassOrig:
           let des = parseConstructor(p, pragmas, isDestructor=true, tmpl)
           if not private or pfKeepBodies in p.options.flags: stmtList.add(des)
         else:
@@ -2154,29 +2155,30 @@ proc parseStandaloneClass(p: var TParser, isStruct: bool;
   result = newNodeP(nkStmtList, p)
   saveContext(p)
   getTok(p, result) # skip "class" or "struct"
-  var origName = ""
   let oldClass = p.currentClass
+  var oldClassOrig = p.currentClassOrig
+  p.currentClassOrig = ""
   if p.tok.xkind == pxSymbol: 
     markTypeIdent(p, nil)
-    origName = p.tok.s
+    p.currentClassOrig = p.tok.s
     getTok(p, result)
-    p.currentClass = mangledIdent(origName, p, skType)
+    p.currentClass = mangledIdent(p.currentClassOrig, p, skType)
   else:
     p.currentClass = nil
   if p.tok.xkind in {pxCurlyLe, pxSemiColon, pxColon}:
-    if origName.len > 0:
-      p.options.classes[origName] = "true"
+    if p.currentClass != nil:
+      p.options.classes[p.currentClassOrig] = "true"
 
       var typeSection = newNodeP(nkTypeSection, p)
       addSon(result, typeSection)
       
-      var name = mangledIdent(origName, p, skType)
+      var name = p.currentClass #mangledIdent(p.currentClassOrig, p, skType)
       var t = parseClass(p, isStruct, result)
       if t.isNil:
         result = newNodeP(nkDiscardStmt, p)
-        result.add(newStrNodeP(nkStrLit, "forward decl of " & origName, p))
+        result.add(newStrNodeP(nkStrLit, "forward decl of " & p.currentClassOrig, p))
         return result
-      addTypeDef(typeSection, structPragmas(p, name, origName), t,
+      addTypeDef(typeSection, structPragmas(p, name, p.currentClassOrig), t,
                  genericParams)
       parseTrailingDefinedIdents(p, result, name)
     else:
@@ -2186,6 +2188,7 @@ proc parseStandaloneClass(p: var TParser, isStruct: bool;
     backtrackContext(p)
     result = declaration(p)
   p.currentClass = oldClass
+  p.currentClassOrig = oldClassOrig
 
 proc unwrap(a: PNode): PNode =
   if a.kind == nkPar:
