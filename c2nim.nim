@@ -24,6 +24,7 @@ Options:
   --cpp                  process C++ input file
   --dynlib:SYMBOL        import from dynlib: SYMBOL will be used for the import
   --header:HEADER_FILE   import from a HEADER_FILE (discouraged!)
+  --header               import from the given header file
   --cdecl                annotate procs with ``{.cdecl.}``
   --stdcall              annotate procs with ``{.stdcall.}``
   --ref                  convert typ* to ref typ (default: ptr typ)

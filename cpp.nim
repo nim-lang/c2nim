@@ -325,9 +325,12 @@ proc parseDir(p: var TParser): PNode =
   of "dynlib", "header", "prefix", "suffix", "class": 
     var key = p.tok.s
     getTok(p)
-    if p.tok.xkind != pxStrLit: expectIdent(p)
-    discard setOption(p.options, key, p.tok.s)
-    getTok(p)
+    if p.tok.xkind == pxNewLine and key == "header":
+      discard setOption(p.options, key)
+    else:
+      if p.tok.xkind != pxStrLit: expectIdent(p)
+      discard setOption(p.options, key, p.tok.s)
+      getTok(p)
     eatNewLine(p, nil)
     result = modulePragmas(p)
   of "mangle":

@@ -91,12 +91,15 @@ proc mangledIdent(ident: string, p: TParser; kind: TSymKind): PNode =
   result = newNodeP(nkIdent, p)
   result.ident = getIdent(mangleName(ident, p, kind))
 
+template getHeader(p): expr =
+  (if p.options.headerOverride.len > 0: p.options.headerOverride else: p.header)
+
 proc addImportToPragma(pragmas: PNode, ident: string, p: TParser) =
   addSon(pragmas, newIdentStrLitPair("importc", ident, p))
   if p.options.dynlibSym.len > 0:
     addSon(pragmas, newIdentPair("dynlib", p.options.dynlibSym, p))
   else:
-    addSon(pragmas, newIdentStrLitPair("header", p.options.header, p))
+    addSon(pragmas, newIdentStrLitPair("header", p.getHeader, p))
 
 proc exportSym(p: TParser, i: PNode, origName: string): PNode = 
   assert i.kind == nkIdent
@@ -109,7 +112,7 @@ proc exportSym(p: TParser, i: PNode, origName: string): PNode =
 proc varIdent(ident: string, p: TParser): PNode =
   result = exportSym(p, mangledIdent(ident, p, skVar), ident)
   if p.scopeCounter > 0: return
-  if p.options.dynlibSym.len > 0 or p.options.header.len > 0:
+  if p.options.dynlibSym.len > 0 or p.options.useHeader:
     var a = result
     result = newNodeP(nkPragmaExpr, p)
     var pragmas = newNodeP(nkPragma, p)
@@ -120,7 +123,7 @@ proc varIdent(ident: string, p: TParser): PNode =
 proc fieldIdent(ident: string, p: TParser): PNode = 
   result = exportSym(p, mangledIdent(ident, p, skField), ident)
   if p.scopeCounter > 0: return
-  if p.options.header.len > 0: 
+  if p.options.useHeader:
     var a = result
     result = newNodeP(nkPragmaExpr, p)
     var pragmas = newNodeP(nkPragma, p)
@@ -129,13 +132,13 @@ proc fieldIdent(ident: string, p: TParser): PNode =
     addSon(pragmas, newIdentStrLitPair("importc", ident, p))
 
 proc doImport(ident: string, pragmas: PNode, p: TParser) = 
-  if p.options.dynlibSym.len > 0 or p.options.header.len > 0: 
-    addImportToPragma(pragmas, ident, p)
+  if p.options.dynlibSym.len > 0 or p.options.useHeader:
+    addImportToPragma(pragmas, p.currentNamespace & ident, p)
 
-proc doImportCpp(ident: string, pragmas: PNode, p: TParser) = 
-  if p.options.dynlibSym.len > 0 or p.options.header.len > 0:
+proc doImportCpp(ident: string, pragmas: PNode, p: TParser) =
+  if p.options.dynlibSym.len > 0 or p.options.useHeader:
     addSon(pragmas, newIdentStrLitPair("importcpp", ident, p))
     if p.options.dynlibSym.len > 0:
       addSon(pragmas, newIdentPair("dynlib", p.options.dynlibSym, p))
     else:
-      addSon(pragmas, newIdentStrLitPair("header", p.options.header, p))
+      addSon(pragmas, newIdentStrLitPair("header", p.getHeader, p))

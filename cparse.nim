@@ -42,16 +42,17 @@ type
     prefixes, suffixes: seq[string]
     mangleRules: seq[tuple[pattern: Peg, frmt: string]]
     privateRules: seq[Peg]
-    dynlibSym, header: string
+    dynlibSym, headerOverride: string
     macros: seq[TMacro]
     toMangle: StringTableRef
     classes: StringTableRef
-    debugMode, followNep1: bool
+    debugMode, followNep1, useHeader: bool
   PParserOptions* = ref TParserOptions
   
   TParser* = object
     lex: TLexer
     tok: ref TToken       # current token
+    header: string
     options: PParserOptions
     backtrack: seq[ref TToken]
     inTypeDef: int
@@ -59,6 +60,7 @@ type
     hasDeadCodeElimPragma: bool
     currentClass: PNode   # type that needs to be added as 'this' parameter
     currentClassOrig: string # original class name
+    currentNamespace: string
     inAngleBracket: int
   
   TReplaceTuple* = array[0..1, string]
@@ -80,7 +82,7 @@ proc newParserOptions*(): PParserOptions =
   result.privateRules = @[]
   result.flags = {}
   result.dynlibSym = ""
-  result.header = ""
+  result.headerOverride = ""
   result.toMangle = newStringTable(modeCaseSensitive)
   result.classes = newStringTable(modeCaseSensitive)
   # eventually Nim will default to this properly:
@@ -91,7 +93,9 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   case key.normalize
   of "ref": incl(parserOptions.flags, pfRefs)
   of "dynlib": parserOptions.dynlibSym = val
-  of "header": parserOptions.header = val
+  of "header":
+    parserOptions.useHeader = true
+    if val.len > 0: parserOptions.headerOverride = val
   of "cdecl": incl(parserOptions.flags, pfCdecl)
   of "stdcall": incl(parserOptions.flags, pfStdCall)
   of "prefix": parserOptions.prefixes.add(val)
@@ -108,24 +112,21 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   else: result = false
 
 proc parseUnit*(p: var TParser): PNode
-proc openParser*(p: var TParser, filename: string, inputStream: PLLStream,
-                 options = newParserOptions())
-proc closeParser*(p: var TParser)
 
-# implementation
-
-proc openParser(p: var TParser, filename: string, 
+proc openParser*(p: var TParser, filename: string, 
                 inputStream: PLLStream, options = newParserOptions()) = 
   openLexer(p.lex, filename, inputStream)
   p.options = options
+  p.header = filename.extractFilename
   p.lex.debugMode = options.debugMode
   p.backtrack = @[]
+  p.currentNamespace = ""
   new(p.tok)
 
 proc parMessage(p: TParser, msg: TMsgKind, arg = "") =
   lexMessage(p.lex, msg, arg)
 
-proc closeParser(p: var TParser) = closeLexer(p.lex)
+proc closeParser*(p: var TParser) = closeLexer(p.lex)
 proc saveContext(p: var TParser) = p.backtrack.add(p.tok)
 proc closeContext(p: var TParser) = discard p.backtrack.pop()
 proc backtrackContext(p: var TParser) = p.tok = p.backtrack.pop()
@@ -643,9 +644,10 @@ proc structPragmas(p: TParser, name: PNode, origName: string): PNode =
   addSon(result, exportSym(p, name, origName))
   var pragmas = newNodeP(nkPragma, p)
   #addSon(pragmas, newIdentNodeP("pure", p), newIdentNodeP("final", p))
-  if p.options.header.len > 0:
-    addSon(pragmas, newIdentStrLitPair("importc", origName, p),
-                    newIdentStrLitPair("header", p.options.header, p))
+  if p.options.useHeader:
+    addSon(pragmas,
+      newIdentStrLitPair("importc", p.currentNamespace & origName, p),
+      newIdentStrLitPair("header", p.getHeader, p))
   if pragmas.len > 0: addSon(result, pragmas)
   else: addSon(result, ast.emptyNode)
 
@@ -2257,8 +2259,15 @@ proc statement(p: var TParser): PNode =
         result = declarationOrStatement(p)
     of "namespace":
       if pfCpp in p.options.flags:
-        while p.tok.xkind notin {pxEof, pxCurlyLe}: getTok(p)
+        getTok(p)
+        expectIdent(p)
+        var oldNamespace = p.currentNamespace
+        p.currentNamespace &= p.tok.s & "::"
+        getTok(p)
+        if p.tok.xkind != pxCurlyLe:
+          parMessage(p, errTokenExpected, tokKindToStr(pxCurlyLe))
         result = compoundStatement(p, newScope=false)
+        p.currentNamespace = oldNamespace
       else:
         result = declarationOrStatement(p)
     of "template":
