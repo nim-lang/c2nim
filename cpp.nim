@@ -263,7 +263,7 @@ proc parseIfndef(p: var TParser): PNode =
   else:
     result = newNodeP(nkWhenStmt, p)
     addSon(result, newNodeP(nkElifBranch, p))
-    var e = newNodeP(nkCall, p)
+    var e = newNodeP(nkPrefix, p)
     addSon(e, newIdentNodeP("not", p))
     addSon(e, definedExprAux(p))
     eatNewLine(p, nil)

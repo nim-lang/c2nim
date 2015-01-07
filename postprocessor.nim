@@ -13,11 +13,14 @@
 import ast, renderer
 
 proc pp(n: var PNode) =
-  if n.kind == nkIdent:
+  case n.kind
+  of nkIdent:
     if renderer.isKeyword(n.ident):
       let m = newNodeI(nkAccQuoted, n.info)
       m.add n
       n = m
+  of nkInfix, nkPrefix, nkPostfix:
+    for i in 1.. < n.safeLen: pp(n.sons[i])
   else:
     for i in 0.. < n.safeLen: pp(n.sons[i])
 

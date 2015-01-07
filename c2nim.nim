@@ -51,7 +51,7 @@ proc parse(infile: string, options: PParserOptions): PNode =
   result = parseUnit(p).postprocess
   closeParser(p)
 
-proc isC2nimFile(s: string): bool = splitFile(s).ext.toLower == "c2nim"
+proc isC2nimFile(s: string): bool = splitFile(s).ext.toLower == ".c2nim"
 
 proc main(infiles: seq[string], outfile: string,
           options: PParserOptions, concat: bool) =

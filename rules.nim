@@ -36,11 +36,12 @@ proc nep1(s: string, k: TSymKind): string =
       result.add toUpper(s[i])
   of skConst, skEnumField:
     # for 'const' we keep how it's spelt; either upper case or lower case:
-    result.add s[0]
+    result.add s[i]
   else:
     # as a special rule, don't transform 'L' to 'l'
     if L == 1 and s[L-1] == 'L': result.add 'L'
-    else: result.add toLower(s[i])
+    else: 
+      result.add toLower(s[i])
   inc i
   while i < L:
     if s[i] == '_':

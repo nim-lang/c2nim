@@ -58,6 +58,7 @@ type
     scopeCounter: int
     hasDeadCodeElimPragma: bool
     currentClass: PNode   # type that needs to be added as 'this' parameter
+    inAngleBracket: int
   
   TReplaceTuple* = array[0..1, string]
 
@@ -81,6 +82,8 @@ proc newParserOptions*(): PParserOptions =
   result.header = ""
   result.toMangle = newStringTable(modeCaseSensitive)
   result.classes = newStringTable(modeCaseSensitive)
+  # eventually Nim will default to this properly:
+  idents.firstCharIsCS = true
 
 proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool = 
   result = true
@@ -374,7 +377,7 @@ proc markTypeIdent(p: var TParser, typ: PNode) =
 proc expression(p: var TParser, rbp: int = 0): PNode
 proc constantExpression(p: var TParser): PNode = expression(p, 40)
 proc assignmentExpression(p: var TParser): PNode = expression(p, 30)
-proc compoundStatement(p: var TParser): PNode
+proc compoundStatement(p: var TParser; newScope=true): PNode
 proc statement(p: var TParser): PNode
 
 proc declKeyword(p: TParser, s: string): bool = 
@@ -453,11 +456,13 @@ proc optAngle(p: var TParser, n: PNode): PNode =
     getTok(p)
     result = newNodeP(nkBracketExpr, p)
     result.add(n)
+    inc p.inAngleBracket
     while true:
       let a = assignmentExpression(p)
       if not a.isNil: result.add(a)
       if p.tok.xkind != pxComma: break
       getTok(p)
+    dec p.inAngleBracket
     eat(p, pxAngleRi)
   else:
     result = n
@@ -1293,8 +1298,9 @@ proc startExpression(p: var TParser, tok: TToken): PNode =
       else:
         addSon(result, expression(p, 139))
     else:
-      result = mangledIdent(tok.s, p, skProc)
-      result = optScope(p, result, skProc)
+      let kind = if p.inAngleBracket > 0: skType else: skProc
+      result = mangledIdent(tok.s, p, kind)
+      result = optScope(p, result, kind)
       result = optAngle(p, result)
   of pxIntLit: 
     result = newIntNodeP(nkIntLit, tok.iNumber, p)
@@ -1839,11 +1845,11 @@ proc embedStmts(sl, a: PNode) =
     for i in 0..sonsLen(a)-1: 
       if a[i].kind != nkEmpty: addStmt(sl, a[i])
 
-proc compoundStatement(p: var TParser): PNode = 
+proc compoundStatement(p: var TParser; newScope=true): PNode = 
   result = newNodeP(nkStmtList, p)
   eat(p, pxCurlyLe)
-  inc(p.scopeCounter)
-  while p.tok.xkind notin {pxEof, pxCurlyRi}: 
+  if newScope: inc(p.scopeCounter)
+  while p.tok.xkind notin {pxEof, pxCurlyRi}:
     var a = statement(p)
     if a.kind == nkEmpty: break
     embedStmts(result, a)
@@ -1851,7 +1857,7 @@ proc compoundStatement(p: var TParser): PNode =
     # translate ``{}`` to Nim's ``discard`` statement
     result = newNodeP(nkDiscardStmt, p)
     result.add(ast.emptyNode)
-  dec(p.scopeCounter)
+  if newScope: dec(p.scopeCounter)
   eat(p, pxCurlyRi)
 
 proc skipInheritKeyw(p: var TParser) =
@@ -1939,7 +1945,7 @@ proc parseMethod(p: var TParser, origName: string, rettyp, pragmas: PNode,
   elif pfStdcall in p.options.flags:
     addSon(pragmas, newIdentNodeP("stdcall", p))
   # no pattern, no exceptions:
-  let methodName = newIdentNodeP(origName, p)
+  let methodName = mangledIdent(origName, p, skProc)
   addSon(result, exportSym(p, methodName, origName),
          ast.emptyNode, genericParams)
   addSon(result, params, pragmas, ast.emptyNode) # no exceptions
@@ -1962,6 +1968,7 @@ proc parseMethod(p: var TParser, origName: string, rettyp, pragmas: PNode,
     else: doImportCpp(origName, pragmas, p)
   if sonsLen(result.sons[pragmasPos]) == 0:
     result.sons[pragmasPos] = ast.emptyNode
+
 
 proc parseStandaloneClass(p: var TParser, isStruct: bool;
                           genericParams: PNode): PNode
@@ -2248,7 +2255,7 @@ proc statement(p: var TParser): PNode =
     of "namespace":
       if pfCpp in p.options.flags:
         while p.tok.xkind notin {pxEof, pxCurlyLe}: getTok(p)
-        result = compoundStatement(p)
+        result = compoundStatement(p, newScope=false)
       else:
         result = declarationOrStatement(p)
     of "template":

@@ -9,7 +9,7 @@
 # Licence:      wxWindows licence
 #///////////////////////////////////////////////////////////////////////////
 
-when not(defined(_WX_MATRIXH__)): 
+when not defined(_WX_MATRIXH__): 
   const 
     _WX_MATRIXH__* = true
   #! headerfiles="matrix.h wx/object.h"
