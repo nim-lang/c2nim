@@ -1133,16 +1133,55 @@ proc parseVarDecl(p: var TParser, baseTyp, typ: PNode,
     addSon(result, def)
   eat(p, pxSemicolon)
 
+proc parseOperator(p: var TParser, origName: var string): bool =
+  getTok(p) # skip 'operator' keyword
+  case p.tok.xkind
+  of pxAmp..pxArrowStar:
+    # ordinary operator symbol:
+    origName.add(tokKindToStr(p.tok.xkind))
+    getTok(p)
+  of pxSymbol:
+    if p.tok.s == "new" or p.tok.s == "delete":
+      origName.add(p.tok.s)
+      getTok(p)
+      if p.tok.xkind == pxBracketLe:
+        getTok(p)
+        eat(p, pxBracketRi)
+        origName.add("[]")
+    else:
+      # type converter
+      let x = typeAtom(p)
+      if x.kind == nkIdent:
+        origName.add(x.ident.s)
+      else:
+        parMessage(p, errGenerated, "operator symbol expected")
+      result = true
+  of pxParLe:
+    getTok(p)
+    eat(p, pxParRi)
+    origName.add("()")
+  of pxBracketLe:
+    getTok(p)
+    eat(p, pxBracketRi)
+    origName.add("[]")
+  else:
+    parMessage(p, errGenerated, "operator symbol expected")
+
 proc declarationName(p: var TParser): string =
   expectIdent(p)
   result = p.tok.s
-  getTok(p) # skip identifier
-  while p.tok.xkind == pxScope and pfCpp in p.options.flags:
-    getTok(p) # skip "::"
-    expectIdent(p)
-    result.add("::")
-    result.add(p.tok.s)
-    getTok(p)
+  if pfCpp in p.options.flags and p.tok.s == "operator":
+    result = ""
+    # top level 'operator' cannot be a converter for now:
+    discard parseOperator(p, result)
+  else:
+    getTok(p) # skip identifier
+    while p.tok.xkind == pxScope and pfCpp in p.options.flags:
+      getTok(p) # skip "::"
+      expectIdent(p)
+      result.add("::")
+      result.add(p.tok.s)
+      getTok(p)
 
 proc declaration(p: var TParser; genericParams: PNode = ast.emptyNode): PNode = 
   result = newNodeP(nkProcDef, p)
@@ -1993,40 +2032,6 @@ proc followedByParLe(p: var TParser): bool =
   result = p.tok.xkind == pxParLe
   backtrackContext(p)
 
-proc parseOperator(p: var TParser, origName: var string): bool =
-  getTok(p) # skip 'operator' keyword
-  case p.tok.xkind
-  of pxAmp..pxArrowStar:
-    # ordinary operator symbol:
-    origName.add(tokKindToStr(p.tok.xkind))
-    getTok(p)
-  of pxSymbol:
-    if p.tok.s == "new" or p.tok.s == "delete":
-      origName.add(p.tok.s)
-      getTok(p)
-      if p.tok.xkind == pxBracketLe:
-        getTok(p)
-        eat(p, pxBracketRi)
-        origName.add("[]")
-    else:
-      # type converter
-      let x = typeAtom(p)
-      if x.kind == nkIdent:
-        origName.add(x.ident.s)
-      else:
-        parMessage(p, errGenerated, "operator symbol expected")
-      result = true
-  of pxParLe:
-    getTok(p)
-    eat(p, pxParRi)
-    origName.add("()")
-  of pxBracketLe:
-    getTok(p)
-    eat(p, pxBracketRi)
-    origName.add("[]")
-  else:
-    parMessage(p, errGenerated, "operator symbol expected")
-
 proc parseTemplate(p: var TParser): PNode =
   result = ast.emptyNode
   if p.tok.xkind == pxSymbol and p.tok.s == "template":
@@ -2034,12 +2039,13 @@ proc parseTemplate(p: var TParser): PNode =
     if p.tok.xkind == pxLt and isTemplateAngleBracket(p):
       result = newNodeP(nkGenericParams, p)
       getTok(p)
-      while true:
-        if p.tok.xkind == pxSymbol and 
-            (p.tok.s == "class" or p.tok.s == "typename"): getTok(p)
-        result.add skipIdent(p, skType)
-        if p.tok.xkind != pxComma: break
-        getTok(p)
+      if p.tok.xkind != pxAngleRi:
+        while true:
+          if p.tok.xkind == pxSymbol and 
+              (p.tok.s == "class" or p.tok.s == "typename"): getTok(p)
+          result.add skipIdent(p, skType)
+          if p.tok.xkind != pxComma: break
+          getTok(p)
       eat(p, pxAngleRi)
 
 proc parseClass(p: var TParser; isStruct: bool; stmtList: PNode): PNode =
