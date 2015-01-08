@@ -319,7 +319,8 @@ proc parseDir(p: var TParser): PNode =
   of "ifdef": result = parseIfdef(p)
   of "ifndef": result = parseIfndef(p)
   of "if": result = parseIfDir(p)
-  of "cdecl", "stdcall", "ref", "skipinclude", "typeprefixes", "skipcomments": 
+  of "cdecl", "stdcall", "ref", "skipinclude", "typeprefixes", "skipcomments",
+     "keepbodies", "cpp", "nep1":
     discard setOption(p.options, p.tok.s)
     getTok(p)
     eatNewLine(p, nil)

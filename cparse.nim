@@ -390,7 +390,7 @@ proc declKeyword(p: TParser, s: string): bool =
       "__safecall", "void", "struct", "union", "enum", "typedef", "size_t",
       "short", "int", "long", "float", "double", "signed", "unsigned", "char": 
     result = true
-  of "class":
+  of "class", "mutable":
     result = p.options.flags.contains(pfCpp)
   else: discard
 
@@ -403,6 +403,8 @@ proc stmtKeyword(s: string): bool =
 
 # ------------------- type desc -----------------------------------------------
 
+proc typeDesc(p: var TParser): PNode
+
 proc isIntType(s: string): bool =
   case s
   of "short", "int", "long", "float", "double", "signed", "unsigned", "size_t":
@@ -411,7 +413,8 @@ proc isIntType(s: string): bool =
 
 proc skipConst(p: var TParser) = 
   while p.tok.xkind == pxSymbol and
-      (p.tok.s == "const" or p.tok.s == "volatile" or p.tok.s == "restrict"): 
+      (p.tok.s == "const" or p.tok.s == "volatile" or p.tok.s == "restrict" or
+       (p.tok.s == "mutable" and pfCpp in p.options.flags)):
     getTok(p, nil)
 
 proc isTemplateAngleBracket(p: var TParser): bool =
@@ -460,7 +463,8 @@ proc optAngle(p: var TParser, n: PNode): PNode =
     result.add(n)
     inc p.inAngleBracket
     while true:
-      let a = assignmentExpression(p)
+      let a = if p.tok.xkind == pxSymbol: typeDesc(p)
+              else: assignmentExpression(p)
       if not a.isNil: result.add(a)
       if p.tok.xkind != pxComma: break
       getTok(p)
@@ -1085,6 +1089,9 @@ proc skipDeclarationSpecifiers(p: var TParser) =
     case p.tok.s
     of "extern", "static", "auto", "register", "const", "volatile": 
       getTok(p, nil)
+    of "mutable":
+      if pfCpp in p.options.flags: getTok(p, nil)
+      else: break
     else: break
 
 proc parseInitializer(p: var TParser): PNode =
@@ -1179,10 +1186,14 @@ proc declaration(p: var TParser; genericParams: PNode = ast.emptyNode): PNode =
     case p.tok.xkind 
     of pxSemicolon: 
       getTok(p)
-      addSon(result, ast.emptyNode) # nobody
+      addSon(result, ast.emptyNode) # no body
       if p.scopeCounter == 0: doImport(origName, pragmas, p)
     of pxCurlyLe:
-      addSon(result, compoundStatement(p))
+      if {pfCpp, pfKeepBodies} * p.options.flags == {pfCpp}:
+        discard compoundStatement(p)
+        addSon(result, ast.emptyNode) # no body
+      else:
+        addSon(result, compoundStatement(p))
     else:
       parMessage(p, errTokenExpected, ";")
     if sonsLen(result.sons[pragmasPos]) == 0: 
@@ -2044,7 +2055,7 @@ proc parseClass(p: var TParser; isStruct: bool; stmtList: PNode): PNode =
     var inh = newNodeP(nkOfInherit, p)
     inh.add(baseTyp)
     if p.tok.xkind == pxComma:
-      parMessage(p, errGenerated, "multiple inheritance is not supported")
+      parMessage(p, warnUser, "multiple inheritance is not supported")
       while p.tok.xkind == pxComma:
         getTok(p)
         skipInheritKeyw(p)
@@ -2114,6 +2125,7 @@ proc parseClass(p: var TParser; isStruct: bool; stmtList: PNode): PNode =
           parMessage(p, errGenerated, "invalid destructor")
       else:
         # field declaration or method:
+        #echo "tok ", p.tok.s, " ", p.tok.xkind
         var baseTyp = typeAtom(p)
         while true:
           var def = newNodeP(nkIdentDefs, p)
@@ -2141,7 +2153,11 @@ proc parseClass(p: var TParser; isStruct: bool; stmtList: PNode): PNode =
           else:
             if hasPointlessPar: eat(p, pxParRi)
             t = parseTypeSuffix(p, t)
-            addSon(def, i, t, ast.emptyNode)
+            var value = ast.emptyNode
+            if p.tok.xkind == pxAsgn:
+              getTok(p, def)
+              value = assignmentExpression(p)
+            addSon(def, i, t, value)
             if not isStatic: addSon(recList, def)
           if p.tok.xkind != pxComma: break
           getTok(p, def)

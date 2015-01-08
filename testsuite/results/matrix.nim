@@ -14,7 +14,7 @@ when not defined(_WX_MATRIXH__):
     _WX_MATRIXH__* = true
   #! headerfiles="matrix.h wx/object.h"
   import 
-    "wx/object", "wx/math"
+    wx/object, wx/math
 
   #! codefiles="matrix.cpp"
   # A simple 3x3 matrix. This may be replaced by a more general matrix
@@ -83,8 +83,9 @@ when not defined(_WX_MATRIXH__):
       header: "wxmatrix.h".}
   proc Identity*(this: var wxTransformMatrix): bool {.importcpp: "Identity", 
       header: "wxmatrix.h".}
-  proc IsIdentity*(this: wxTransformMatrix): bool {.inline, noSideEffect, 
-      importcpp: "IsIdentity", header: "wxmatrix.h".}
+  proc IsIdentity*(this: wxTransformMatrix): bool {.inline, noSideEffect.} = 
+    return m_isIdentity
+
   proc IsIdentity1*(this: wxTransformMatrix): bool {.inline, noSideEffect, 
       importcpp: "IsIdentity1", header: "wxmatrix.h".}
   proc Scale*(this: var wxTransformMatrix; scale: cdouble): bool {.
@@ -93,7 +94,7 @@ when not defined(_WX_MATRIXH__):
               xc: var cdouble; yc: var cdouble): var wxTransformMatrix {.
       importcpp: "Scale", header: "wxmatrix.h".}
   proc Mirror*(this: var wxTransformMatrix; x: bool = true; y: bool = false): var wxTransformMatrix[
-      float] {.importcpp: "Mirror", header: "wxmatrix.h".}
+      cfloat] {.importcpp: "Mirror", header: "wxmatrix.h".}
   proc Translate*(this: var wxTransformMatrix; x: cdouble; y: cdouble): bool {.
       importcpp: "Translate", header: "wxmatrix.h".}
   proc Rotate*(this: var wxTransformMatrix; angle: cdouble): bool {.

@@ -26,6 +26,7 @@
 
 #def WXDLLIMPEXP_CORE
 #header "wxmatrix.h"
+#keepbodies
 
 //:definition
 //  A 3x3 matrix to do 2D transformations.
