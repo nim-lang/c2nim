@@ -456,6 +456,18 @@ proc isTemplateAngleBracket(p: var TParser): bool =
     getTok(p, nil)
   backtrackContext(p)
 
+proc optScope(p: var TParser, n: PNode; kind: TSymKind): PNode =
+  result = n
+  if pfCpp in p.options.flags:
+    while p.tok.xkind == pxScope:
+      let a = result
+      result = newNodeP(nkDotExpr, p)
+      result.add(a)
+      getTok(p, result)
+      expectIdent(p)
+      result.add(mangledIdent(p.tok.s, p, kind))
+      getTok(p, result)
+
 proc optAngle(p: var TParser, n: PNode): PNode =
   if p.tok.xkind == pxLt and isTemplateAngleBracket(p):
     getTok(p)
@@ -470,20 +482,9 @@ proc optAngle(p: var TParser, n: PNode): PNode =
       getTok(p)
     dec p.inAngleBracket
     eat(p, pxAngleRi)
+    result = optScope(p, result, skType)
   else:
     result = n
-
-proc optScope(p: var TParser, n: PNode; kind: TSymKind): PNode =
-  result = n
-  if pfCpp in p.options.flags:
-    while p.tok.xkind == pxScope:
-      let a = result
-      result = newNodeP(nkDotExpr, p)
-      result.add(a)
-      getTok(p, result)
-      expectIdent(p)
-      result.add(mangledIdent(p.tok.s, p, kind))
-      getTok(p, result)
 
 proc typeAtom(p: var TParser): PNode = 
   skipConst(p)
@@ -2172,6 +2173,7 @@ proc parseClass(p: var TParser; isStruct: bool; stmtList: PNode): PNode =
             getTok(p, lastSon(recList))
           else:
             getTok(p, recList)
+    opt(p, pxSemicolon, nil)
   eat(p, pxCurlyRi, result)
 
 proc parseStandaloneClass(p: var TParser, isStruct: bool;
