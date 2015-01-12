@@ -21,6 +21,7 @@ proc pp(n: var PNode) =
       n = m
   of nkInfix, nkPrefix, nkPostfix:
     for i in 1.. < n.safeLen: pp(n.sons[i])
+  of nkAccQuoted: discard
   else:
     for i in 0.. < n.safeLen: pp(n.sons[i])
 

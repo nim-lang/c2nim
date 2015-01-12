@@ -46,39 +46,41 @@ when not defined(_WX_MATRIXH__):
       noSideEffect, importcpp: "GetValue", header: "wxmatrix.h".}
   proc SetValue*(this: var wxTransformMatrix; col: cint; row: cint; 
                  value: cdouble) {.importcpp: "SetValue", header: "wxmatrix.h".}
-  proc operator=*(this: var wxTransformMatrix; mat: var wxTransformMatrix) {.
-      importcpp: "operator=", header: "wxmatrix.h".}
-  proc operator==*(this: wxTransformMatrix; mat: var wxTransformMatrix): bool {.
-      noSideEffect, importcpp: "operator==", header: "wxmatrix.h".}
-  proc operator!=*(this: wxTransformMatrix; 
-                   mat: var module.gah.wxTransformMatrix): bool {.noSideEffect, 
-      importcpp: "operator!=", header: "wxmatrix.h".}
-  proc operator*=*(this: var wxTransformMatrix; t: var cdouble): var wxTransformMatrix {.
-      importcpp: "operator*=", header: "wxmatrix.h".}
-  proc operator/=*(this: var wxTransformMatrix; t: var cdouble): var wxTransformMatrix {.
-      importcpp: "operator/=", header: "wxmatrix.h".}
-  proc operator+=*(this: var wxTransformMatrix; m: var wxTransformMatrix): var wxTransformMatrix {.
-      importcpp: "operator+=", header: "wxmatrix.h".}
-  proc operator-=*(this: var wxTransformMatrix; m: var wxTransformMatrix): var wxTransformMatrix {.
-      importcpp: "operator-=", header: "wxmatrix.h".}
-  proc operator*=*(this: var wxTransformMatrix; m: var wxTransformMatrix): var wxTransformMatrix {.
-      importcpp: "operator*=", header: "wxmatrix.h".}
-  proc operator**(this: wxTransformMatrix; t: var cdouble): wxTransformMatrix {.
-      noSideEffect, importcpp: "operator*", header: "wxmatrix.h".}
-  proc operator/*(this: wxTransformMatrix; t: var cdouble): wxTransformMatrix {.
-      noSideEffect, importcpp: "operator/", header: "wxmatrix.h".}
-  proc operator+*(this: wxTransformMatrix; m: var wxTransformMatrix): wxTransformMatrix {.
-      noSideEffect, importcpp: "operator+", header: "wxmatrix.h".}
-  proc operator-*(this: wxTransformMatrix; m: var wxTransformMatrix): wxTransformMatrix {.
-      noSideEffect, importcpp: "operator-", header: "wxmatrix.h".}
-  proc operator**(this: wxTransformMatrix; m: var wxTransformMatrix): wxTransformMatrix {.
-      noSideEffect, importcpp: "operator*", header: "wxmatrix.h".}
-  proc operator-*(this: wxTransformMatrix): wxTransformMatrix {.noSideEffect, 
-      importcpp: "operator-", header: "wxmatrix.h".}
-  proc operator()*(this: var wxTransformMatrix; col: cint; row: cint): var cdouble {.
-      importcpp: "operator()", header: "wxmatrix.h".}
-  proc operator()*(this: wxTransformMatrix; col: cint; row: cint): cdouble {.
-      noSideEffect, importcpp: "operator()", header: "wxmatrix.h".}
+  proc `==`*(this: wxTransformMatrix; mat: var wxTransformMatrix): bool {.
+      noSideEffect, importc: "wxTransformMatrix::operator==", 
+      header: "wxmatrix.h".}
+  proc `*=`*(this: var wxTransformMatrix; t: var cdouble): var wxTransformMatrix {.
+      importc: "wxTransformMatrix::operator*=", header: "wxmatrix.h".}
+  proc `/=`*(this: var wxTransformMatrix; t: var cdouble): var wxTransformMatrix {.
+      importc: "wxTransformMatrix::operator/=", header: "wxmatrix.h".}
+  proc `+=`*(this: var wxTransformMatrix; m: var wxTransformMatrix): var wxTransformMatrix {.
+      importc: "wxTransformMatrix::operator+=", header: "wxmatrix.h".}
+  proc `-=`*(this: var wxTransformMatrix; m: var wxTransformMatrix): var wxTransformMatrix {.
+      importc: "wxTransformMatrix::operator-=", header: "wxmatrix.h".}
+  proc `*=`*(this: var wxTransformMatrix; m: var wxTransformMatrix): var wxTransformMatrix {.
+      importc: "wxTransformMatrix::operator*=", header: "wxmatrix.h".}
+  proc `*`*(this: wxTransformMatrix; t: var cdouble): wxTransformMatrix {.
+      noSideEffect, importc: "wxTransformMatrix::operator*", 
+      header: "wxmatrix.h".}
+  proc `/`*(this: wxTransformMatrix; t: var cdouble): wxTransformMatrix {.
+      noSideEffect, importc: "wxTransformMatrix::operator/", 
+      header: "wxmatrix.h".}
+  proc `+`*(this: wxTransformMatrix; m: var wxTransformMatrix): wxTransformMatrix {.
+      noSideEffect, importc: "wxTransformMatrix::operator+", 
+      header: "wxmatrix.h".}
+  proc `-`*(this: wxTransformMatrix; m: var wxTransformMatrix): wxTransformMatrix {.
+      noSideEffect, importc: "wxTransformMatrix::operator-", 
+      header: "wxmatrix.h".}
+  proc `*`*(this: wxTransformMatrix; m: var wxTransformMatrix): wxTransformMatrix {.
+      noSideEffect, importc: "wxTransformMatrix::operator*", 
+      header: "wxmatrix.h".}
+  proc `-`*(this: wxTransformMatrix): wxTransformMatrix {.noSideEffect, 
+      importc: "wxTransformMatrix::operator-", header: "wxmatrix.h".}
+  proc `()`*(this: var wxTransformMatrix; col: cint; row: cint): var cdouble {.
+      importc: "wxTransformMatrix::operator()", header: "wxmatrix.h".}
+  proc `()`*(this: wxTransformMatrix; col: cint; row: cint): cdouble {.
+      noSideEffect, importc: "wxTransformMatrix::operator()", 
+      header: "wxmatrix.h".}
   proc Invert*(this: var wxTransformMatrix): bool {.importcpp: "Invert", 
       header: "wxmatrix.h".}
   proc Identity*(this: var wxTransformMatrix): bool {.importcpp: "Identity", 

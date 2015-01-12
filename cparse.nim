@@ -13,7 +13,6 @@
 
 # TODO
 # - implement handling of '::': function declarations
-# - C++'s "operator" still needs some love
 # - support '#if' in classes
 
 import
@@ -1976,7 +1975,8 @@ proc parseConstructor(p: var TParser, pragmas: PNode,
     result.sons[pragmasPos] = ast.emptyNode
 
 proc parseMethod(p: var TParser, origName: string, rettyp, pragmas: PNode,
-                 isStatic, hasPointlessPar: bool; genericParams: PNode): PNode =
+                 isStatic, isOperator, hasPointlessPar: bool; 
+                 genericParams: PNode): PNode =
   result = newNodeP(nkProcDef, p)
   var params = newNodeP(nkFormalParams, p)
   addReturnType(params, rettyp)
@@ -1999,7 +1999,11 @@ proc parseMethod(p: var TParser, origName: string, rettyp, pragmas: PNode,
   elif pfStdcall in p.options.flags:
     addSon(pragmas, newIdentNodeP("stdcall", p))
   # no pattern, no exceptions:
-  let methodName = mangledIdent(origName, p, skProc)
+  var methodName = mangledIdent(origName, p, skProc)
+  if isOperator:
+    let x = methodName
+    methodName = newNodeP(nkAccQuoted, p)
+    methodName.add x
   addSon(result, exportSym(p, methodName, origName),
          ast.emptyNode, genericParams)
   addSon(result, params, pragmas, ast.emptyNode) # no exceptions
@@ -2018,8 +2022,12 @@ proc parseMethod(p: var TParser, origName: string, rettyp, pragmas: PNode,
   else:
     parMessage(p, errTokenExpected, ";")
   if result.sons[bodyPos].kind == nkEmpty:
-    if isStatic: doImport(origName, pragmas, p)
-    else: doImportCpp(origName, pragmas, p)
+    if isOperator: 
+      doImport(p.currentClassOrig & "::operator" & origName, pragmas, p)
+    elif isStatic:
+      doImport(p.currentClassOrig & "::" & origName, pragmas, p)
+    else:
+      doImportCpp(origName, pragmas, p)
   if sonsLen(result.sons[pragmasPos]) == 0:
     result.sons[pragmasPos] = ast.emptyNode
 
@@ -2141,19 +2149,22 @@ proc parseClass(p: var TParser; isStruct: bool; stmtList: PNode): PNode =
           if hasPointlessPar: getTok(p)
           var origName: string
           if p.tok.xkind == pxSymbol:
-            origName = p.tok.s
             if p.tok.s == "operator":
+              origName = ""
               var isConverter = parseOperator(p, origName)
-              let meth = parseMethod(p, origName, t, pragmas, isStatic,
+              let meth = parseMethod(p, origName, t, pragmas, isStatic, true,
                                      false, tmpl)
               if not private or pfKeepBodies in p.options.flags:
                 if isConverter: meth.kind = nkConverterDef
-                stmtList.add(meth)
+                # don't add trivial operators that Nim ends up using anyway:
+                if origName notin ["=", "!=", ">", ">="]:
+                  stmtList.add(meth)
               break
+            origName = p.tok.s
 
           var i = parseField(p, nkRecList)
           if not origName.isNil and p.tok.xkind == pxParLe:
-            let meth = parseMethod(p, origName, t, pragmas, isStatic,
+            let meth = parseMethod(p, origName, t, pragmas, isStatic, false,
                                    hasPointlessPar, tmpl)
             if not private or pfKeepBodies in p.options.flags:
               stmtList.add(meth)

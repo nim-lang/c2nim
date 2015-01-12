@@ -102,7 +102,7 @@ proc addImportToPragma(pragmas: PNode, ident: string, p: TParser) =
     addSon(pragmas, newIdentStrLitPair("header", p.getHeader, p))
 
 proc exportSym(p: TParser, i: PNode, origName: string): PNode = 
-  assert i.kind == nkIdent
+  assert i.kind in {nkIdent, nkAccQuoted}
   if p.scopeCounter == 0 and not isPrivate(origName, p):
     result = newNodeI(nkPostfix, i.info)
     addSon(result, newIdentNode(getIdent("*"), i.info), i)
