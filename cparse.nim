@@ -46,6 +46,7 @@ type
     toMangle: StringTableRef
     classes: StringTableRef
     debugMode, followNep1, useHeader: bool
+    constructor, destructor: string
   PParserOptions* = ref TParserOptions
   
   TParser* = object
@@ -61,7 +62,9 @@ type
     currentClassOrig: string # original class name
     currentNamespace: string
     inAngleBracket: int
-  
+    lastConstType: PNode # another hack to be able to translate 'const Foo& foo'
+                         # to 'foo: Foo' and not 'foo: var Foo'.
+
   TReplaceTuple* = array[0..1, string]
 
   ERetryParsing = object of Exception
@@ -86,6 +89,8 @@ proc newParserOptions*(): PParserOptions =
   result.classes = newStringTable(modeCaseSensitive)
   # eventually Nim will default to this properly:
   idents.firstCharIsCS = true
+  result.constructor = "construct"
+  result.destructor = "destroy"
 
 proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool = 
   result = true
@@ -108,6 +113,8 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "class": parserOptions.classes[val] = "true"
   of "debug": parserOptions.debugMode = true
   of "nep1": parserOptions.followNep1 = true
+  of "constructor": parserOptions.constructor = val
+  of "destructor": parserOptions.destructor = val
   else: result = false
 
 proc parseUnit*(p: var TParser): PNode
@@ -410,10 +417,11 @@ proc isIntType(s: string): bool =
     result = true
   else: discard
 
-proc skipConst(p: var TParser) = 
+proc skipConst(p: var TParser): bool {.discardable.} =
   while p.tok.xkind == pxSymbol and
       (p.tok.s == "const" or p.tok.s == "volatile" or p.tok.s == "restrict" or
        (p.tok.s == "mutable" and pfCpp in p.options.flags)):
+    if p.tok.s == "const": result = true
     getTok(p, nil)
 
 proc isTemplateAngleBracket(p: var TParser): bool =
@@ -485,8 +493,8 @@ proc optAngle(p: var TParser, n: PNode): PNode =
   else:
     result = n
 
-proc typeAtom(p: var TParser): PNode = 
-  skipConst(p)
+proc typeAtom(p: var TParser): PNode =
+  let isConst = skipConst(p)
   expectIdent(p)
   case p.tok.s
   of "void": 
@@ -518,6 +526,7 @@ proc typeAtom(p: var TParser): PNode =
     getTok(p, result)
     result = optScope(p, result, skType)
     result = optAngle(p, result)
+  if isConst: p.lastConstType = result
     
 proc newPointerTy(p: TParser, typ: PNode): PNode =
   if pfRefs in p.options.flags: 
@@ -529,7 +538,7 @@ proc newPointerTy(p: TParser, typ: PNode): PNode =
 proc pointer(p: var TParser, a: PNode): PNode = 
   result = a
   var i = 0
-  skipConst(p)
+  let isConstA = skipConst(p)
   while true:
     if p.tok.xkind == pxStar:
       inc(i)
@@ -538,10 +547,13 @@ proc pointer(p: var TParser, a: PNode): PNode =
       result = newPointerTy(p, result)
     elif p.tok.xkind == pxAmp and pfCpp in p.options.flags:
       getTok(p, result)
-      skipConst(p)
-      let b = result
-      result = newNodeP(nkVarTy, p)
-      result.add(b)
+      let isConstB = skipConst(p)
+      if isConstA or isConstB or p.lastConstType == result:
+        discard "transform 'const Foo&' to just 'Foo'"
+      else:
+        let b = result
+        result = newNodeP(nkVarTy, p)
+        result.add(b)
     elif p.tok.xkind == pxAmpAmp and pfCpp in p.options.flags:
       getTok(p, result)
       skipConst(p)
@@ -550,7 +562,7 @@ proc pointer(p: var TParser, a: PNode): PNode =
         result = newNodeP(nkVarTy, p)
         result.add(b)
     else: break
-  if a.kind == nkIdent and a.ident.s == "char": 
+  if a.kind == nkIdent and a.ident.s == "char":
     if i >= 2: 
       result = newIdentNodeP("cstringArray", p)
       for j in 1..i-2: result = newPointerTy(p, result)
@@ -1934,8 +1946,8 @@ proc parseConstructor(p: var TParser, pragmas: PNode,
   var rettyp = if isDestructor: newNodeP(nkNilLit, p)
                else: mangledIdent(origName, p, skType)
 
-  let oname = if isDestructor: "destroy" & origName
-              else: "construct" & origName
+  let oname = if isDestructor: p.options.destructor & origName
+              else: p.options.constructor & origName
   var name = mangledIdent(oname, p, skProc)
   var params = newNodeP(nkFormalParams, p)
   addReturnType(params, rettyp)
