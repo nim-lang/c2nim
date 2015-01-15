@@ -54,7 +54,7 @@ proc parse(infile: string, options: PParserOptions): PNode =
 
 proc isC2nimFile(s: string): bool = splitFile(s).ext.toLower == ".c2nim"
 
-proc main(infiles: seq[string], outfile: string,
+proc main(infiles: seq[string], outfile: var string,
           options: PParserOptions, concat: bool) =
   var start = getTime()
   if concat:
@@ -62,15 +62,18 @@ proc main(infiles: seq[string], outfile: string,
     for infile in infiles:
       let m = parse(infile.addFileExt("h"), options)
       if not isC2nimFile(infile):
+        if outfile.len == 0: outfile = changeFileExt(infile, "nim")
         for n in m: tree.add(n)
     renderModule(tree, outfile)
-  elif infiles.len == 1:
-    renderModule(parse(infiles[0], options), outfile)
   else:
     for infile in infiles:
       let m = parse(infile, options)
       if not isC2nimFile(infile):
-        renderModule(m, changeFileExt(infile, "nim"))
+        if outfile.len > 0:
+          renderModule(m, outfile)
+          outfile = ""
+        else:
+          renderModule(m, changeFileExt(infile, "nim"))
   rawMessage(hintSuccessX, [$gLinesCompiled, $(getTime() - start), 
                             formatSize(getTotalMem())])
 
@@ -81,7 +84,8 @@ var
   parserOptions = newParserOptions()
 for kind, key, val in getopt():
   case kind
-  of cmdArgument: infiles.add key
+  of cmdArgument:
+    infiles.add key
   of cmdLongOption, cmdShortOption:
     case key.normalize
     of "help", "h":
@@ -103,9 +107,4 @@ if infiles.len == 0:
   # no filename has been given, so we show the help:
   stdout.write(Usage)
 else:
-  if outfile.len == 0:
-    if infiles.len == 1:
-      outfile = changeFileExt(infiles[0], "nim")
-  elif infiles.len > 1 and not concat:
-    quit "--out doesn't work with a list of input files unless you use --concat"
   main(infiles, outfile, parserOptions, concat)
