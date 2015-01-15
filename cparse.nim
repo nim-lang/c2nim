@@ -1238,7 +1238,11 @@ proc declaration(p: var TParser; genericParams: PNode = ast.emptyNode): PNode =
     of pxSemicolon: 
       getTok(p)
       addSon(result, ast.emptyNode) # no body
-      if p.scopeCounter == 0: doImport(origName, pragmas, p)
+      if p.scopeCounter == 0: 
+        if pfCpp in p.options.flags:
+          doImportCpp(p.currentNamespace & origName & "(@)", pragmas, p)
+        else:
+          doImport(origName, pragmas, p)
     of pxCurlyLe:
       if {pfCpp, pfKeepBodies} * p.options.flags == {pfCpp}:
         discard compoundStatement(p)
@@ -1980,7 +1984,10 @@ proc parseConstructor(p: var TParser, pragmas: PNode,
   else:
     parMessage(p, errTokenExpected, ";")
   if result.sons[bodyPos].kind == nkEmpty:
-    doImport((if isDestructor: "~" else: "") & origName, pragmas, p)
+    if isDestructor:
+      doImportCpp("#.~" & origName & "()", pragmas, p)
+    else:
+      doImportCpp(p.currentNamespace & origName & "(@)", pragmas, p)
   elif isDestructor:
     addSon(pragmas, newIdentNodeP("destructor", p))
   if sonsLen(result.sons[pragmasPos]) == 0:
@@ -2034,10 +2041,32 @@ proc parseMethod(p: var TParser, origName: string, rettyp, pragmas: PNode,
   else:
     parMessage(p, errTokenExpected, ";")
   if result.sons[bodyPos].kind == nkEmpty:
-    if isOperator: 
-      doImport(p.currentClassOrig & "::operator" & origName, pragmas, p)
+    if isOperator:
+      case origName
+      of "+=", "-=", "*=", "/=", "<<=", ">>=", "|=", "&=", 
+          "||=", "~=", "%=", "^=":
+        # we remove the pointless return type used for chaining:
+        params.sons[0] = ast.emptyNode
+        doImportCpp("# " & origName & " #", pragmas, p)
+      of "==", "<=", "<", ">=", ">", "&", "&&", "|", "||", "%", "/", "^",
+         "!=", "<<", ">>", "->", "->*":
+        doImportCpp("# " & origName & " #", pragmas, p)
+      of "+", "-", "*":
+        # binary operator? check against 3 because return type always has a slot
+        if params.len >= 3:
+          doImportCpp("# " & origName & " #", pragmas, p)
+        else:
+          doImportCpp(origName & " #", pragmas, p)
+      of "++", "--", "!", "~":
+        doImportCpp(origName & " #", pragmas, p)
+      of "()": doImportCpp("#(@)", pragmas, p)
+      of "[]": doImportCpp("#[@]", pragmas, p)
+      else:
+        # XXX the above list is exhaustive really
+        doImportCpp(p.currentClassOrig & "::operator" & origName, pragmas, p)
     elif isStatic:
-      doImport(p.currentClassOrig & "::" & origName, pragmas, p)
+      doImportCpp(p.currentNamespace & p.currentClassOrig & "::" & 
+                  origName & "(@)", pragmas, p)
     else:
       doImportCpp(origName, pragmas, p)
   if sonsLen(result.sons[pragmasPos]) == 0:
