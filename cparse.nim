@@ -1935,27 +1935,35 @@ proc skipInheritKeyw(p: var TParser) =
                                   p.tok.s == "public"):
     getTok(p)
 
-proc createThis(p: var TParser): PNode =
+proc applyGenericParams(t, gp: PNode): PNode =
+  if gp.kind == nkEmpty:
+    result = t
+  else:
+    result = newNodeI(nkBracketExpr, t.info)
+    result.add t
+    for x in gp: result.add x
+
+proc createThis(p: var TParser; genericParams: PNode): PNode =
   result = newNodeP(nkIdentDefs, p)
   var t = newNodeP(nkVarTy, p)
-  t.add(p.currentClass)
+  t.add(p.currentClass.applyGenericParams(genericParams))
   addSon(result, newIdentNodeP("this", p), t, ast.emptyNode)
 
-proc parseConstructor(p: var TParser, pragmas: PNode,
-                      isDestructor: bool; genericParams: PNode): PNode =
+proc parseConstructor(p: var TParser, pragmas: PNode, isDestructor: bool; 
+                      genericParams, genericParamsThis: PNode): PNode =
   var origName = p.tok.s
   getTok(p)
 
   result = newNodeP(nkProcDef, p)
   var rettyp = if isDestructor: newNodeP(nkNilLit, p)
-               else: mangledIdent(origName, p, skType)
+               else: mangledIdent(origName, p, skType).applyGenericParams(genericParamsThis)
 
   let oname = if isDestructor: p.options.destructor & origName
               else: p.options.constructor & origName
   var name = mangledIdent(oname, p, skProc)
   var params = newNodeP(nkFormalParams, p)
   addReturnType(params, rettyp)
-  if isDestructor: params.add(createThis(p))
+  if isDestructor: params.add(createThis(p, genericParamsThis))
 
   if p.tok.xkind == pxParLe:
     parseFormalParams(p, params, pragmas)
@@ -1972,7 +1980,7 @@ proc parseConstructor(p: var TParser, pragmas: PNode,
       discard expression(p)
       if p.tok.xkind != pxComma: break
   # no pattern, no exceptions:
-  addSon(result, exportSym(p, name, origName), genericParams, ast.emptyNode)
+  addSon(result, exportSym(p, name, origName), ast.emptyNode, genericParams)
   addSon(result, params, pragmas, ast.emptyNode) # no exceptions
   addSon(result, ast.emptyNode) # no body
   case p.tok.xkind
@@ -1995,14 +2003,14 @@ proc parseConstructor(p: var TParser, pragmas: PNode,
 
 proc parseMethod(p: var TParser, origName: string, rettyp, pragmas: PNode,
                  isStatic, isOperator, hasPointlessPar: bool; 
-                 genericParams: PNode): PNode =
+                 genericParams, genericParamsThis: PNode): PNode =
   result = newNodeP(nkProcDef, p)
   var params = newNodeP(nkFormalParams, p)
   addReturnType(params, rettyp)
   var thisDef: PNode
   if not isStatic:
     # declare 'this':
-    thisDef = createThis(p)
+    thisDef = createThis(p, genericParamsThis)
     params.add(thisDef)
 
   parseFormalParams(p, params, pragmas)
@@ -2098,7 +2106,8 @@ proc parseTemplate(p: var TParser): PNode =
           getTok(p)
       eat(p, pxAngleRi)
 
-proc parseClass(p: var TParser; isStruct: bool; stmtList: PNode): PNode =
+proc parseClass(p: var TParser; isStruct: bool;
+                stmtList, genericParams: PNode): PNode =
   result = newNodeP(nkObjectTy, p)
   addSon(result, ast.emptyNode, ast.emptyNode) # no pragmas, no inheritance 
   
@@ -2138,6 +2147,15 @@ proc parseClass(p: var TParser; isStruct: bool; stmtList: PNode): PNode =
       eat(p, pxColon, result)
       private = false
     let tmpl = parseTemplate(p)
+    var gp: PNode
+    if tmpl.kind != nkEmpty:
+      if genericParams.kind != nkEmpty:
+        gp = genericParams.copyTree
+        for x in tmpl: gp.add x
+      else:
+        gp = tmpl
+    else:
+      gp = genericParams
     if p.tok.xkind == pxSymbol and (p.tok.s == "friend" or p.tok.s == "using"):
       # we skip friend declarations:
       while p.tok.xkind notin {pxEof, pxSemicolon}: getTok(p)
@@ -2149,10 +2167,10 @@ proc parseClass(p: var TParser; isStruct: bool; stmtList: PNode): PNode =
       let x = parseTypeDef(p)
       if not private or pfKeepBodies in p.options.flags: stmtList.add(x)
     elif p.tok.xkind == pxSymbol and(p.tok.s == "struct" or p.tok.s == "class"):
-      let x = parseStandaloneClass(p, isStruct=p.tok.s == "struct", tmpl)
+      let x = parseStandaloneClass(p, isStruct=p.tok.s == "struct", gp)
       if not private or pfKeepBodies in p.options.flags: stmtList.add(x)
     elif p.tok.xkind == pxSymbol and p.tok.s == "union":
-      let x = parseStandaloneStruct(p, isUnion=true, tmpl)
+      let x = parseStandaloneStruct(p, isUnion=true, gp)
       if not private or pfKeepBodies in p.options.flags: stmtList.add(x)
     else:
       if pragmas.len != 0: pragmas = newNodeP(nkPragma, p)
@@ -2169,13 +2187,15 @@ proc parseClass(p: var TParser; isStruct: bool; stmtList: PNode): PNode =
       if p.tok.xkind == pxSymbol and p.tok.s == p.currentClassOrig and 
           followedByParLe(p):
         # constructor
-        let cons = parseConstructor(p, pragmas, isDestructor=false, tmpl)
+        let cons = parseConstructor(p, pragmas, isDestructor=false,
+                                    gp, genericParams)
         if not private or pfKeepBodies in p.options.flags: stmtList.add(cons)
       elif p.tok.xkind == pxTilde:
         # destructor
         getTok(p, stmtList)
         if p.tok.xkind == pxSymbol and p.tok.s == p.currentClassOrig:
-          let des = parseConstructor(p, pragmas, isDestructor=true, tmpl)
+          let des = parseConstructor(p, pragmas, isDestructor=true,
+                                     gp, genericParams)
           if not private or pfKeepBodies in p.options.flags: stmtList.add(des)
         else:
           parMessage(p, errGenerated, "invalid destructor")
@@ -2194,7 +2214,7 @@ proc parseClass(p: var TParser; isStruct: bool; stmtList: PNode): PNode =
               origName = ""
               var isConverter = parseOperator(p, origName)
               let meth = parseMethod(p, origName, t, pragmas, isStatic, true,
-                                     false, tmpl)
+                                     false, gp, genericParams)
               if not private or pfKeepBodies in p.options.flags:
                 if isConverter: meth.kind = nkConverterDef
                 # don't add trivial operators that Nim ends up using anyway:
@@ -2206,7 +2226,7 @@ proc parseClass(p: var TParser; isStruct: bool; stmtList: PNode): PNode =
           var i = parseField(p, nkRecList)
           if not origName.isNil and p.tok.xkind == pxParLe:
             let meth = parseMethod(p, origName, t, pragmas, isStatic, false,
-                                   hasPointlessPar, tmpl)
+                                   hasPointlessPar, gp, genericParams)
             if not private or pfKeepBodies in p.options.flags:
               stmtList.add(meth)
           else:
@@ -2251,7 +2271,7 @@ proc parseStandaloneClass(p: var TParser, isStruct: bool;
       addSon(result, typeSection)
       
       var name = p.currentClass #mangledIdent(p.currentClassOrig, p, skType)
-      var t = parseClass(p, isStruct, result)
+      var t = parseClass(p, isStruct, result, genericParams)
       if t.isNil:
         result = newNodeP(nkDiscardStmt, p)
         result.add(newStrNodeP(nkStrLit, "forward decl of " & p.currentClassOrig, p))
