@@ -10,7 +10,7 @@
 ## Postprocessor. For now only fixes identifiers that ended up producing a
 ## Nim keyword. It rewrites that to the backticks notation.
 
-import ast, renderer
+import compiler/ast, compiler/renderer
 
 proc pp(n: var PNode) =
   case n.kind

@@ -13,7 +13,8 @@
 
 
 import 
-  options, msgs, strutils, platform, nimlexbase, llstream
+  compiler/options, compiler/msgs, strutils, compiler/platform,
+  compiler/nimlexbase, compiler/llstream
 
 const 
   MaxLineLength* = 80         # lines longer than this lead to a warning
