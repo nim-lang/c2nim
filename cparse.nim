@@ -662,8 +662,9 @@ proc structPragmas(p: TParser, name: PNode, origName: string): PNode =
   var pragmas = newNodeP(nkPragma, p)
   #addSon(pragmas, newIdentNodeP("pure", p), newIdentNodeP("final", p))
   if p.options.useHeader:
+    let importStr = if pfCpp in p.options.flags: "importcpp" else: "importc" 
     addSon(pragmas,
-      newIdentStrLitPair("importc", p.currentNamespace & origName, p),
+      newIdentStrLitPair(importStr, p.currentNamespace & origName, p),
       newIdentStrLitPair("header", p.getHeader, p))
   if pragmas.len > 0: addSon(result, pragmas)
   else: addSon(result, ast.emptyNode)
