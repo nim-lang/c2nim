@@ -74,8 +74,8 @@ proc main(infiles: seq[string], outfile: var string,
           outfile = ""
         else:
           renderModule(m, changeFileExt(infile, "nim"))
-  rawMessage(hintSuccessX, [$gLinesCompiled, $(getTime() - start), 
-                            formatSize(getTotalMem())])
+  rawMessage(hintSuccessX, [$gLinesCompiled, $(getTime() - start),
+                            formatSize(getTotalMem()), ""])
 
 var
   infiles = newSeq[string](0)
