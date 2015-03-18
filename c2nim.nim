@@ -8,7 +8,8 @@
 #
 
 import
-  strutils, os, times, parseopt, llstream, ast, renderer, options, msgs,
+  strutils, os, times, parseopt, compiler/llstream, compiler/ast,
+  compiler/renderer, compiler/options, compiler/msgs,
   clex, cparse, postprocessor
 
 const

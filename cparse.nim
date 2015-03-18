@@ -16,8 +16,9 @@
 # - support '#if' in classes
 
 import
-  os, llstream, renderer, clex, idents, strutils, pegs, ast, astalgo, msgs,
-  options, strtabs, hashes, algorithm
+  os, compiler/llstream, compiler/renderer, clex, compiler/idents, strutils,
+  pegs, compiler/ast, compiler/astalgo, compiler/msgs,
+  compiler/options, strtabs, hashes, algorithm
 
 type
   TParserFlag = enum
