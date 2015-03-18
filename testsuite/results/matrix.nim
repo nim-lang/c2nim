@@ -31,15 +31,15 @@ when not defined(_WX_MATRIXH__):
   #  At all times m_isIdentity is set if the matrix itself is an Identity matrix.
   #  It is used where possible to optimize calculations.
   type 
-    wxTransformMatrix* {.importc: "wxTransformMatrix", header: "wxmatrix.h".} = object of wxObject[
+    wxTransformMatrix* {.importcpp: "wxTransformMatrix", header: "wxmatrix.h".} = object of wxObject[
         string, string[ubyte]]
       m_matrix* {.importc: "m_matrix".}: array[3, array[3, cdouble]]
       m_isIdentity* {.importc: "m_isIdentity".}: bool
 
-  proc constructwxTransformMatrix*(): wxTransformMatrix {.
+  proc constructwxTransformMatrix*(): wxTransformMatrix {.constructor, 
       importcpp: "wxTransformMatrix(@)", header: "wxmatrix.h".}
   proc constructwxTransformMatrix*(mat: wxTransformMatrix): wxTransformMatrix {.
-      importcpp: "wxTransformMatrix(@)", header: "wxmatrix.h".}
+      constructor, importcpp: "wxTransformMatrix(@)", header: "wxmatrix.h".}
   proc destroywxTransformMatrix*(this: var wxTransformMatrix) {.
       importcpp: "#.~wxTransformMatrix()", header: "wxmatrix.h".}
   proc GetValue*(this: wxTransformMatrix; col: cint; row: cint): cdouble {.
@@ -47,29 +47,29 @@ when not defined(_WX_MATRIXH__):
   proc SetValue*(this: var wxTransformMatrix; col: cint; row: cint; 
                  value: cdouble) {.importcpp: "SetValue", header: "wxmatrix.h".}
   proc `==`*(this: wxTransformMatrix; mat: wxTransformMatrix): bool {.
-      noSideEffect, importcpp: "# == #", header: "wxmatrix.h".}
-  proc `*=`*(this: var wxTransformMatrix; t: cdouble) {.importcpp: "# *= #", 
+      noSideEffect, importcpp: "(# == #)", header: "wxmatrix.h".}
+  proc `*=`*(this: var wxTransformMatrix; t: cdouble) {.importcpp: "(# *= #)", 
       header: "wxmatrix.h".}
-  proc `/=`*(this: var wxTransformMatrix; t: cdouble) {.importcpp: "# /= #", 
+  proc `/=`*(this: var wxTransformMatrix; t: cdouble) {.importcpp: "(# /= #)", 
       header: "wxmatrix.h".}
   proc `+=`*(this: var wxTransformMatrix; m: wxTransformMatrix) {.
-      importcpp: "# += #", header: "wxmatrix.h".}
+      importcpp: "(# += #)", header: "wxmatrix.h".}
   proc `-=`*(this: var wxTransformMatrix; m: wxTransformMatrix) {.
-      importcpp: "# -= #", header: "wxmatrix.h".}
+      importcpp: "(# -= #)", header: "wxmatrix.h".}
   proc `*=`*(this: var wxTransformMatrix; m: wxTransformMatrix) {.
-      importcpp: "# *= #", header: "wxmatrix.h".}
+      importcpp: "(# *= #)", header: "wxmatrix.h".}
   proc `*`*(this: wxTransformMatrix; t: cdouble): wxTransformMatrix {.
-      noSideEffect, importcpp: "# * #", header: "wxmatrix.h".}
+      noSideEffect, importcpp: "(# * #)", header: "wxmatrix.h".}
   proc `/`*(this: wxTransformMatrix; t: cdouble): wxTransformMatrix {.
-      noSideEffect, importcpp: "# / #", header: "wxmatrix.h".}
+      noSideEffect, importcpp: "(# / #)", header: "wxmatrix.h".}
   proc `+`*(this: wxTransformMatrix; m: wxTransformMatrix): wxTransformMatrix {.
-      noSideEffect, importcpp: "# + #", header: "wxmatrix.h".}
+      noSideEffect, importcpp: "(# + #)", header: "wxmatrix.h".}
   proc `-`*(this: wxTransformMatrix; m: wxTransformMatrix): wxTransformMatrix {.
-      noSideEffect, importcpp: "# - #", header: "wxmatrix.h".}
+      noSideEffect, importcpp: "(# - #)", header: "wxmatrix.h".}
   proc `*`*(this: wxTransformMatrix; m: wxTransformMatrix): wxTransformMatrix {.
-      noSideEffect, importcpp: "# * #", header: "wxmatrix.h".}
+      noSideEffect, importcpp: "(# * #)", header: "wxmatrix.h".}
   proc `-`*(this: wxTransformMatrix): wxTransformMatrix {.noSideEffect, 
-      importcpp: "- #", header: "wxmatrix.h".}
+      importcpp: "(- #)", header: "wxmatrix.h".}
   proc `()`*(this: var wxTransformMatrix; col: cint; row: cint): var cdouble {.
       importcpp: "#(@)", header: "wxmatrix.h".}
   proc `()`*(this: wxTransformMatrix; col: cint; row: cint): cdouble {.

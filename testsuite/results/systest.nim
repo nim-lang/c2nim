@@ -117,8 +117,8 @@ var
 # empty anonymous struct: 
 
 var 
-  varX*: tuple
-  varY*: ptr ptr tuple
+  varX*: tuple[]
+  varY*: ptr ptr tuple[]
 
 # Test C2NIM skipping:
 

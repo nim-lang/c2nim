@@ -31,9 +31,9 @@ type
     `ptr_`*: ptr T
 
 
-proc constructSharedPtr*[T](): SharedPtr[T]
-proc constructSharedPtr*[T](rhs: SharedPtr[T]): SharedPtr[T]
-proc constructSharedPtr*[T](`ptr`: ptr T): SharedPtr[T]
+proc constructSharedPtr*[T](): SharedPtr[T] {.constructor.}
+proc constructSharedPtr*[T](rhs: SharedPtr[T]): SharedPtr[T] {.constructor.}
+proc constructSharedPtr*[T](`ptr`: ptr T): SharedPtr[T] {.constructor.}
 proc destroySharedPtr*[T](this: var SharedPtr[T])
 proc `->`*[T](this: SharedPtr[T]): ptr T {.noSideEffect.}
 proc `*`*[T](this: SharedPtr[T]): var T {.noSideEffect.}
@@ -66,10 +66,10 @@ type
     refCount_*: ptr RefCount
 
 
-proc constructWeakPtr*[T](): WeakPtr[T]
-proc constructWeakPtr*[T](rhs: WeakPtr[T]): WeakPtr[T]
-proc constructWeakPtr*[T](rhs: SharedPtr[T]): WeakPtr[T]
-proc constructWeakPtr*[T](`ptr`: ptr T): WeakPtr[T]
+proc constructWeakPtr*[T](): WeakPtr[T] {.constructor.}
+proc constructWeakPtr*[T](rhs: WeakPtr[T]): WeakPtr[T] {.constructor.}
+proc constructWeakPtr*[T](rhs: SharedPtr[T]): WeakPtr[T] {.constructor.}
+proc constructWeakPtr*[T](`ptr`: ptr T): WeakPtr[T] {.constructor.}
 proc destroyWeakPtr*[T](this: var WeakPtr[T])
 proc Lock*[T](this: WeakPtr[T]): SharedPtr[T] {.noSideEffect.}
 proc Get*[T](this: WeakPtr[T]): ptr T {.noSideEffect.}
