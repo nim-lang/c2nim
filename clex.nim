@@ -345,8 +345,9 @@ proc getNumber(L: var TLexer, tok: var TToken) =
   else:
     matchUnderscoreChars(L, tok, {'0'..'9'})
     if L.buf[L.bufpos] in {'.','e','E'}:
-      add(tok.s, L.buf[L.bufpos])
-      inc(L.bufpos)
+      if L.buf[L.bufpos] == '.':
+        add(tok.s, L.buf[L.bufpos])
+        inc(L.bufpos)
       getFloating(L, tok)
   try: 
     if isFloatLiteral(tok.s): 
