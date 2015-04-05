@@ -344,8 +344,8 @@ proc getNumber(L: var TLexer, tok: var TToken) =
     getFloating(L, tok)
   else:
     matchUnderscoreChars(L, tok, {'0'..'9'})
-    if L.buf[L.bufpos] == '.':
-      add(tok.s, '.')
+    if L.buf[L.bufpos] in {'.','e','E'}:
+      add(tok.s, L.buf[L.bufpos])
       inc(L.bufpos)
       getFloating(L, tok)
   try: 
