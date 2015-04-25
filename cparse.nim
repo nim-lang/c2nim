@@ -908,7 +908,7 @@ proc createConst(name, typ, val: PNode, p: TParser): PNode =
   result = newNodeP(nkConstDef, p)
   addSon(result, name, typ, val)
 
-proc exprToNumber(n: PNode not nil): tuple[succ: bool, val: BiggestInt] =
+proc exprToNumber(n: PNode): tuple[succ: bool, val: BiggestInt] =
   result = (false, 0.BiggestInt)
   case n.kind:
   of nkPrefix:
@@ -1654,7 +1654,7 @@ proc nestedStatement(p: var TParser): PNode =
   #   if x:
   #     stmt
   #
-  # Nimrod requires complex statements to be nested in whitespace!
+  # Nim requires complex statements to be nested in whitespace!
   const
     complexStmt = {nkProcDef, nkMethodDef, nkConverterDef, nkMacroDef,
       nkTemplateDef, nkIteratorDef, nkIfStmt,
