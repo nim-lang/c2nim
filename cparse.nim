@@ -20,6 +20,8 @@ import
   pegs, compiler/ast, compiler/astalgo, compiler/msgs,
   compiler/options, strtabs, hashes, algorithm
 
+import pegs except TToken, TTokKind
+
 type
   TParserFlag = enum
     pfRefs,             ## use "ref" instead of "ptr" for C's typ*
