@@ -12,18 +12,18 @@
 const
   c2nimSymbol = "C2NIM"
 
-proc eatNewLine(p: var TParser, n: PNode) = 
+proc eatNewLine(p: var Parser, n: PNode) = 
   if p.tok.xkind == pxLineComment:
     skipCom(p, n)
     if p.tok.xkind == pxNewLine: getTok(p)
   elif p.tok.xkind == pxNewLine: 
     eat(p, pxNewLine)
   
-proc skipLine(p: var TParser) = 
+proc skipLine(p: var Parser) = 
   while p.tok.xkind notin {pxEof, pxNewLine, pxLineComment}: getTok(p)
   eatNewLine(p, nil)
 
-proc parseDefineBody(p: var TParser, tmplDef: PNode): string = 
+proc parseDefineBody(p: var Parser, tmplDef: PNode): string = 
   if p.tok.xkind == pxCurlyLe or 
     (p.tok.xkind == pxSymbol and (
         declKeyword(p, p.tok.s) or stmtKeyword(p.tok.s))):
@@ -36,7 +36,7 @@ proc parseDefineBody(p: var TParser, tmplDef: PNode): string =
     addSon(tmplDef, buildStmtList(expression(p)))
     result = "expr"
 
-proc parseDefine(p: var TParser): PNode = 
+proc parseDefine(p: var Parser): PNode = 
   if p.tok.xkind == pxDirectiveParLe: 
     # a macro with parameters:
     result = newNodeP(nkTemplateDef, p)
@@ -83,10 +83,10 @@ proc parseDefine(p: var TParser): PNode =
       eatNewLine(p, c)
   assert result != nil
   
-proc parseDefBody(p: var TParser, m: var TMacro, params: seq[string]) =
+proc parseDefBody(p: var Parser, m: var Macro, params: seq[string]) =
   m.body = @[]
   # A little hack: We safe the context, so that every following token will be 
-  # put into a newly allocated TToken object. Thus we can just save a
+  # put into a newly allocated Token object. Thus we can just save a
   # reference to the token in the macro's body.
   saveContext(p)
   while p.tok.xkind notin {pxEof, pxNewLine, pxLineComment}: 
@@ -111,7 +111,7 @@ proc parseDefBody(p: var TParser, m: var TMacro, params: seq[string]) =
   # newline token might be overwritten, but this is not
   # part of the macro body, so it is safe.
   
-proc parseDef(p: var TParser, m: var TMacro) = 
+proc parseDef(p: var Parser, m: var Macro) = 
   var hasParams = p.tok.xkind == pxDirectiveParLe
   getTok(p)
   expectIdent(p)
@@ -132,10 +132,10 @@ proc parseDef(p: var TParser, m: var TMacro) =
   m.params = params.len
   parseDefBody(p, m, params)
   
-proc isDir(p: TParser, dir: string): bool = 
+proc isDir(p: Parser, dir: string): bool = 
   result = p.tok.xkind in {pxDirectiveParLe, pxDirective} and p.tok.s == dir
 
-proc parseInclude(p: var TParser): PNode = 
+proc parseInclude(p: var Parser): PNode = 
   result = newNodeP(nkImportStmt, p)
   while isDir(p, "include"):
     getTok(p) # skip "include"
@@ -152,12 +152,12 @@ proc parseInclude(p: var TParser): PNode =
     # we only parsed includes that we chose to ignore:
     result = ast.emptyNode
 
-proc definedExprAux(p: var TParser): PNode = 
+proc definedExprAux(p: var Parser): PNode = 
   result = newNodeP(nkCall, p)
   addSon(result, newIdentNodeP("defined", p))
   addSon(result, skipIdent(p, skDontMangle))
 
-proc parseStmtList(p: var TParser): PNode = 
+proc parseStmtList(p: var Parser): PNode = 
   result = newNodeP(nkStmtList, p)
   while true: 
     case p.tok.xkind
@@ -169,13 +169,13 @@ proc parseStmtList(p: var TParser): PNode =
     else: discard
     addSon(result, statement(p))
   
-proc eatEndif(p: var TParser) =
+proc eatEndif(p: var Parser) =
   if isDir(p, "endif"): 
     skipLine(p)
   else: 
     parMessage(p, errXExpected, "#endif")
   
-proc parseIfDirAux(p: var TParser, result: PNode) = 
+proc parseIfDirAux(p: var Parser, result: PNode) = 
   addSon(result.sons[0], parseStmtList(p))
   while isDir(p, "elif"): 
     var b = newNodeP(nkElifBranch, p)
@@ -191,7 +191,7 @@ proc parseIfDirAux(p: var TParser, result: PNode) =
     addSon(result, s)
   eatEndif(p)
     
-proc skipUntilEndif(p: var TParser) =
+proc skipUntilEndif(p: var Parser) =
   var nested = 1
   while p.tok.xkind != pxEof:
     if isDir(p, "ifdef") or isDir(p, "ifndef") or isDir(p, "if"): 
@@ -208,7 +208,7 @@ type
   TEndifMarker = enum
     emElif, emElse, emEndif
   
-proc skipUntilElifElseEndif(p: var TParser): TEndifMarker =
+proc skipUntilElifElseEndif(p: var Parser): TEndifMarker =
   var nested = 1
   while p.tok.xkind != pxEof:
     if isDir(p, "ifdef") or isDir(p, "ifndef") or isDir(p, "if"): 
@@ -224,7 +224,7 @@ proc skipUntilElifElseEndif(p: var TParser): TEndifMarker =
     getTok(p)
   parMessage(p, errXExpected, "#endif")
   
-proc parseIfdef(p: var TParser): PNode = 
+proc parseIfdef(p: var Parser): PNode = 
   getTok(p) # skip #ifdef
   expectIdent(p)
   case p.tok.s
@@ -242,7 +242,7 @@ proc parseIfdef(p: var TParser): PNode =
     eatNewLine(p, nil)
     parseIfDirAux(p, result)
   
-proc parseIfndef(p: var TParser): PNode = 
+proc parseIfndef(p: var Parser): PNode = 
   result = ast.emptyNode
   getTok(p) # skip #ifndef
   expectIdent(p)
@@ -271,7 +271,7 @@ proc parseIfndef(p: var TParser): PNode =
     addSon(result.sons[0], e)
     parseIfDirAux(p, result)
   
-proc parseIfDir(p: var TParser): PNode = 
+proc parseIfDir(p: var Parser): PNode = 
   result = newNodeP(nkWhenStmt, p)
   addSon(result, newNodeP(nkElifBranch, p))
   getTok(p)
@@ -279,7 +279,7 @@ proc parseIfDir(p: var TParser): PNode =
   eatNewLine(p, nil)
   parseIfDirAux(p, result)
 
-proc parsePegLit(p: var TParser): Peg =
+proc parsePegLit(p: var Parser): Peg =
   var col = getColumn(p.lex) + 2
   getTok(p)
   if p.tok.xkind != pxStrLit: expectIdent(p)
@@ -293,14 +293,14 @@ proc parsePegLit(p: var TParser): Peg =
   except EInvalidPeg:
     parMessage(p, errUser, getCurrentExceptionMsg())
 
-proc parseMangleDir(p: var TParser) = 
+proc parseMangleDir(p: var Parser) = 
   var pattern = parsePegLit(p)
   if p.tok.xkind != pxStrLit: expectIdent(p)
   p.options.mangleRules.add((pattern, p.tok.s))
   getTok(p)
   eatNewLine(p, nil)
 
-proc modulePragmas(p: var TParser): PNode = 
+proc modulePragmas(p: var Parser): PNode = 
   if p.options.dynlibSym.len > 0 and not p.hasDeadCodeElimPragma:
     p.hasDeadCodeElimPragma = true
     result = newNodeP(nkPragma, p)
@@ -310,7 +310,7 @@ proc modulePragmas(p: var TParser): PNode =
   else:
     result = ast.emptyNode
 
-proc parseDir(p: var TParser): PNode = 
+proc parseDir(p: var Parser): PNode = 
   result = ast.emptyNode
   assert(p.tok.xkind in {pxDirective, pxDirectiveParLe})
   case p.tok.s

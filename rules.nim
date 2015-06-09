@@ -59,7 +59,7 @@ proc nep1(s: string, k: TSymKind): string =
       result.add s[i]
     inc i
 
-proc mangleRules(s: string, p: TParser; kind: TSymKind): string =
+proc mangleRules(s: string, p: Parser; kind: TSymKind): string =
   block mangle:
     for pattern, frmt in items(p.options.mangleRules):
       if s.match(pattern):
@@ -79,29 +79,29 @@ proc mangleRules(s: string, p: TParser; kind: TSymKind): string =
     if p.options.followNep1 and kind != skDontMangle:
       result = nep1(result, kind)
 
-proc mangleName(s: string, p: TParser; kind: TSymKind): string =
+proc mangleName(s: string, p: Parser; kind: TSymKind): string =
   if p.options.toMangle.hasKey(s): result = p.options.toMangle[s]
   else: result = mangleRules(s, p, kind)
 
-proc isPrivate(s: string, p: TParser): bool =
+proc isPrivate(s: string, p: Parser): bool =
   for pattern in items(p.options.privateRules):
     if s.match(pattern): return true
 
-proc mangledIdent(ident: string, p: TParser; kind: TSymKind): PNode =
+proc mangledIdent(ident: string, p: Parser; kind: TSymKind): PNode =
   result = newNodeP(nkIdent, p)
   result.ident = getIdent(mangleName(ident, p, kind))
 
 template getHeader(p): expr =
   (if p.options.headerOverride.len > 0: p.options.headerOverride else: p.header)
 
-proc addImportToPragma(pragmas: PNode, ident: string, p: TParser) =
+proc addImportToPragma(pragmas: PNode, ident: string, p: Parser) =
   addSon(pragmas, newIdentStrLitPair(p.options.importcLit, ident, p))
   if p.options.dynlibSym.len > 0:
     addSon(pragmas, newIdentPair("dynlib", p.options.dynlibSym, p))
   else:
     addSon(pragmas, newIdentStrLitPair("header", p.getHeader, p))
 
-proc exportSym(p: TParser, i: PNode, origName: string): PNode =
+proc exportSym(p: Parser, i: PNode, origName: string): PNode =
   assert i.kind in {nkIdent, nkAccQuoted}
   if p.scopeCounter == 0 and not isPrivate(origName, p):
     result = newNodeI(nkPostfix, i.info)
@@ -109,7 +109,7 @@ proc exportSym(p: TParser, i: PNode, origName: string): PNode =
   else:
     result = i
 
-proc varIdent(ident: string, p: TParser): PNode =
+proc varIdent(ident: string, p: Parser): PNode =
   result = exportSym(p, mangledIdent(ident, p, skVar), ident)
   if p.scopeCounter > 0: return
   if p.options.dynlibSym.len > 0 or p.options.useHeader:
@@ -120,7 +120,7 @@ proc varIdent(ident: string, p: TParser): PNode =
     addSon(result, pragmas)
     addImportToPragma(pragmas, ident, p)
 
-proc fieldIdent(ident: string, p: TParser): PNode =
+proc fieldIdent(ident: string, p: Parser): PNode =
   result = exportSym(p, mangledIdent(ident, p, skField), ident)
   if p.scopeCounter > 0: return
   if p.options.useHeader:
@@ -131,11 +131,11 @@ proc fieldIdent(ident: string, p: TParser): PNode =
     addSon(result, pragmas)
     addSon(pragmas, newIdentStrLitPair("importc", ident, p))
 
-proc doImport(ident: string, pragmas: PNode, p: TParser) =
+proc doImport(ident: string, pragmas: PNode, p: Parser) =
   if p.options.dynlibSym.len > 0 or p.options.useHeader:
     addImportToPragma(pragmas, p.currentNamespace & ident, p)
 
-proc doImportCpp(ident: string, pragmas: PNode, p: TParser) =
+proc doImportCpp(ident: string, pragmas: PNode, p: Parser) =
   if p.options.dynlibSym.len > 0 or p.options.useHeader:
     addSon(pragmas, newIdentStrLitPair("importcpp", ident, p))
     if p.options.dynlibSym.len > 0:

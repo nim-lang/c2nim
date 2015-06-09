@@ -23,7 +23,7 @@ const
   SymStartChars*: set[char] = {'a'..'z', 'A'..'Z', '_', '\x80'..'\xFF'}
 
 type
-  TTokKind* = enum 
+  Tokkind* = enum 
     pxInvalid, pxEof,         
     pxMacroParam,             # fake token: macro parameter (with its index)
     pxMacroParamToStr,        # macro parameter (with its index) applied to the
@@ -88,63 +88,63 @@ type
     pxComma, pxSemiColon, pxColon,
     pxAngleRi                 # '>' but determined to be the end of a
                               # template's angle bracket
-  TTokKinds* = set[TTokKind]
+  Tokkinds* = set[Tokkind]
 
 type
-  TNumericalBase* = enum base10, base2, base8, base16
-  TToken* = object
-    xkind*: TTokKind          # the type of the token
+  NumericalBase* = enum base10, base2, base8, base16
+  Token* = object
+    xkind*: Tokkind          # the type of the token
     s*: string                # parsed symbol, char or string literal
     iNumber*: BiggestInt      # the parsed integer literal;
                               # if xkind == pxMacroParam: parameter's position
     fNumber*: BiggestFloat    # the parsed floating point literal
-    base*: TNumericalBase     # the numerical base; only valid for int
+    base*: NumericalBase     # the numerical base; only valid for int
                               # or float literals
-    next*: ref TToken         # for C we need arbitrary look-ahead :-(
+    next*: ref Token         # for C we need arbitrary look-ahead :-(
   
-  TLexer* = object of TBaseLexer
+  Lexer* = object of TBaseLexer
     fileIdx*: int32
     inDirective, debugMode*: bool
   
-proc getTok*(L: var TLexer, tok: var TToken)
-proc printTok*(tok: TToken)
-proc `$`*(tok: TToken): string
+proc getTok*(L: var Lexer, tok: var Token)
+proc printTok*(tok: Token)
+proc `$`*(tok: Token): string
 # implementation
 
 var
   gLinesCompiled*: int
 
-proc fillToken(L: var TToken) = 
+proc fillToken(L: var Token) = 
   L.xkind = pxInvalid
   L.iNumber = 0
   L.s = ""
   L.fNumber = 0.0
   L.base = base10
   
-proc openLexer*(lex: var TLexer, filename: string, inputstream: PLLStream) = 
+proc openLexer*(lex: var Lexer, filename: string, inputstream: PLLStream) = 
   openBaseLexer(lex, inputstream)
   lex.fileIdx = filename.fileInfoIdx
 
-proc closeLexer*(lex: var TLexer) = 
+proc closeLexer*(lex: var Lexer) = 
   inc(gLinesCompiled, lex.lineNumber)
   closeBaseLexer(lex)
 
-proc getColumn*(L: TLexer): int = 
+proc getColumn*(L: Lexer): int = 
   result = getColNumber(L, L.bufPos)
 
-proc getLineInfo*(L: TLexer): TLineInfo = 
+proc getLineInfo*(L: Lexer): TLineInfo = 
   result = newLineInfo(L.fileIdx, L.linenumber, getColNumber(L, L.bufpos))
 
-proc lexMessage*(L: TLexer, msg: TMsgKind, arg = "") =
+proc lexMessage*(L: Lexer, msg: TMsgKind, arg = "") =
   if L.debugMode: writeStackTrace()
   msgs.globalError(getLineInfo(L), msg, arg)
 
-proc lexMessagePos(L: var TLexer, msg: TMsgKind, pos: int, arg = "") = 
+proc lexMessagePos(L: var Lexer, msg: TMsgKind, pos: int, arg = "") = 
   var info = newLineInfo(L.fileIdx, L.linenumber, pos - L.lineStart)
   if L.debugMode: writeStackTrace()
   msgs.globalError(info, msg, arg)
 
-proc tokKindToStr*(k: TTokKind): string =
+proc tokKindToStr*(k: Tokkind): string =
   case k
   of pxEof: result = "[EOF]"
   of pxInvalid: result = "[invalid]"
@@ -213,21 +213,21 @@ proc tokKindToStr*(k: TTokKind): string =
   of pxCurlyRi: result = "}"
   of pxAngleRi: result = "> [end of template]"
 
-proc `$`(tok: TToken): string = 
+proc `$`(tok: Token): string = 
   case tok.xkind
   of pxSymbol, pxInvalid, pxStarComment, pxLineComment, pxStrLit: result = tok.s
   of pxIntLit, pxInt64Lit: result = $tok.iNumber
   of pxFloatLit: result = $tok.fNumber
   else: result = tokKindToStr(tok.xkind)
 
-proc debugTok*(L: TLexer; tok: TToken): string =
+proc debugTok*(L: Lexer; tok: Token): string =
   result = $tok
   if L.debugMode: result.add(" (" & $tok.xkind & ")")
 
-proc printTok(tok: TToken) = 
+proc printTok(tok: Token) = 
   writeln(stdout, $tok)
   
-proc matchUnderscoreChars(L: var TLexer, tok: var TToken, chars: set[char]) = 
+proc matchUnderscoreChars(L: var Lexer, tok: var Token, chars: set[char]) = 
   # matches ([chars]_)*
   var pos = L.bufpos              # use registers for pos, buf
   var buf = L.buf
@@ -247,7 +247,7 @@ proc isFloatLiteral(s: string): bool =
     if s[i] in {'.', 'e', 'E'}: 
       return true
 
-proc getNumber2(L: var TLexer, tok: var TToken) = 
+proc getNumber2(L: var Lexer, tok: var Token) = 
   var pos = L.bufpos + 2 # skip 0b
   tok.base = base2
   var xi: BiggestInt = 0
@@ -272,7 +272,7 @@ proc getNumber2(L: var TLexer, tok: var TToken) =
   else: tok.xkind = pxIntLit
   L.bufpos = pos
 
-proc getNumber8(L: var TLexer, tok: var TToken) = 
+proc getNumber8(L: var Lexer, tok: var Token) = 
   var pos = L.bufpos + 1 # skip 0
   tok.base = base8
   var xi: BiggestInt = 0
@@ -297,7 +297,7 @@ proc getNumber8(L: var TLexer, tok: var TToken) =
   else: tok.xkind = pxIntLit
   L.bufpos = pos
 
-proc getNumber16(L: var TLexer, tok: var TToken) = 
+proc getNumber16(L: var Lexer, tok: var Token) = 
   var pos = L.bufpos + 2          # skip 0x
   tok.base = base16
   var xi: BiggestInt = 0
@@ -326,7 +326,7 @@ proc getNumber16(L: var TLexer, tok: var TToken) =
   else: tok.xkind = pxIntLit
   L.bufpos = pos
 
-proc getFloating(L: var TLexer, tok: var TToken) =
+proc getFloating(L: var Lexer, tok: var Token) =
   matchUnderscoreChars(L, tok, {'0'..'9'})
   if L.buf[L.bufpos] in {'e', 'E'}:
     add(tok.s, L.buf[L.bufpos])
@@ -336,7 +336,7 @@ proc getFloating(L: var TLexer, tok: var TToken) =
       inc(L.bufpos)
     matchUnderscoreChars(L, tok, {'0'..'9'})
 
-proc getNumber(L: var TLexer, tok: var TToken) = 
+proc getNumber(L: var Lexer, tok: var Token) = 
   tok.base = base10
   if L.buf[L.bufpos] == '.':
     add(tok.s, "0.")
@@ -366,13 +366,13 @@ proc getNumber(L: var TLexer, tok: var TToken) =
   # ignore type suffix:
   while L.buf[L.bufpos] in {'A'..'Z', 'a'..'z'}: inc(L.bufpos)
   
-proc handleCRLF(L: var TLexer, pos: int): int = 
+proc handleCRLF(L: var Lexer, pos: int): int = 
   case L.buf[pos]
   of CR: result = nimlexbase.handleCR(L, pos)
   of LF: result = nimlexbase.handleLF(L, pos)
   else: result = pos
   
-proc escape(L: var TLexer, tok: var TToken, allowEmpty=false) = 
+proc escape(L: var Lexer, tok: var Token, allowEmpty=false) = 
   inc(L.bufpos) # skip \ 
   case L.buf[L.bufpos]
   of 'b', 'B':
@@ -429,7 +429,7 @@ proc escape(L: var TLexer, tok: var TToken, allowEmpty=false) =
   elif not allowEmpty:
     lexMessage(L, errInvalidCharacterConstant)
   
-proc getCharLit(L: var TLexer, tok: var TToken) = 
+proc getCharLit(L: var Lexer, tok: var Token) = 
   inc(L.bufpos) # skip '
   if L.buf[L.bufpos] == '\\':
     escape(L, tok)
@@ -442,7 +442,7 @@ proc getCharLit(L: var TLexer, tok: var TToken) =
     lexMessage(L, errMissingFinalQuote)
   tok.xkind = pxCharLit
 
-proc getString(L: var TLexer, tok: var TToken) = 
+proc getString(L: var Lexer, tok: var Token) = 
   var pos = L.bufPos + 1          # skip "
   var buf = L.buf                 # put `buf` in a register
   var line = L.linenumber         # save linenumber for better error message
@@ -475,7 +475,7 @@ proc getString(L: var TLexer, tok: var TToken) =
   L.bufpos = pos
   tok.xkind = pxStrLit
 
-proc getSymbol(L: var TLexer, tok: var TToken) = 
+proc getSymbol(L: var Lexer, tok: var Token) = 
   var pos = L.bufpos
   var buf = L.buf
   while true: 
@@ -486,7 +486,7 @@ proc getSymbol(L: var TLexer, tok: var TToken) =
   L.bufpos = pos
   tok.xkind = pxSymbol
 
-proc scanLineComment(L: var TLexer, tok: var TToken) =
+proc scanLineComment(L: var Lexer, tok: var Token) =
   var pos = L.bufpos
   var buf = L.buf
   # a comment ends if the next line does not start with the // on the same
@@ -511,7 +511,7 @@ proc scanLineComment(L: var TLexer, tok: var TToken) =
       break
   L.bufpos = pos
 
-proc scanStarComment(L: var TLexer, tok: var TToken) = 
+proc scanStarComment(L: var Lexer, tok: var Token) = 
   var pos = L.bufpos
   var buf = L.buf
   tok.s = "#"
@@ -544,7 +544,7 @@ proc scanStarComment(L: var TLexer, tok: var TToken) =
       inc(pos)
   L.bufpos = pos
 
-proc skip(L: var TLexer, tok: var TToken) = 
+proc skip(L: var Lexer, tok: var Token) = 
   var pos = L.bufpos
   var buf = L.buf
   while true: 
@@ -569,7 +569,7 @@ proc skip(L: var TLexer, tok: var TToken) =
       break                   # EndOfFile also leaves the loop
   L.bufpos = pos
 
-proc getDirective(L: var TLexer, tok: var TToken) = 
+proc getDirective(L: var Lexer, tok: var Token) = 
   var pos = L.bufpos + 1
   var buf = L.buf
   while buf[pos] in {' ', '\t'}: inc(pos)
@@ -589,7 +589,7 @@ proc getDirective(L: var TLexer, tok: var TToken) =
   else: tok.xkind = pxDirective
   L.inDirective = true
 
-proc getTok(L: var TLexer, tok: var TToken) = 
+proc getTok(L: var Lexer, tok: var Token) = 
   tok.xkind = pxInvalid
   fillToken(tok)
   skip(L, tok)

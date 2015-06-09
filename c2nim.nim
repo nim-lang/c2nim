@@ -48,7 +48,7 @@ Options:
 proc parse(infile: string, options: PParserOptions): PNode =
   var stream = llStreamOpen(infile, fmRead)
   if stream == nil: rawMessage(errCannotOpenFile, infile)
-  var p: TParser
+  var p: Parser
   openParser(p, infile, stream, options)
   result = parseUnit(p).postprocess
   closeParser(p)
