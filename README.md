@@ -5,6 +5,15 @@ c2nim is a tool to translate Ansi C code to Nim. The output is human-readable
 Nim code that is meant to be tweaked by hand after the translation process.
 c2nim is no real compiler!
 
+Installing
+----------
+
+Install https://github.com/nim-lang/nimble#installation, clone this
+repository and run `nimble build` in your checkout.
+
+Translating
+-----------
+
 c2nim is preliminary meant to translate C header files. Because of this, the
 preprocessor is part of the parser. For example:
 
