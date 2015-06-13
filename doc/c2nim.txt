@@ -13,8 +13,8 @@ Introduction
   "We all make choices. But in the end our choices make us."
 
 
-c2nim is a tool to translate Ansi C code to Nimrod. The output is 
-human-readable Nimrod code that is meant to be tweaked by hand after the 
+c2nim is a tool to translate Ansi C code to Nim. The output is 
+human-readable Nim code that is meant to be tweaked by hand after the 
 translation process. c2nim is no real compiler!
 
 c2nim is preliminary meant to translate C header files. Because of this, the 
@@ -34,16 +34,16 @@ Is translated into:
 
 c2nim is meant to translate fragments of C code and thus does not follow 
 include files. c2nim cannot parse all of Ansi C and many constructs cannot
-be represented in Nimrod: for example `duff's device`:idx: cannot be translated
-to Nimrod. 
+be represented in Nim: for example `duff's device`:idx: cannot be translated
+to Nim. 
 
 
 Preprocessor support
 ====================
 
 Even though the translation process is not perfect, it is often the case that
-the translated Nimrod code does not need any tweaking by hand. In other cases
-it may be preferable to modify the input file instead of the generated Nimrod
+the translated Nim code does not need any tweaking by hand. In other cases
+it may be preferable to modify the input file instead of the generated Nim
 code so that c2nim can parse it properly. c2nim's preprocessor defines the 
 symbol ``C2NIM`` that can be used to mark code sections: 
 
@@ -57,7 +57,7 @@ The ``C2NIM`` symbol is only recognized in ``#ifdef`` and ``#ifndef``
 constructs! ``#if defined(C2NIM)`` does **not** work. 
 
 c2nim *processes* ``#ifdef C2NIM`` and ``#ifndef C2NIM`` directives, but other
-``#if[def]`` directives are *translated* into Nimrod's ``when`` construct: 
+``#if[def]`` directives are *translated* into Nim's ``when`` construct: 
 
 .. code-block:: C
   #ifdef DEBUG
@@ -77,8 +77,8 @@ Is translated into:
       discard
   
 As can been seen from the example, C's macros with parameters are mapped
-to Nimrod's templates. This mapping is the best one can do, but it is of course
-not accurate: Nimrod's templates operate on syntax trees whereas C's 
+to Nim's templates. This mapping is the best one can do, but it is of course
+not accurate: Nim's templates operate on syntax trees whereas C's 
 macros work on the token level. c2nim cannot translate any macro that contains
 the ``##`` token concatenation operator.
 
@@ -93,7 +93,7 @@ ordinary C compilers ignore them.
 used for the same purpose.
 
 By default, c2nim translates an ``#include`` that is not followed by ``<`` 
-(like in ``#include <stdlib>``) to a Nimrod ``import`` statement. This 
+(like in ``#include <stdlib>``) to a Nim ``import`` statement. This 
 directive tells c2nim to just skip any ``#include``. 
 
 
@@ -144,7 +144,7 @@ Is translated to:
     importc: "IupConvertXYToPos", cdecl, dynlib: iupdll.}
 
 Note how the example contains extra C code to declare the ``iupdll`` symbol
-in the generated Nimrod code.
+in the generated Nim code.
 
 
 ``#header`` directive
@@ -172,7 +172,7 @@ Is translated to:
 
 The ``#header`` and the ``#dynlib`` directives are mutually exclusive. 
 A binding that uses ``dynlib`` is much more preferable over one that uses
-``header``! The Nimrod compiler might drop support for the ``header`` pragma
+``header``! The Nim compiler might drop support for the ``header`` pragma
 in the future as it cannot work for backends that do not generate C code.
 
 
@@ -227,8 +227,8 @@ too, there is no need to quote them:
 ----------------------
 
 By default c2nim marks every top level identifier (proc name, variable, etc.)
-as exported (the export marker is ``*`` in Nimrod). With the ``#private`` 
-directive identifiers can be marked as private so that the resulting Nimrod
+as exported (the export marker is ``*`` in Nim). With the ``#private`` 
+directive identifiers can be marked as private so that the resulting Nim
 module does not export them. The ``#private`` directive takes a PEG pattern:
 
 .. code-block:: C
@@ -244,7 +244,7 @@ identifiers after mangling!
 used for the same purpose.
 
 The ``#skipcomments`` directive can be put into the C code to make c2nim
-ignore comments and not copy them into the generated Nimrod file.
+ignore comments and not copy them into the generated Nim file.
 
 
 ``#typeprefixes`` directive
@@ -316,7 +316,7 @@ Limitations
 ===========
 
 * C's ``,`` operator (comma operator) is not supported.
-* C's ``union`` are translated to Nimrod's objects and only the first field
+* C's ``union`` are translated to Nim's objects and only the first field
   is included in the object type. This way there is a high chance that it is
   binary compatible to the union.
 * The condition in a ``do while(condition)`` statement must be ``0``.
