@@ -134,10 +134,11 @@ template CAST2*(x: expr): expr =
 template CAST3*(x: expr): expr = 
   (cast[ptr ptr cuchar](addr(x)))
 
-  type 
-    gchar* = char
-    gunsignedint* = cint
-    guchar* = cuchar
+type 
+  gchar* = char
+  gunsignedint* = cint
+  guchar* = cuchar
+
 var these*: cint
 
 proc newPoint*(): ptr point = 

@@ -48,6 +48,7 @@ type
     macros: seq[Macro]
     toMangle: StringTableRef
     classes: StringTableRef
+    toPreprocess: StringTableRef
     debugMode, followNep1, useHeader: bool
     constructor, destructor, importcLit: string
   PParserOptions* = ref ParserOptions
@@ -90,6 +91,7 @@ proc newParserOptions*(): PParserOptions =
   result.headerOverride = ""
   result.toMangle = newStringTable(modeCaseSensitive)
   result.classes = newStringTable(modeCaseSensitive)
+  result.toPreprocess = newStringTable(modeCaseSensitive)
   result.constructor = "construct"
   result.destructor = "destroy"
   result.importcLit = "importc"
@@ -139,6 +141,7 @@ proc parMessage(p: Parser, msg: TMsgKind, arg = "") =
 
 proc closeParser*(p: var Parser) = closeLexer(p.lex)
 proc saveContext(p: var Parser) = p.backtrack.add(p.tok)
+# EITHER call 'closeContext' or 'backtrackContext':
 proc closeContext(p: var Parser) = discard p.backtrack.pop()
 proc backtrackContext(p: var Parser) = p.tok = p.backtrack.pop()
 
@@ -1922,7 +1925,7 @@ proc embedStmts(sl, a: PNode) =
     addStmt(sl, a)
   else:
     for i in 0..sonsLen(a)-1:
-      if a[i].kind != nkEmpty: addStmt(sl, a[i])
+      if a[i].kind != nkEmpty: embedStmts(sl, a[i])
 
 proc compoundStatement(p: var Parser; newScope=true): PNode =
   result = newNodeP(nkStmtList, p)
