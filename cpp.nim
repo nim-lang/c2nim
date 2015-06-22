@@ -12,6 +12,9 @@
 const
   c2nimSymbol = "C2NIM"
 
+type
+  SectionParser = proc(p: var Parser): PNode {.nimcall.}
+
 proc eatNewLine(p: var Parser, n: PNode) =
   if p.tok.xkind == pxLineComment:
     skipCom(p, n)
@@ -85,7 +88,7 @@ proc parseDefine(p: var Parser; hasParams: bool): PNode =
         break
   assert result != nil
 
-proc parseDefBody(p: var Parser, m: var TMacro, params: seq[string]) =
+proc parseDefBody(p: var Parser, m: var Macro, params: seq[string]) =
   m.body = @[]
   # A little hack: We safe the context, so that every following token will be
   # put into a newly allocated TToken object. Thus we can just save a
@@ -113,7 +116,7 @@ proc parseDefBody(p: var Parser, m: var TMacro, params: seq[string]) =
   # newline token might be overwritten, but this is not
   # part of the macro body, so it is safe.
 
-proc parseDef(p: var Parser, m: var TMacro; hasParams: bool) =
+proc parseDef(p: var Parser, m: var Macro; hasParams: bool) =
   m.name = p.tok.s
   getTok(p)
   var params: seq[string] = @[]
@@ -156,7 +159,7 @@ proc definedExprAux(p: var Parser): PNode =
   addSon(result, newIdentNodeP("defined", p))
   addSon(result, skipIdent(p, skDontMangle))
 
-proc parseStmtList(p: var Parser): PNode =
+proc parseStmtList(p: var Parser; sectionParser: SectionParser): PNode =
   result = newNodeP(nkStmtList, p)
   while true:
     case p.tok.xkind
@@ -166,7 +169,7 @@ proc parseStmtList(p: var Parser): PNode =
       of "else", "endif", "elif": break
       else: discard
     else: discard
-    addSon(result, statement(p))
+    addSon(result, sectionParser(p))
 
 proc eatEndif(p: var Parser) =
   if isDir(p, "endif"):
@@ -174,19 +177,19 @@ proc eatEndif(p: var Parser) =
   else:
     parMessage(p, errXExpected, "#endif")
 
-proc parseIfDirAux(p: var Parser, result: PNode) =
-  addSon(result.sons[0], parseStmtList(p))
+proc parseIfDirAux(p: var Parser, result: PNode; sectionParser: SectionParser) =
+  addSon(result.sons[0], parseStmtList(p, sectionParser))
   while isDir(p, "elif"):
     var b = newNodeP(nkElifBranch, p)
     getTok(p)
     addSon(b, expression(p))
     eatNewLine(p, nil)
-    addSon(b, parseStmtList(p))
+    addSon(b, parseStmtList(p, sectionParser))
     addSon(result, b)
   if isDir(p, "else"):
     var s = newNodeP(nkElse, p)
     skipLine(p)
-    addSon(s, parseStmtList(p))
+    addSon(s, parseStmtList(p, sectionParser))
     addSon(result, s)
   eatEndif(p)
 
@@ -223,7 +226,7 @@ proc skipUntilElifElseEndif(p: var Parser): TEndifMarker =
     getTok(p)
   parMessage(p, errXExpected, "#endif")
 
-proc parseIfdef(p: var Parser): PNode =
+proc parseIfdef(p: var Parser; sectionParser: SectionParser): PNode =
   getTok(p) # skip #ifdef
   expectIdent(p)
   case p.tok.s
@@ -232,16 +235,16 @@ proc parseIfdef(p: var Parser): PNode =
     result = ast.emptyNode
   of c2nimSymbol:
     skipLine(p)
-    result = parseStmtList(p)
+    result = parseStmtList(p, sectionParser)
     skipUntilEndif(p)
   else:
     result = newNodeP(nkWhenStmt, p)
     addSon(result, newNodeP(nkElifBranch, p))
     addSon(result.sons[0], definedExprAux(p))
     eatNewLine(p, nil)
-    parseIfDirAux(p, result)
+    parseIfDirAux(p, result, sectionParser)
 
-proc isIncludeGuard(p: var TParser): bool =
+proc isIncludeGuard(p: var Parser): bool =
   var guard = p.tok.s
   skipLine(p)
   if p.tok.xkind == pxDirective and p.tok.s == "define":
@@ -250,7 +253,7 @@ proc isIncludeGuard(p: var TParser): bool =
     result = p.tok.s == guard
     skipLine(p)
 
-proc parseIfndef(p: var Parser): PNode =
+proc parseIfndef(p: var Parser; sectionParser: SectionParser): PNode =
   result = ast.emptyNode
   getTok(p) # skip #ifndef
   expectIdent(p)
@@ -263,10 +266,10 @@ proc parseIfndef(p: var Parser): PNode =
       getTok(p)
       addSon(result.sons[0], expression(p))
       eatNewLine(p, nil)
-      parseIfDirAux(p, result)
+      parseIfDirAux(p, result, sectionParser)
     of emElse:
       skipLine(p)
-      result = parseStmtList(p)
+      result = parseStmtList(p, sectionParser)
       eatEndif(p)
     of emEndif: skipLine(p)
   else:
@@ -274,7 +277,7 @@ proc parseIfndef(p: var Parser): PNode =
     saveContext(p)
     if isIncludeGuard(p):
       closeContext(p)
-      result = parseStmtList(p)
+      result = parseStmtList(p, sectionParser)
       eatEndif(p)
     else:
       backtrackContext(p)
@@ -285,15 +288,17 @@ proc parseIfndef(p: var Parser): PNode =
       addSon(e, definedExprAux(p))
       eatNewLine(p, nil)
       addSon(result.sons[0], e)
-      parseIfDirAux(p, result)
+      parseIfDirAux(p, result, sectionParser)
 
-proc parseIfDir(p: var Parser): PNode =
+proc parseIfDir(p: var Parser; sectionParser: SectionParser): PNode =
   result = newNodeP(nkWhenStmt, p)
   addSon(result, newNodeP(nkElifBranch, p))
   getTok(p)
   addSon(result.sons[0], expression(p))
   eatNewLine(p, nil)
-  parseIfDirAux(p, result)
+  parseIfDirAux(p, result, sectionParser)
+  if pfAssumeIfIsTrue in p.options.flags:
+    result = result.sons[0].sons[1]
 
 proc parsePegLit(p: var Parser): Peg =
   var col = getColumn(p.lex) + 2
@@ -326,7 +331,7 @@ proc modulePragmas(p: var Parser): PNode =
   else:
     result = ast.emptyNode
 
-proc parseDir(p: var Parser): PNode =
+proc parseDir(p: var Parser; sectionParser: SectionParser): PNode =
   result = ast.emptyNode
   assert(p.tok.xkind in {pxDirective, pxDirectiveParLe})
   case p.tok.s
@@ -341,11 +346,11 @@ proc parseDir(p: var Parser): PNode =
     else:
       result = parseDefine(p, hasParams)
   of "include": result = parseInclude(p)
-  of "ifdef": result = parseIfdef(p)
-  of "ifndef": result = parseIfndef(p)
-  of "if": result = parseIfDir(p)
+  of "ifdef": result = parseIfdef(p, sectionParser)
+  of "ifndef": result = parseIfndef(p, sectionParser)
+  of "if": result = parseIfDir(p, sectionParser)
   of "cdecl", "stdcall", "ref", "skipinclude", "typeprefixes", "skipcomments",
-     "keepbodies", "cpp", "nep1":
+     "keepbodies", "cpp", "nep1", "assumeifistrue":
     discard setOption(p.options, p.tok.s)
     getTok(p)
     eatNewLine(p, nil)
@@ -366,6 +371,7 @@ proc parseDir(p: var Parser): PNode =
     getTok(p)
     expectIdent(p)
     p.options.toPreprocess[p.tok.s] = "true"
+    getTok(p)
     eatNewLine(p, nil)
   of "def":
     let hasParams = p.tok.xkind == pxDirectiveParLe

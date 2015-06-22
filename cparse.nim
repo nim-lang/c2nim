@@ -32,7 +32,8 @@ type
     pfSkipComments,     ## do not generate comments
     pfCpp,              ## process C++
     pfIgnoreRValueRefs, ## transform C++'s 'T&&' to 'T'
-    pfKeepBodies        ## do not skip C++ method bodies
+    pfKeepBodies,       ## do not skip C++ method bodies
+    pfAssumeIfIsTrue    ## assume #if is true
 
   Macro = object
     name: string
@@ -122,6 +123,7 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "nep1": parserOptions.followNep1 = true
   of "constructor": parserOptions.constructor = val
   of "destructor": parserOptions.destructor = val
+  of "assumeifistrue": incl(parserOptions.flags, pfAssumeIfIsTrue)
   else: result = false
 
 proc parseUnit*(p: var Parser): PNode
@@ -2151,15 +2153,19 @@ proc parseClass(p: var Parser; isStruct: bool;
   var pragmas = newNodeP(nkPragma, p)
   while p.tok.xkind notin {pxEof, pxCurlyRi}:
     skipCom(p, stmtList)
-    if p.tok.xkind == pxSymbol and (p.tok.s == "private" or
-                                    p.tok.s == "protected"):
-      getTok(p, result)
-      eat(p, pxColon, result)
-      private = true
-    elif p.tok.xkind == pxSymbol and p.tok.s == "public":
-      getTok(p, result)
-      eat(p, pxColon, result)
-      private = false
+    # empty visibility sections are allowed and used extensively for wxWidgets:
+    while true:
+      if p.tok.xkind == pxSymbol and (p.tok.s == "private" or
+                                      p.tok.s == "protected"):
+        getTok(p, result)
+        eat(p, pxColon, result)
+        private = true
+      elif p.tok.xkind == pxSymbol and p.tok.s == "public":
+        getTok(p, result)
+        eat(p, pxColon, result)
+        private = false
+      else:
+        break
     let tmpl = parseTemplate(p)
     var gp: PNode
     if tmpl.kind != nkEmpty:
@@ -2216,6 +2222,9 @@ proc parseClass(p: var Parser; isStruct: bool;
       else:
         # field declaration or method:
         #echo "tok ", p.tok.s, " ", p.tok.xkind
+        if p.tok.xkind == pxSemicolon:
+          getTok(p)
+          skipCom(p, stmtList)
         var baseTyp = typeAtom(p)
         while true:
           var def = newNodeP(nkIdentDefs, p)
@@ -2396,7 +2405,7 @@ proc statement(p: var Parser): PNode =
   of pxCurlyLe:
     result = compoundStatement(p)
   of pxDirective, pxDirectiveParLe:
-    result = parseDir(p)
+    result = parseDir(p, statement)
   of pxLineComment, pxStarComment:
     result = newNodeP(nkCommentStmt, p)
     skipCom(p, result)
