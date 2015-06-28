@@ -685,9 +685,11 @@ proc structPragmas(p: Parser, name: PNode, origName: string): PNode =
 proc hashPosition(p: Parser): string =
   let lineInfo = parLineInfo(p)
   let fileInfo = fileInfos[lineInfo.fileIndex]
-  result = $hash(fileInfo.shortName & "_" & $lineInfo.line & "_" & $lineInfo.col).uint
+  result = $hash(fileInfo.shortName & "_" & $lineInfo.line & "_" &
+     $lineInfo.col).uint
 
-proc parseInnerStruct(p: var Parser, stmtList: PNode, isUnion: bool, name: string): PNode =
+proc parseInnerStruct(p: var Parser, stmtList: PNode,
+                      isUnion: bool, name: string): PNode =
   if p.tok.xkind != pxCurlyLe:
     parMessage(p, errUser, "Expected '{' but found '" & $(p.tok[]) & "'")
 
@@ -966,6 +968,7 @@ proc enumFields(p: var Parser, constList: PNode): PNode =
     cmp(x.id, y.id)
   var lastId: BiggestInt
   var lastIdent: PNode
+  const outofOrder = "failed to sort enum fields"
   for count, f in fields:
     if not f.isNumber:
       addSon(result, f.node)
@@ -975,9 +978,9 @@ proc enumFields(p: var Parser, constList: PNode): PNode =
       of nkEnumFieldDef:
         if f.node.sons.len > 0 and f.node.sons[0].kind == nkIdent:
           currentIdent = f.node.sons[0]
-        else: parMessage(p, errGenerated, "Warning: When sorting enum fields an expected nkIdent was not found. Check the fields!")
+        else: parMessage(p, errGenerated, outofOrder)
       of nkIdent: currentIdent = f.node
-      else: parMessage(p, errGenerated, "Warning: When sorting enum fields an expected nkIdent was not found. Check the fields!")
+      else: parMessage(p, errGenerated, outofOrder)
       var constant = createConst( currentIdent, ast.emptyNode, lastIdent, p)
       constList.addSon(constant)
     else:
@@ -987,11 +990,11 @@ proc enumFields(p: var Parser, constList: PNode): PNode =
       of nkEnumFieldDef:
         if f.node.sons.len > 0 and f.node.sons[0].kind == nkIdent:
           lastIdent = f.node.sons[0]
-        else: parMessage(p, errGenerated, "Warning: When sorting enum fields an expected nkIdent was not found. Check the fields!")
+        else: parMessage(p, errGenerated, outofOrder)
       of nkIdent: lastIdent = f.node
-      else: parMessage(p, errGenerated, "Warning: When sorting enum fields an expected nkIdent was not found. Check the fields!")
+      else: parMessage(p, errGenerated, outofOrder)
 
-proc parseTypedefStruct(p: var Parser, result: PNode, stmtList: PNode, isUnion: bool) =
+proc parseTypedefStruct(p: var Parser, result, stmtList: PNode, isUnion: bool) =
   getTok(p, result)
   if p.tok.xkind == pxCurlyLe:
     var t = parseStruct(p, stmtList, isUnion)
@@ -1971,7 +1974,8 @@ proc parseConstructor(p: var Parser, pragmas: PNode, isDestructor: bool;
 
   result = newNodeP(nkProcDef, p)
   var rettyp = if isDestructor: newNodeP(nkNilLit, p)
-               else: mangledIdent(origName, p, skType).applyGenericParams(genericParamsThis)
+               else: mangledIdent(origName, p, skType).applyGenericParams(
+                  genericParamsThis)
 
   let oname = if isDestructor: p.options.destructor & origName
               else: p.options.constructor & origName
