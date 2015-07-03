@@ -37,7 +37,7 @@ type
 
   Macro = object
     name: string
-    params: int           # number of parameters
+    params: int # number of parameters; 0 for empty (); -1 for no () at all
     body: seq[ref Token] # can contain pxMacroParam tokens
 
   ParserOptions = object ## shared parser state!
@@ -218,10 +218,12 @@ proc parseMacroArguments(p: var Parser): seq[seq[ref Token]] =
 proc expandMacro(p: var Parser, m: Macro) =
   rawGetTok(p) # skip macro name
   var arguments: seq[seq[ref Token]]
-  if m.params > 0:
+  if m.params >= 0:
     rawEat(p, pxParLe)
-    arguments = parseMacroArguments(p)
-    if arguments.len != m.params: parMessage(p, errWrongNumberOfArguments)
+    if m.params > 0:
+      arguments = parseMacroArguments(p)
+      if arguments.len != m.params:
+        parMessage(p, errWrongNumberOfArguments)
     rawEat(p, pxParRi)
   # insert into the token list:
   if m.body.len > 0:
@@ -925,7 +927,7 @@ proc exprToNumber(n: PNode): tuple[succ: bool, val: BiggestInt] =
     if n.sons.len == 2 and n.sons[0].kind == nkIdent and n.sons[1].kind == nkIntLit:
       let pre = n.sons[0]
       let num = n.sons[1]
-      if pre.ident.s == "-": result = (true, - num.intVal)
+      if pre.ident.s == "-": result = (true, -num.intVal)
       elif pre.ident.s == "+": result = (true, num.intVal)
   else: discard
 
@@ -2196,6 +2198,7 @@ proc parseClass(p: var Parser; isStruct: bool;
     elif p.tok.xkind == pxSymbol and p.tok.s == "union":
       let x = parseStandaloneStruct(p, isUnion=true, gp)
       if not private or pfKeepBodies in p.options.flags: stmtList.add(x)
+    elif p.tok.xkind == pxCurlyRi: discard
     else:
       if pragmas.len != 0: pragmas = newNodeP(nkPragma, p)
       parseCallConv(p, pragmas)

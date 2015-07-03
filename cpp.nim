@@ -131,7 +131,7 @@ proc parseDef(p: var Parser, m: var Macro; hasParams: bool) =
       if p.tok.xkind != pxComma: break
       getTok(p)
     eat(p, pxParRi)
-  m.params = params.len
+  m.params = if hasParams: params.len else: -1
   parseDefBody(p, m, params)
 
 proc isDir(p: Parser, dir: string): bool =

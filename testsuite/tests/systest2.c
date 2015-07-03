@@ -15,3 +15,10 @@ typedef struct  {
 
 int IupConvertXYToPos(PIhandle ih, int x, int y);
 
+#def FOO_0()
+#def FOO_1
+#def FOO_2(x) x
+
+FOO_0()
+FOO_2(FOO_1)
+FOO_1
