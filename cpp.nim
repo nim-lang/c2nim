@@ -118,7 +118,7 @@ proc parseDefBody(p: var Parser, m: var Macro, params: seq[string]) =
 
 proc parseDef(p: var Parser, m: var Macro; hasParams: bool) =
   m.name = p.tok.s
-  getTok(p)
+  rawGetTok(p)
   var params: seq[string] = @[]
   # parse parameters:
   if hasParams:
@@ -375,7 +375,7 @@ proc parseDir(p: var Parser; sectionParser: SectionParser): PNode =
     eatNewLine(p, nil)
   of "def":
     let hasParams = p.tok.xkind == pxDirectiveParLe
-    getTok(p)
+    rawGetTok(p)
     expectIdent(p)
     let L = p.options.macros.len
     setLen(p.options.macros, L+1)
