@@ -1140,7 +1140,11 @@ proc parseInitializer(p: var Parser): PNode =
 proc addInitializer(p: var Parser, def: PNode) =
   if p.tok.xkind == pxAsgn:
     getTok(p, def)
-    addSon(def, parseInitializer(p))
+    let initVal = parseInitializer(p)
+    if p.options.dynlibSym.len > 0 or p.options.useHeader:
+      addSon(def, ast.emptyNode)
+    else:
+      addSon(def, initVal)
   else:
     addSon(def, ast.emptyNode)
 
