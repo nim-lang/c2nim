@@ -282,7 +282,8 @@ that ``EXPORT`` is a macro that should be expanded by c2nim too:
 ``#def`` is very similar to C's ``#define``, so in general the macro definition
 can be copied and pasted into a ``#def`` directive.
 
-It can also be used when defines are being referred to, as c2nim currently does not expand defines:
+It can also be used when defines are being referred to, as c2nim currently does
+not expand defines:
 
 .. code-block:: C
   #define DEFINE_COMPLEX(R, C) typedef R C[2]
@@ -293,7 +294,8 @@ It can also be used when defines are being referred to, as c2nim currently does 
   DEFINE_API(MANGLE_DOUBLE, double, my_complex);
 ..
 
-The above example will fail, to ensure c2nim *processes* these defines and expands them, use c2nim's ``#def`` directive:
+The above example will fail, to ensure c2nim *processes* these defines and
+expands them, use c2nim's ``#def`` directive:
 
 .. code-block:: C
   #ifdef C2NIM
@@ -311,6 +313,62 @@ The above example will fail, to ensure c2nim *processes* these defines and expan
 ..
 
 Note: Ensure the original #define is not seen by c2nim (notice the #ifndef C2NIM).
+
+
+``#pp`` directive
+-----------------
+
+Instead of keeping 2 versions of ``define foo`` around, one ``#def foo`` for
+c2nim and one ordinary ``#define foo`` for C/C++, it is often more convenient
+to tell c2nim that ``foo`` is to be interpreted as a ``#def``. This is what
+the ``#pp`` directive accomplishes:
+
+.. code-block:: C
+  #ifdef C2NIM
+  #pp DECLARE_NO_COPY_CLASS
+  #endif
+
+  #define DECLARE_NO_COPY_CLASS(classname)      \
+    private:                                    \
+        classname(const classname&);            \
+        classname& operator=(const classname&)
+
+In the example c2nim treats the declaration of ``DECLARE_NO_COPY_CLASS`` as
+if it has been defined via ``#def``.
+
+
+Embedding Nim code
+==================
+
+Starting with c2nim version 0.9.8 it is also possible to directly embed Nim
+code in the C file. This is handy when you don't want to modify the generated
+Nim code at all. Nim code can be embedded directly via ``#@ Nim code here @#``:
+
+.. code-block:: C
+  #ifdef C2NIM
+  #@
+  proc handwrittenNim(): string =
+    "@#"
+  @#
+  #endif
+
+The closing ``@#`` needs to be on a line of its own, only preceeded by
+optional whitespace. This way ``@#`` can otherwise occur in the Nim code as
+the example shows.
+
+``@# ... #@`` is syntactically treated as an **expression** so you can do pretty
+wild stuff like:
+
+.. code-block:: C
+  #define foobar #@ 5 or 9
+  @#
+
+Produces:
+
+.. code-block:: Nim
+  const
+    foobar* = 5 or 9
+
 
 Limitations
 ===========

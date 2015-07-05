@@ -22,3 +22,14 @@ int IupConvertXYToPos(PIhandle ih, int x, int y);
 FOO_0()
 FOO_2(FOO_1)
 FOO_1
+
+#ifdef C2NIM
+#@
+proc handwrittenNim(): string =
+  "@#"
+
+@#
+#endif
+
+#define foobar #@ 5 or 9
+@#

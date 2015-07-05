@@ -12,3 +12,8 @@ type
 
 proc IupConvertXYToPos*(ih: PIhandle; x: cint; y: cint): cint {.cdecl, 
     importc: "IupConvertXYToPos", header: "iup.h".}
+proc handwrittenNim(): string =
+  "@#"
+
+const 
+  foobar* = 5 or 9

@@ -1458,6 +1458,8 @@ proc startExpression(p: var Parser, tok: Token): PNode =
     result = newNodeP(nkPrefix, p)
     addSon(result, newIdentNodeP("not", p))
     addSon(result, expression(p, 139))
+  of pxVerbatim:
+    result = newIdentNodeP(tok.s, p)
   else:
     # probably from a failed sub expression attempt, try a type cast
     raise newException(ERetryParsing, "did not expect " & $tok)
@@ -1687,9 +1689,10 @@ proc expressionStatement(p: var Parser): PNode =
     getTok(p)
     result = ast.emptyNode
   else:
+    let semicolonRequired = p.tok.xkind != pxVerbatim
     result = expression(p)
     if p.tok.xkind == pxSemicolon: getTok(p)
-    else: parMessage(p, errTokenExpected, ";")
+    elif semicolonRequired: parMessage(p, errTokenExpected, ";")
   assert result != nil
 
 proc parseIf(p: var Parser): PNode =
