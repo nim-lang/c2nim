@@ -331,6 +331,13 @@ proc modulePragmas(p: var Parser): PNode =
   else:
     result = ast.emptyNode
 
+proc parseOverride(p: var Parser; tab: StringTableRef) =
+  getTok(p)
+  expectIdent(p)
+  tab[p.tok.s] = "true"
+  getTok(p)
+  eatNewLine(p, nil)
+
 proc parseDir(p: var Parser; sectionParser: SectionParser): PNode =
   result = ast.emptyNode
   assert(p.tok.xkind in {pxDirective, pxDirectiveParLe})
@@ -368,11 +375,9 @@ proc parseDir(p: var Parser; sectionParser: SectionParser): PNode =
   of "mangle":
     parseMangleDir(p)
   of "pp":
-    getTok(p)
-    expectIdent(p)
-    p.options.toPreprocess[p.tok.s] = "true"
-    getTok(p)
-    eatNewLine(p, nil)
+    parseOverride(p, p.options.toPreprocess)
+  of "inheritable":
+    parseOverride(p, p.options.inheritable)
   of "def":
     let hasParams = p.tok.xkind == pxDirectiveParLe
     rawGetTok(p)

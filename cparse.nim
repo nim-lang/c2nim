@@ -50,6 +50,7 @@ type
     toMangle: StringTableRef
     classes: StringTableRef
     toPreprocess: StringTableRef
+    inheritable: StringTableRef
     debugMode, followNep1, useHeader: bool
     constructor, destructor, importcLit: string
   PParserOptions* = ref ParserOptions
@@ -93,10 +94,10 @@ proc newParserOptions*(): PParserOptions =
   result.toMangle = newStringTable(modeCaseSensitive)
   result.classes = newStringTable(modeCaseSensitive)
   result.toPreprocess = newStringTable(modeCaseSensitive)
+  result.inheritable = newStringTable(modeCaseSensitive)
   result.constructor = "construct"
   result.destructor = "destroy"
   result.importcLit = "importc"
-
 
 proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   result = true
@@ -681,6 +682,8 @@ proc structPragmas(p: Parser, name: PNode, origName: string): PNode =
     addSon(pragmas,
       newIdentStrLitPair(p.options.importcLit, p.currentNamespace & origName, p),
       newIdentStrLitPair("header", p.getHeader, p))
+  if p.options.inheritable.hasKey(origName):
+    addSon(pragmas, newIdentNodeP("inheritable", p))
   if pragmas.len > 0: addSon(result, pragmas)
   else: addSon(result, ast.emptyNode)
 
