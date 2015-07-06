@@ -846,7 +846,11 @@ proc parseFormalParams(p: var Parser, params, pragmas: PNode) =
 proc parseCallConv(p: var Parser, pragmas: PNode) =
   while p.tok.xkind == pxSymbol:
     case p.tok.s
-    of "inline", "__inline": addSon(pragmas, newIdentNodeP("inline", p))
+    of "inline", "__inline":
+      if pfCpp in p.options.flags and pfKeepbodies notin p.options.flags:
+        discard
+      else:
+        addSon(pragmas, newIdentNodeP("inline", p))
     of "__cdecl": addSon(pragmas, newIdentNodeP("cdecl", p))
     of "__stdcall": addSon(pragmas, newIdentNodeP("stdcall", p))
     of "__syscall": addSon(pragmas, newIdentNodeP("syscall", p))
@@ -1215,12 +1219,17 @@ proc declarationName(p: var Parser): string =
     discard parseOperator(p, result)
   else:
     getTok(p) # skip identifier
-    while p.tok.xkind == pxScope and pfCpp in p.options.flags:
-      getTok(p) # skip "::"
-      expectIdent(p)
-      result.add("::")
-      result.add(p.tok.s)
-      getTok(p)
+    when false:
+      while p.tok.xkind == pxScope and pfCpp in p.options.flags:
+        getTok(p) # skip "::"
+        expectIdent(p)
+        result.add("::")
+        result.add(p.tok.s)
+        getTok(p)
+
+proc parseMethod(p: var Parser, origName: string, rettyp, pragmas: PNode,
+                 isStatic, isOperator, hasPointlessPar: bool;
+                 genericParams, genericParamsThis: PNode): PNode
 
 proc declaration(p: var Parser; genericParams: PNode = ast.emptyNode): PNode =
   result = newNodeP(nkProcDef, p)
@@ -1280,6 +1289,29 @@ proc declaration(p: var Parser; genericParams: PNode = ast.emptyNode): PNode =
       parMessage(p, errTokenExpected, ";")
     if sonsLen(result.sons[pragmasPos]) == 0:
       result.sons[pragmasPos] = ast.emptyNode
+  of pxScope:
+    # outlined C++ method:
+    getTok(p)
+    expectIdent(p)
+    var origFnName = p.tok.s
+    getTok(p)
+
+    let isStatic = not p.options.classes.hasKey(origName)
+    var oldClass: PNode
+    var oldClassOrig: string
+    if not isStatic:
+      oldClass = p.currentClass
+      oldClassOrig = p.currentClassOrig
+
+      p.currentClassOrig = origName
+      p.currentClass = mangledIdent(p.currentClassOrig, p, skType)
+
+    result = parseMethod(p, origFnName, rettyp, pragmas,
+                         isStatic, false, false, ast.emptyNode, ast.emptyNode)
+    if not isStatic:
+      p.currentClass = oldClass
+      p.currentClassOrig = oldClassOrig
+
   else:
     result = parseVarDecl(p, baseTyp, rettyp, origName)
   assert result != nil

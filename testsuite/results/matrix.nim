@@ -127,7 +127,8 @@ proc SetRotation*(this: var wxTransformMatrix; rotation: cdouble) {.
 # if you have a matrix that is rotated, eg a shape containing a matrix to place
 # it in the logical coordinate system, use TransformPoint
 
-proc wxTransformMatrix::TransformX*(x: cdouble): cdouble {.inline, noSideEffect.} = 
+proc TransformX*(this: wxTransformMatrix; x: cdouble): cdouble {.inline, 
+    noSideEffect.} = 
   #normally like this, but since no rotation is involved (only mirror and scale)
   #we can do without Y -> m_matrix[1]{0] is -sin(rotation angle) and therefore zero
   #(x * m_matrix[0][0] + y * m_matrix[1][0] + m_matrix[2][0]))
@@ -140,7 +141,8 @@ proc wxTransformMatrix::TransformX*(x: cdouble): cdouble {.inline, noSideEffect.
 # if you have a matrix that is rotated, eg a shape containing a matrix to place
 # it in the logical coordinate system, use TransformPoint
 
-proc wxTransformMatrix::TransformY*(y: cdouble): cdouble {.inline, noSideEffect.} = 
+proc TransformY*(this: wxTransformMatrix; y: cdouble): cdouble {.inline, 
+    noSideEffect.} = 
   #normally like this, but since no rotation is involved (only mirror and scale)
   #we can do without X -> m_matrix[0]{1] is sin(rotation angle) and therefore zero
   #(x * m_matrix[0][1] + y * m_matrix[1][1] + m_matrix[2][1]))
@@ -149,7 +151,7 @@ proc wxTransformMatrix::TransformY*(y: cdouble): cdouble {.inline, noSideEffect.
 # Is the matrix the identity matrix?
 # Each operation checks whether the result is still the identity matrix and sets a flag.
 
-proc wxTransformMatrix::IsIdentity1*(): bool {.inline, noSideEffect.} = 
+proc IsIdentity1*(this: wxTransformMatrix): bool {.inline, noSideEffect.} = 
   return wxIsSameDouble(m_matrix[0][0], 1.0) and
       wxIsSameDouble(m_matrix[1][1], 1.0) and
       wxIsSameDouble(m_matrix[2][2], 1.0) and
