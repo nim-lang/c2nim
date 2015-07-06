@@ -12,9 +12,9 @@ const
   blue* = 3
 
 type 
-  food* {.size: sizeof(cint).} = enum 
+  food* = enum 
     cucumber = 2, bread = 4, chocolate = 6
-  numbers* {.size: sizeof(cint).} = enum 
+  numbers* = enum 
     nten = - 10, nnine, nfour = - 4, one = 1, two, three = + 3, four = 4, 
     positivenine = + 9
 

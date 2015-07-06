@@ -17,3 +17,9 @@ proc handwrittenNim(): string =
 
 const 
   foobar* = 5 or 9
+
+type 
+  wxEdge* {.size: sizeof(cint), pure.} = enum 
+    wxLeft, wxTop, wxRight, wxBottom, wxWidth, wxHeight, wxCentre, 
+    wxCenter = wxCentre, wxCentreX, wxCentreY
+

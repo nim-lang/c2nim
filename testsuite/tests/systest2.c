@@ -33,3 +33,10 @@ proc handwrittenNim(): string =
 
 #define foobar #@ 5 or 9
 @#
+
+#pure wxEdge
+enum wxEdge
+{
+    wxLeft, wxTop, wxRight, wxBottom, wxWidth, wxHeight,
+    wxCentre, wxCenter = wxCentre, wxCentreX, wxCentreY
+};

@@ -376,7 +376,7 @@ proc parseDir(p: var Parser; sectionParser: SectionParser): PNode =
     parseMangleDir(p)
   of "pp":
     parseOverride(p, p.options.toPreprocess)
-  of "inheritable":
+  of "inheritable", "pure":
     parseOverride(p, p.options.inheritable)
   of "def":
     let hasParams = p.tok.xkind == pxDirectiveParLe

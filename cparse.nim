@@ -769,15 +769,21 @@ proc parseStructBody(p: var Parser, stmtList: PNode, isUnion: bool,
     eat(p, pxSemicolon, lastSon(result))
   eat(p, pxCurlyRi, result)
 
-proc enumPragmas(p: Parser, name: PNode): PNode =
+proc enumPragmas(p: Parser, name: PNode; origName: string): PNode =
   result = newNodeP(nkPragmaExpr, p)
   addSon(result, name)
   var pragmas = newNodeP(nkPragma, p)
-  var e = newNodeP(nkExprColonExpr, p)
-  # HACK: sizeof(cint) should be constructed as AST
-  addSon(e, newIdentNodeP("size", p), newIdentNodeP("sizeof(cint)", p))
-  addSon(pragmas, e)
-  addSon(result, pragmas)
+  if p.options.dynlibSym.len > 0 or p.options.useHeader:
+    var e = newNodeP(nkExprColonExpr, p)
+    # HACK: sizeof(cint) should be constructed as AST
+    addSon(e, newIdentNodeP("size", p), newIdentNodeP("sizeof(cint)", p))
+    addSon(pragmas, e)
+  if p.options.inheritable.hasKey(origName):
+    addSon(pragmas, newIdentNodeP("pure", p))
+  if pragmas.len > 0:
+    addSon(result, pragmas)
+  else:
+    result = name
 
 proc parseStruct(p: var Parser, stmtList: PNode, isUnion: bool): PNode =
   result = newNodeP(nkObjectTy, p)
@@ -1053,8 +1059,8 @@ proc parseTypedefEnum(p: var Parser, result, constSection: PNode) =
     var origName = p.tok.s
     markTypeIdent(p, nil)
     var name = skipIdent(p, skType)
-    addTypeDef(result, enumPragmas(p, exportSym(p, name, origName)), t,
-              ast.emptyNode)
+    addTypeDef(result, enumPragmas(p, exportSym(p, name, origName), origName),
+               t, ast.emptyNode)
     parseTrailingDefinedTypes(p, result, name)
   elif p.tok.xkind == pxSymbol:
     # name to be defined or type "enum a", we don't know yet:
@@ -1072,13 +1078,13 @@ proc parseTypedefEnum(p: var Parser, result, constSection: PNode) =
         markTypeIdent(p, nil)
         var origName = p.tok.s
         var name = skipIdent(p, skType)
-        addTypeDef(result, enumPragmas(p, exportSym(p, name, origName)), t,
-                   ast.emptyNode)
+        addTypeDef(result, enumPragmas(p, exportSym(p, name, origName), origName),
+                   t, ast.emptyNode)
         parseTrailingDefinedTypes(p, result, name)
       else:
         addTypeDef(result,
-                   enumPragmas(p, exportSym(p, nameOrType, origName)), t,
-                   ast.emptyNode)
+                   enumPragmas(p, exportSym(p, nameOrType, origName), origName),
+                   t, ast.emptyNode)
     of pxSymbol:
       # typedef enum a a?
       if mangleName(p.tok.s, p, skType) == nameOrType.ident.s:
@@ -1367,7 +1373,8 @@ proc enumSpecifier(p: var Parser): PNode =
       getTok(p, t)
       var constSection = newNodeP(nkConstSection, p)
       var e = enumFields(p, constSection)
-      addSon(t, exportSym(p, name, origName), ast.emptyNode, e)
+      addSon(t, enumPragmas(p, exportSym(p, name, origName), origName),
+             ast.emptyNode, e)
       addSon(tSection, t)
       addSon(result, tSection)
       addSon(result, constSection)
