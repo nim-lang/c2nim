@@ -780,6 +780,14 @@ proc enumPragmas(p: Parser, name: PNode; origName: string): PNode =
     addSon(pragmas, e)
   if p.options.inheritable.hasKey(origName):
     addSon(pragmas, newIdentNodeP("pure", p))
+  if pfCpp in p.options.flags and p.options.useHeader:
+    let importName =
+          if p.currentClassOrig.len > 0:
+            p.currentNamespace & p.currentClassOrig & "::" & origName
+          else:
+            origName
+    addSon(pragmas, newIdentStrLitPair("importcpp", importName, p))
+    addSon(pragmas, newIdentStrLitPair("header", p.getHeader, p))
   if pragmas.len > 0:
     addSon(result, pragmas)
   else:
