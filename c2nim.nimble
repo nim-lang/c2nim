@@ -8,5 +8,4 @@ license       = "MIT"
 bin = "c2nim"
 
 [Deps]
-Requires: "nim >= 0.10.3, compiler#devel"
-
+Requires: "nim >= 0.10.3, compiler >= 0.10.3"
