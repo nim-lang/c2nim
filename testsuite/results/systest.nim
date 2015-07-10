@@ -179,10 +179,10 @@ const
   a3* = 5
 
 type 
-  myEnum* {.size: sizeof(cint).} = enum 
+  myEnum* = enum 
     x1, x2, x3 = 8, x4, x5
   pMyEnum* = ptr myEnum
-  myEnum* {.size: sizeof(cint).} = enum 
+  myEnum* = enum 
     x1, x2, x3 = 8, x4, x5
   pMyEnum* = ptr myEnum
 
@@ -239,7 +239,7 @@ proc g*(): cint {.cdecl, importc: "g", dynlib: iupdll.}
 
 proc f*(): cint {.cdecl, importc: "f", dynlib: iupdll.}
 proc g*(): cint {.cdecl, importc: "g", dynlib: iupdll.}
-var x* {.importc: "x", dynlib: iupdll.}: ptr cint = 56 * 45
+var x* {.importc: "x", dynlib: iupdll.}: ptr cint
 
 const 
   abc* = 34
@@ -270,7 +270,7 @@ proc emptyReturn*() {.cdecl.} =
 var c2nimBranch* {.importc: "c2nimBranch", dynlib: iupdll.}: cint
 
 when defined(Windows): 
-  var WindowsTrue* {.importc: "WindowsTrue", dynlib: iupdll.}: cint = true
+  var WindowsTrue* {.importc: "WindowsTrue", dynlib: iupdll.}: cint
 proc spawn*(a2: ptr pid_t; a3: cstring; a4: ptr spawn_file_actions_t; 
             a5: ptr spawnattr_t; a6: ptr cstring; a7: ptr cstring): cint {.
     cdecl, importc: "posix_spawn", dynlib: iupdll.}
@@ -336,9 +336,9 @@ proc RGB_to_HWB*(RGB: RGBType; HWB: ptr HWBType): ptr HWBType {.cdecl.} =
   #    returned on [0, 6]. Exception: H is returned UNDEFINED if W == 1 - B.  
   #   
   var 
-    R: cfloat = RGB.R
-    G: cfloat = RGB.G
-    B: cfloat = RGB.B
+    R: cfloat
+    G: cfloat
+    B: cfloat
     w: cfloat
     v: cfloat
     b: cfloat
