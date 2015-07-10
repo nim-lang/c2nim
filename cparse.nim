@@ -1253,14 +1253,6 @@ proc parseOperator(p: var Parser, origName: var string): bool =
     parMessage(p, errGenerated, "operator symbol expected")
 
 proc declarationName(p: var Parser): string =
-  expectIdent(p)
-  result = p.tok.s
-  if pfCpp in p.options.flags and p.tok.s == "operator":
-    result = ""
-    # top level 'operator' cannot be a converter for now:
-    discard parseOperator(p, result)
-  else:
-    getTok(p) # skip identifier
     when false:
       while p.tok.xkind == pxScope and pfCpp in p.options.flags:
         getTok(p) # skip "::"
@@ -1293,7 +1285,22 @@ proc declaration(p: var Parser; genericParams: PNode = ast.emptyNode): PNode =
     result = parseFunctionPointerDecl(p, rettyp)
     eat(p, pxSemicolon)
     return
-  var origName = declarationName(p)
+
+  expectIdent(p)
+  var origName = p.tok.s
+  if pfCpp in p.options.flags and p.tok.s == "operator":
+    origName = ""
+    var isConverter = parseOperator(p, origName)
+    result = parseMethod(p, origName, rettyp, pragmas, true, true,
+                         false, ast.emptyNode, ast.emptyNode)
+    if isConverter: result.kind = nkConverterDef
+    # don't add trivial operators that Nim ends up using anyway:
+    if origName in ["=", "!=", ">", ">="]:
+      result = ast.emptyNode
+    return
+  else:
+    getTok(p) # skip identifier
+
   case p.tok.xkind
   of pxParLe:
     # really a function!
