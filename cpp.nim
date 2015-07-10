@@ -361,15 +361,27 @@ proc parseDir(p: var Parser; sectionParser: SectionParser): PNode =
     discard setOption(p.options, p.tok.s)
     getTok(p)
     eatNewLine(p, nil)
-  of "dynlib", "header", "prefix", "suffix", "class":
+  of "header":
     var key = p.tok.s
     getTok(p)
-    if p.tok.xkind == pxNewLine and key == "header":
+    if p.tok.xkind == pxNewLine:
       discard setOption(p.options, key)
     else:
-      if p.tok.xkind != pxStrLit: expectIdent(p)
-      discard setOption(p.options, key, p.tok.s)
+      if p.tok.xkind == pxStrLit:
+        # try to be backwards compatible with older versions of c2nim:
+        discard setOption(p.options, key, strutils.escape(p.tok.s))
+      else:
+        expectIdent(p)
+        discard setOption(p.options, key, p.tok.s)
       getTok(p)
+    eatNewLine(p, nil)
+    result = modulePragmas(p)
+  of "dynlib", "prefix", "suffix", "class":
+    var key = p.tok.s
+    getTok(p)
+    if p.tok.xkind != pxStrLit: expectIdent(p)
+    discard setOption(p.options, key, p.tok.s)
+    getTok(p)
     eatNewLine(p, nil)
     result = modulePragmas(p)
   of "mangle":

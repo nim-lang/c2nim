@@ -91,15 +91,18 @@ proc mangledIdent(ident: string, p: Parser; kind: TSymKind): PNode =
   result = newNodeP(nkIdent, p)
   result.ident = getIdent(mangleName(ident, p, kind))
 
-template getHeader(p): expr =
-  (if p.options.headerOverride.len > 0: p.options.headerOverride else: p.header)
+proc getHeaderPair(p: Parser): PNode =
+  if p.options.headerOverride.len > 0:
+    newIdentPair("header", p.options.headerOverride, p)
+  else:
+    newIdentStrLitPair("header", p.header, p)
 
 proc addImportToPragma(pragmas: PNode, ident: string, p: Parser) =
   addSon(pragmas, newIdentStrLitPair(p.options.importcLit, ident, p))
   if p.options.dynlibSym.len > 0:
     addSon(pragmas, newIdentPair("dynlib", p.options.dynlibSym, p))
   else:
-    addSon(pragmas, newIdentStrLitPair("header", p.getHeader, p))
+    addSon(pragmas, getHeaderPair(p))
 
 proc exportSym(p: Parser, i: PNode, origName: string): PNode =
   assert i.kind in {nkIdent, nkAccQuoted}
@@ -141,4 +144,4 @@ proc doImportCpp(ident: string, pragmas: PNode, p: Parser) =
     if p.options.dynlibSym.len > 0:
       addSon(pragmas, newIdentPair("dynlib", p.options.dynlibSym, p))
     else:
-      addSon(pragmas, newIdentStrLitPair("header", p.getHeader, p))
+      addSon(pragmas, getHeaderPair(p))

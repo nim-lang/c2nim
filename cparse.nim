@@ -682,7 +682,7 @@ proc structPragmas(p: Parser, name: PNode, origName: string): PNode =
   if p.options.useHeader:
     addSon(pragmas,
       newIdentStrLitPair(p.options.importcLit, p.currentNamespace & origName, p),
-      newIdentStrLitPair("header", p.getHeader, p))
+      getHeaderPair(p))
   if p.options.inheritable.hasKey(origName):
     addSon(pragmas, newIdentNodeP("inheritable", p))
   if pragmas.len > 0: addSon(result, pragmas)
@@ -788,7 +788,7 @@ proc enumPragmas(p: Parser, name: PNode; origName: string): PNode =
           else:
             origName
     addSon(pragmas, newIdentStrLitPair("importcpp", importName, p))
-    addSon(pragmas, newIdentStrLitPair("header", p.getHeader, p))
+    addSon(pragmas, getHeaderPair(p))
   if pragmas.len > 0:
     addSon(result, pragmas)
   else:
