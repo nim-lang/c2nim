@@ -2350,7 +2350,8 @@ proc parseClass(p: var Parser; isStruct: bool;
             if p.tok.xkind == pxAsgn:
               getTok(p, def)
               value = assignmentExpression(p)
-            addSon(def, i, t, value)
+            if not private or pfKeepBodies in p.options.flags:
+              addSon(def, i, t, value)
             if not isStatic: addSon(recList, def)
           if p.tok.xkind != pxComma: break
           getTok(p, def)

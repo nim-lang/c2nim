@@ -28,8 +28,7 @@ import
 type 
   SharedPtr*[T] = object      #/ Construct a null shared pointer.
                               #/ Prevent direct assignment from a shared pointer of another type.
-    `ptr_`*: ptr T
-
+  
 
 proc constructSharedPtr*[T](): SharedPtr[T] {.constructor.}
 proc constructSharedPtr*[T](rhs: SharedPtr[T]): SharedPtr[T] {.constructor.}
@@ -62,9 +61,8 @@ proc DynamicCast*[T, U](`ptr`: SharedPtr[U]): SharedPtr[T]
 type 
   WeakPtr*[T] = object        #/ Construct a null weak pointer.
                               #/ Prevent direct assignment from a weak pointer of different type.
-    `ptr_`*: ptr T            #/ Pointer to the RefCount structure.
-    refCount_*: ptr RefCount
-
+    #/ Pointer to the RefCount structure.
+  
 
 proc constructWeakPtr*[T](): WeakPtr[T] {.constructor.}
 proc constructWeakPtr*[T](rhs: WeakPtr[T]): WeakPtr[T] {.constructor.}
