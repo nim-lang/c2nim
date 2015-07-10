@@ -20,6 +20,8 @@ const
 
 type 
   wxEdge* {.size: sizeof(cint), pure.} = enum 
-    wxLeft, wxTop, wxRight, wxBottom, wxWidth, wxHeight, wxCentre, 
-    wxCenter = wxCentre, wxCentreX, wxCentreY
+    wxLeft, wxTop, wxRight, wxBottom, wxWidth, wxHeight, wxCentre, wxCentreX, 
+    wxCentreY
 
+const 
+  wxCenter = wxCentre

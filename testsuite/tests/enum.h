@@ -36,5 +36,7 @@ typedef enum numbers
 	three = + 3,
 	positivenine = + 9,
 	nfour = - 4,
-	negativeten = -10
+	negativeten = -10,
+	aliasA = one,
+	aliasB = nnine
 };

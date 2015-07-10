@@ -24,3 +24,5 @@ const
 
 const 
   negativeten = nten
+  aliasA = one
+  aliasB = nnine

@@ -546,7 +546,7 @@ proc scanStarComment(L: var Lexer, tok: var Token) =
       inc(pos)
   L.bufpos = pos
 
-proc scanVerbatim(L: var Lexer, tok: var Token) =
+proc scanVerbatim(L: var Lexer, tok: var Token; isCurlyDot: bool) =
   var pos = L.bufpos+2
   var buf = L.buf
   while buf[pos] in {' ', '\t'}: inc(pos)
@@ -568,6 +568,12 @@ proc scanVerbatim(L: var Lexer, tok: var Token) =
       add(tok.s, "\n")
     of nimlexbase.EndOfFile:
       lexMessage(L, errTokenExpected, "@#")
+    of '.':
+      if isCurlyDot and buf[pos+1] == '}':
+        inc pos, 2
+        break
+      add(tok.s, buf[pos])
+      inc(pos)
     else:
       add(tok.s, buf[pos])
       inc(pos)
@@ -681,8 +687,11 @@ proc getTok(L: var Lexer, tok: var Token) =
       else:
         tok.xkind = pxDot
     of '{':
-      inc(L.bufpos)
-      tok.xkind = pxCurlyLe
+      if L.buf[L.bufpos+1] == '.':
+        scanVerbatim(L, tok, true)
+      else:
+        inc(L.bufpos)
+        tok.xkind = pxCurlyLe
     of '}':
       inc(L.bufpos)
       tok.xkind = pxCurlyRi
@@ -819,7 +828,7 @@ proc getTok(L: var Lexer, tok: var Token) =
         inc(L.bufpos, 2)
         tok.xkind = pxDirConc
       elif L.buf[L.bufpos+1] == '@':
-        scanVerbatim(L, tok)
+        scanVerbatim(L, tok, false)
       else:
         getDirective(L, tok)
     of '"': getString(L, tok)

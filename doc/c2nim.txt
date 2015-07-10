@@ -356,7 +356,7 @@ The closing ``@#`` needs to be on a line of its own, only preceeded by
 optional whitespace. This way ``@#`` can otherwise occur in the Nim code as
 the example shows.
 
-``@# ... #@`` is syntactically treated as an **expression** so you can do pretty
+``#@ ... @#`` is syntactically treated as an **expression** so you can do pretty
 wild stuff like:
 
 .. code-block:: C
@@ -368,6 +368,14 @@ Produces:
 .. code-block:: Nim
   const
     foobar* = 5 or 9
+
+
+Instead of ``#@  @#`` Nim's pragma brackets ``{.  .}`` can also be used, but
+not nested since the ``.}`` doesn't have to be on a line of its own:
+
+.. code-block:: C
+  #define foobar {. 5 or 9 .}
+
 
 
 Limitations

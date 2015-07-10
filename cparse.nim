@@ -137,6 +137,7 @@ proc openParser*(p: var Parser, filename: string,
   p.lex.debugMode = options.debugMode
   p.backtrack = @[]
   p.currentNamespace = ""
+  p.currentClassOrig = ""
   new(p.tok)
 
 proc parMessage(p: Parser, msg: TMsgKind, arg = "") =
@@ -838,6 +839,10 @@ proc parseParam(p: var Parser, params: PNode) =
   var x = newNodeP(nkIdentDefs, p)
   addSon(x, name, typ)
   if p.tok.xkind == pxAsgn:
+    # for the wxWidgets wrapper we need to transform 'auto x = foo' into
+    # 'x = foo' cause 'x: auto = foo' is not really supported by Nim yet...
+    if typ.kind == nkIdent and typ.ident.s == "auto":
+      x.sons[^1] = ast.emptyNode
     # we support default parameters for C++:
     getTok(p, x)
     addSon(x, assignmentExpression(p))
@@ -952,11 +957,24 @@ proc exprToNumber(n: PNode): tuple[succ: bool, val: BiggestInt] =
       elif pre.ident.s == "+": result = (true, num.intVal)
   else: discard
 
+when not declared(sequtils.any):
+  template any(x, cond: expr): expr =
+    var result = false
+    for it {.inject.} in x:
+      if cond: result = true; break
+    result
+
+proc getEnumIdent(n: PNode): PNode =
+  if n.kind == nkEnumFieldDef: result = n[0]
+  else: result = n
+  assert result.kind == nkIdent
+
 proc enumFields(p: var Parser, constList: PNode): PNode =
+  type EnumFieldKind = enum isNormal, isNumber, isAlias
   result = newNodeP(nkEnumTy, p)
   addSon(result, ast.emptyNode) # enum does not inherit from anything
   var i: BiggestInt = 0
-  var field: tuple[id: BiggestInt, isNumber: bool, node: PNode]
+  var field: tuple[id: BiggestInt, kind: EnumFieldKind, node, value: PNode]
   var fields = newSeq[type(field)]()
   while true:
     var e = skipIdent(p, skEnumField)
@@ -967,19 +985,23 @@ proc enumFields(p: var Parser, constList: PNode): PNode =
       e = newNodeP(nkEnumFieldDef, p)
       addSon(e, a, c)
       skipCom(p, e)
+      field.value = c
       if c.kind == nkIntLit:
         i = c.intVal
-        field.isNumber = true
+        field.kind = isNumber
       else:
         var (success, number) = exprToNumber(c)
         if success:
           i = number
-          field.isNumber = true
+          field.kind = isNumber
+        elif any(fields,
+            c.kind == nkIdent and it.node.getEnumIdent.ident.s == c.ident.s):
+          field.kind = isAlias
         else:
-          field.isNumber = false
+          field.kind = isNormal
     else:
       inc(i)
-      field.isNumber = true
+      field.kind = isNumber
     field.id = i
     field.node = e
     fields.add(field)
@@ -993,29 +1015,35 @@ proc enumFields(p: var Parser, constList: PNode): PNode =
   var lastIdent: PNode
   const outofOrder = "failed to sort enum fields"
   for count, f in fields:
-    if not f.isNumber:
+    case f.kind
+    of isNormal:
       addSon(result, f.node)
-    elif f.id == lastId and count > 0:
-      var currentIdent: PNode
-      case f.node.kind:
-      of nkEnumFieldDef:
-        if f.node.sons.len > 0 and f.node.sons[0].kind == nkIdent:
-          currentIdent = f.node.sons[0]
+    of isNumber:
+      if f.id == lastId and count > 0:
+        var currentIdent: PNode
+        case f.node.kind:
+        of nkEnumFieldDef:
+          if f.node.sons.len > 0 and f.node.sons[0].kind == nkIdent:
+            currentIdent = f.node.sons[0]
+          else: parMessage(p, errGenerated, outofOrder)
+        of nkIdent: currentIdent = f.node
         else: parMessage(p, errGenerated, outofOrder)
-      of nkIdent: currentIdent = f.node
-      else: parMessage(p, errGenerated, outofOrder)
-      var constant = createConst( currentIdent, ast.emptyNode, lastIdent, p)
+        var constant = createConst(currentIdent, ast.emptyNode, lastIdent, p)
+        constList.addSon(constant)
+      else:
+        addSon(result, f.node)
+        lastId = f.id
+        case f.node.kind:
+        of nkEnumFieldDef:
+          if f.node.sons.len > 0 and f.node.sons[0].kind == nkIdent:
+            lastIdent = f.node.sons[0]
+          else: parMessage(p, errGenerated, outofOrder)
+        of nkIdent: lastIdent = f.node
+        else: parMessage(p, errGenerated, outofOrder)
+    of isAlias:
+      var constant = createConst(f.node.getEnumIdent, ast.emptyNode, f.value, p)
       constList.addSon(constant)
-    else:
-      addSon(result, f.node)
-      lastId = f.id
-      case f.node.kind:
-      of nkEnumFieldDef:
-        if f.node.sons.len > 0 and f.node.sons[0].kind == nkIdent:
-          lastIdent = f.node.sons[0]
-        else: parMessage(p, errGenerated, outofOrder)
-      of nkIdent: lastIdent = f.node
-      else: parMessage(p, errGenerated, outofOrder)
+
 
 proc parseTypedefStruct(p: var Parser, result, stmtList: PNode, isUnion: bool) =
   getTok(p, result)
@@ -1316,7 +1344,6 @@ proc declaration(p: var Parser; genericParams: PNode = ast.emptyNode): PNode =
     if not isStatic:
       oldClass = p.currentClass
       oldClassOrig = p.currentClassOrig
-
       p.currentClassOrig = origName
       p.currentClass = mangledIdent(p.currentClassOrig, p, skType)
 
