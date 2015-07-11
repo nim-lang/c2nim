@@ -376,7 +376,7 @@ proc parseDir(p: var Parser; sectionParser: SectionParser): PNode =
       getTok(p)
     eatNewLine(p, nil)
     result = modulePragmas(p)
-  of "dynlib", "prefix", "suffix", "class":
+  of "dynlib", "prefix", "suffix", "class", "discardableprefix":
     var key = p.tok.s
     getTok(p)
     if p.tok.xkind != pxStrLit: expectIdent(p)

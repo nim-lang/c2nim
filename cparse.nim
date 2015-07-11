@@ -52,6 +52,7 @@ type
     toPreprocess: StringTableRef
     inheritable: StringTableRef
     debugMode, followNep1, useHeader: bool
+    discardablePrefixes: seq[string]
     constructor, destructor, importcLit: string
   PParserOptions* = ref ParserOptions
 
@@ -88,6 +89,7 @@ proc newParserOptions*(): PParserOptions =
   result.macros = @[]
   result.mangleRules = @[]
   result.privateRules = @[]
+  result.discardablePrefixes = @[]
   result.flags = {}
   result.dynlibSym = ""
   result.headerOverride = ""
@@ -125,6 +127,7 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "constructor": parserOptions.constructor = val
   of "destructor": parserOptions.destructor = val
   of "assumeifistrue": incl(parserOptions.flags, pfAssumeIfIsTrue)
+  of "discardableprefix": parserOptions.discardablePrefixes.add(val)
   else: result = false
 
 proc parseUnit*(p: var Parser): PNode
@@ -601,10 +604,17 @@ proc addPragmas(father, pragmas: PNode) =
   if sonsLen(pragmas) > 0: addSon(father, pragmas)
   else: addSon(father, ast.emptyNode)
 
-proc addReturnType(params, rettyp: PNode) =
+proc addReturnType(params, rettyp: PNode): bool =
   if rettyp == nil: addSon(params, ast.emptyNode)
-  elif rettyp.kind != nkNilLit: addSon(params, rettyp)
+  elif rettyp.kind != nkNilLit:
+    addSon(params, rettyp)
+    result = true
   else: addSon(params, ast.emptyNode)
+
+proc addDiscardable(origName: string; pragmas: PNode; p: Parser) =
+  for prefix in p.options.discardablePrefixes:
+    if origName.startsWith(prefix):
+      addSon(pragmas, newIdentNodeP("discardable", p))
 
 proc parseFormalParams(p: var Parser, params, pragmas: PNode)
 
@@ -637,7 +647,7 @@ proc parseTypeSuffix(p: var Parser, typ: PNode): PNode =
       var procType = newNodeP(nkProcTy, p)
       var pragmas = newProcPragmas(p)
       var params = newNodeP(nkFormalParams, p)
-      addReturnType(params, result)
+      discard addReturnType(params, result)
       parseFormalParams(p, params, pragmas)
       addSon(procType, params)
       addPragmas(procType, pragmas)
@@ -883,7 +893,7 @@ proc parseFunctionPointerDecl(p: var Parser, rettyp: PNode): PNode =
   var pragmas = newProcPragmas(p)
   var params = newNodeP(nkFormalParams, p)
   eat(p, pxParLe, params)
-  addReturnType(params, rettyp)
+  discard addReturnType(params, rettyp)
   parseCallConv(p, pragmas)
 
   if pfCpp in p.options.flags and p.tok.xkind == pxSymbol:
@@ -1306,7 +1316,8 @@ proc declaration(p: var Parser; genericParams: PNode = ast.emptyNode): PNode =
     # really a function!
     var name = mangledIdent(origName, p, skProc)
     var params = newNodeP(nkFormalParams, p)
-    addReturnType(params, rettyp)
+    if addReturnType(params, rettyp):
+      addDiscardable(origName, pragmas, p)
     parseFormalParams(p, params, pragmas)
     if pfCpp in p.options.flags and p.tok.xkind == pxSymbol and
         p.tok.s == "const":
@@ -2074,7 +2085,7 @@ proc parseConstructor(p: var Parser, pragmas: PNode, isDestructor: bool;
               else: p.options.constructor & origName
   var name = mangledIdent(oname, p, skProc)
   var params = newNodeP(nkFormalParams, p)
-  addReturnType(params, rettyp)
+  discard addReturnType(params, rettyp)
   if isDestructor: params.add(createThis(p, genericParamsThis))
 
   if p.tok.xkind == pxParLe:
@@ -2119,7 +2130,9 @@ proc parseMethod(p: var Parser, origName: string, rettyp, pragmas: PNode,
                  genericParams, genericParamsThis: PNode): PNode =
   result = newNodeP(nkProcDef, p)
   var params = newNodeP(nkFormalParams, p)
-  addReturnType(params, rettyp)
+  if addReturnType(params, rettyp):
+    addDiscardable(origName, pragmas, p)
+
   var thisDef: PNode
   if not isStatic:
     # declare 'this':

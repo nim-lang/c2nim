@@ -337,6 +337,39 @@ In the example c2nim treats the declaration of ``DECLARE_NO_COPY_CLASS`` as
 if it has been defined via ``#def``.
 
 
+``#discardableprefix`` directive
+--------------------------------
+
+Often C and C++ code contains something like the following, where the return
+value is frequently ignored and so the Nim wrapper should contain
+a ``.discardable`` pragma:
+
+.. code-block:: C
+  bool AddPoint(Sizer* s, int x, int y);
+  int SetSize(Widget* w, int w, int h);
+
+
+This can be accomplished with the ``#discardableprefix`` directive. As its name
+suggests functions of the given prefix(es) that have non-void return type get
+annotated with ``.discardable``:
+
+.. code-block:: C
+  #discardableprefix Add
+  #discardableprefix Set
+
+  bool AddPoint(Sizer* s, int x, int y);
+  int SetSize(Widget* w, int w, int h);
+
+Produces:
+
+.. code-block:: Nim
+  proc AddPoint*(s: ptr Sizer; x: cint; y: cint): bool {.discardable.}
+  proc SetSize*(w: ptr Widget; w: cint; h: cint): cint {.discardable.}
+
+You can use ``#discardableprefix ""`` to *always* add the ``.discardable``
+pragma since every name starts with the empty string prefix.
+
+
 Embedding Nim code
 ==================
 
