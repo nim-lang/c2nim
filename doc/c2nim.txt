@@ -76,7 +76,7 @@ Is translated into:
     template OUT*(x: expr): stmt =
       discard
 
-As can been seen from the example, C's macros with parameters are mapped
+As can be seen from the example, C's macros with parameters are mapped
 to Nim's templates. This mapping is the best one can do, but it is of course
 not accurate: Nim's templates operate on syntax trees whereas C's
 macros work on the token level. c2nim cannot translate any macro that contains
@@ -269,7 +269,7 @@ prototype but confuse c2nim's parser:
 
 Instead of removing ``EXTERN()`` from the input source file (which cannot be
 done reliably even with a regular expression!), one can tell c2nim
-that ``EXPORT`` is a macro that should be expanded by c2nim too:
+that ``EXTERN`` is a macro that should be expanded by c2nim too:
 
 .. code-block:: C
   #ifdef C2NIM
