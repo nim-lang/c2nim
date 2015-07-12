@@ -903,7 +903,7 @@ proc parseFunctionPointerDecl(p: var Parser, rettyp: PNode): PNode =
     addSon(pragmas, newIdentNodeP("memberfuncptr", p))
 
   if p.tok.xkind == pxStar: getTok(p, params)
-  else: parMessage(p, errTokenExpected, "*")
+  #else: parMessage(p, errTokenExpected, "*")
   if p.inTypeDef > 0: markTypeIdent(p, nil)
   var name = skipIdentExport(p, if p.inTypeDef > 0: skType else: skVar)
   eat(p, pxParRi, name)
