@@ -6,3 +6,6 @@ var diamond*: array[4, array[2, GLfloat]] = [[0.0, 1.0], [1.0, 0.0],
     [0.0, - 1.0], [- 1.0, 0.0]]
 
 # Left point
+# bug #40
+
+proc cdCanvasPattern*(canvas: ptr cdCanvas; w: cint; h: cint; pattern: ptr clong)

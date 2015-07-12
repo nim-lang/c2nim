@@ -11,3 +11,7 @@ const GLfloat diamond[4][2] = {
 { 1.0, 0.0 }, // Right point
 { 0.0, -1.0 }, // Bottom point
 { -1.0, 0.0 } }; // Left point
+
+
+// bug #40
+void cdCanvasPattern(cdCanvas* canvas, int w, int h, long const int *pattern);

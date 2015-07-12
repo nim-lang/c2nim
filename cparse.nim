@@ -516,7 +516,7 @@ proc optAngle(p: var Parser, n: PNode): PNode =
     result = n
 
 proc typeAtom(p: var Parser): PNode =
-  let isConst = skipConst(p)
+  var isConst = skipConst(p)
   expectIdent(p)
   case p.tok.s
   of "void":
@@ -540,6 +540,7 @@ proc typeAtom(p: var Parser): PNode =
       else:
         add(x, p.tok.s)
       getTok(p, nil)
+      if skipConst(p): isConst = true
     if x.len == 0: x = "int"
     let xx = if isSizeT: "csize" elif isUnsigned: "cu" & x else: "c" & x
     result = mangledIdent(xx, p, skDontMangle)
