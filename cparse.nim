@@ -620,39 +620,39 @@ proc parseFormalParams(p: var Parser, params, pragmas: PNode)
 
 proc parseTypeSuffix(p: var Parser, typ: PNode): PNode =
   result = typ
-  while true:
-    case p.tok.xkind
-    of pxBracketLe:
-      getTok(p, result)
-      skipConst(p) # POSIX contains: ``int [restrict]``
-      if p.tok.xkind != pxBracketRi:
-        var tmp = result
-        var index = expression(p)
-        # array type:
-        result = newNodeP(nkBracketExpr, p)
-        addSon(result, newIdentNodeP("array", p))
-        addSon(result, index)
-        addSon(result, tmp)
-      else:
-        # pointer type:
-        var tmp = result
-        if pfRefs in p.options.flags:
-          result = newNodeP(nkRefTy, p)
-        else:
-          result = newNodeP(nkPtrTy, p)
-        result.addSon(tmp)
+  case p.tok.xkind
+  of pxBracketLe:
+    getTok(p, result)
+    skipConst(p) # POSIX contains: ``int [restrict]``
+    if p.tok.xkind != pxBracketRi:
+      var tmp = result
+      var index = expression(p)
+      # array type:
+      result = newNodeP(nkBracketExpr, p)
+      addSon(result, newIdentNodeP("array", p))
+      addSon(result, index)
       eat(p, pxBracketRi, result)
-    of pxParLe:
-      # function pointer:
-      var procType = newNodeP(nkProcTy, p)
-      var pragmas = newProcPragmas(p)
-      var params = newNodeP(nkFormalParams, p)
-      discard addReturnType(params, result)
-      parseFormalParams(p, params, pragmas)
-      addSon(procType, params)
-      addPragmas(procType, pragmas)
-      result = procType
-    else: break
+      addSon(result, parseTypeSuffix(p, tmp))
+    else:
+      # pointer type:
+      var tmp = result
+      if pfRefs in p.options.flags:
+        result = newNodeP(nkRefTy, p)
+      else:
+        result = newNodeP(nkPtrTy, p)
+      eat(p, pxBracketRi, result)
+      addSon(result, parseTypeSuffix(p, tmp))
+  of pxParLe:
+    # function pointer:
+    var procType = newNodeP(nkProcTy, p)
+    var pragmas = newProcPragmas(p)
+    var params = newNodeP(nkFormalParams, p)
+    discard addReturnType(params, result)
+    parseFormalParams(p, params, pragmas)
+    addSon(procType, params)
+    addPragmas(procType, pragmas)
+    result = parseTypeSuffix(p, procType)
+  else: discard
 
 proc typeDesc(p: var Parser): PNode = pointer(p, typeAtom(p))
 
