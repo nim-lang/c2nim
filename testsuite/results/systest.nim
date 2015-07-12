@@ -3,17 +3,17 @@
 #  Another comment line.
 # 
 
-template interrupts*(): expr = 
+template interrupts*(): expr =
   sei()
 
 const                         # 8bit, color or not 
   CV_LOAD_IMAGE_UNCHANGED* = - 1 # 8bit, gray 
-  CV_LOAD_IMAGE_GRAYSCALE* = 0 # ?, color 
-  CV_LOAD_IMAGE_COLOR* = 1    # any depth, ? 
-  CV_LOAD_IMAGE_ANYDEPTH* = 2 # ?, any color 
+  CV_LOAD_IMAGE_GRAYSCALE* = 0  # ?, color 
+  CV_LOAD_IMAGE_COLOR* = 1      # any depth, ? 
+  CV_LOAD_IMAGE_ANYDEPTH* = 2   # ?, any color 
   CV_LOAD_IMAGE_ANYCOLOR* = 4
 
-type 
+type
   callback_t* = proc (rc: cint)
   callback2* = proc (rc: cint; L: clong; buffer: cstring): cstring
 
@@ -21,32 +21,32 @@ proc aw_callback_set*(c: AW_CALLBACK; callback: callback_t): cint
 proc aw_instance_callback_set*(c: AW_CALLBACK; callback: callback_t): cint
 var wawa*: culong
 
-template MAX*(x, y: expr): expr = 
+template MAX*(x, y: expr): expr =
   (if (x) < (y): (y) else: (x))
 
-const 
+const
   AW_BUILD* = 85
   AW_MAX_AVCHANGE_PER_SECOND* = 10
 
-when not defined(expatDll): 
-  when defined(windows): 
-    const 
+when not defined(expatDll):
+  when defined(windows):
+    const
       expatDll = "expat.dll"
-  elif defined(macosx): 
-    const 
+  elif defined(macosx):
+    const
       expatDll = "libexpat.dynlib"
-  else: 
-    const 
+  else:
+    const
       expatDll = "libexpat.so(.1|)"
 var uiVar*: cint
 
 var myPrivateVar__: cint
 
-type 
-  ParserStruct = object 
+type
+  ParserStruct = object
   
-  ElementDeclHandler* = proc (userData: pointer; name: ptr Char; 
-                              model: ptr Content) {.cdecl.}
+  ElementDeclHandler* = proc (userData: pointer; name: ptr Char; model: ptr Content) {.
+      cdecl.}
 
 var x*: pointer
 
@@ -61,9 +61,9 @@ var fn*: proc (a2: pointer): pointer
 #  Very ugly real world code ahead:
 # 
 
-type 
+type
   cjpeg_source_ptr* = ptr cjpeg_source_struct
-  cjpeg_source_struct* = object 
+  cjpeg_source_struct* = object
     start_input*: proc (cinfo: j_compress_ptr; sinfo: cjpeg_source_ptr)
     get_pixel_rows*: proc (cinfo: j_compress_ptr; sinfo: cjpeg_source_ptr): JDIMENSION
     finish_input*: proc (cinfo: j_compress_ptr; sinfo: cjpeg_source_ptr)
@@ -74,8 +74,8 @@ type
 
 # Test standalone structs: 
 
-type 
-  myunion* = object  {.union.}
+type
+  myunion* = object {.union.}
     x*: char
     y*: char
     z*: cstring
@@ -85,8 +85,8 @@ type
 
 var u*: myunion
 
-type 
-  mystruct* = object 
+type
+  mystruct* = object
     x*: char
     y*: char
     z*: cstring
@@ -95,8 +95,8 @@ type
 
 
 proc fn*(x: i32; y: i64): mystruct
-type 
-  mystruct* = object 
+type
+  mystruct* = object
     x*: char
     y*: char
     z*: cstring
@@ -104,61 +104,61 @@ type
     b*: myint
 
 
-var 
+var
   myvar*: ptr mystruct = nil
   myvar2*: ptr ptr mystruct = nil
 
 # anonymous struct: 
 
-var 
+var
   varX*: tuple[x: char, y: char, z: cstring, a: myint, b: myint]
   varY*: ptr ptr tuple[x: char, y: char, z: cstring, a: myint, b: myint]
 
 # empty anonymous struct: 
 
-var 
+var
   varX*: tuple[]
   varY*: ptr ptr tuple[]
 
 # Test C2NIM skipping:
 
-template MASK*(x: expr): expr = 
+template MASK*(x: expr): expr =
   ((x) and 0x000000FF)
 
-template CAST1*(x: expr): expr = 
+template CAST1*(x: expr): expr =
   ((int) and x)
 
-template CAST2*(x: expr): expr = 
+template CAST2*(x: expr): expr =
   cast[ptr typ](addr(x))
 
-template CAST3*(x: expr): expr = 
+template CAST3*(x: expr): expr =
   (cast[ptr ptr cuchar](addr(x)))
 
-type 
+type
   gchar* = char
   gunsignedint* = cint
   guchar* = cuchar
 
 var these*: cint
 
-proc newPoint*(): ptr point = 
+proc newPoint*(): ptr point =
   var i: cint = 0
-  while i < 89: 
+  while i < 89:
     echo("test string concatenation")
     inc(i)
-  while j < 54: 
-    discard 
+  while j < 54:
+    discard
     inc(j)
-  while true: 
+  while true:
     nil
     dec(j)
-  while true: discard 
+  while true: discard
   var x: ptr mytype = y * z
-  if p[][] == ' ': 
+  if p[][] == ' ':
     dec(p)
-  elif p[][] == '\x09': 
+  elif p[][] == '\x09':
     inc(p, 3)
-  else: 
+  else:
     p = 45 + cast[ptr mytype](45)
     p = 45 + (cast[ptr mytype](45))
     p = 45 + (cast[mytype](45))
@@ -166,23 +166,23 @@ proc newPoint*(): ptr point =
     # p = 45 + (mytype)45;
   while x >= 6 and x <= 20: dec(x)
   case p[]
-  of 'A'..'Z', 'a'..'z': 
+  of 'A'..'Z', 'a'..'z':
     inc(p)
-  of '0': 
+  of '0':
     inc(p)
-  else: 
+  else:
     return nil
 
-const 
+const
   a1* = 0
   a2* = 4
   a3* = 5
 
-type 
-  myEnum* = enum 
+type
+  myEnum* = enum
     x1, x2, x3 = 8, x4, x5
   pMyEnum* = ptr myEnum
-  myEnum* = enum 
+  myEnum* = enum
     x1, x2, x3 = 8, x4, x5
   pMyEnum* = ptr myEnum
 
@@ -190,45 +190,45 @@ type
 
 # Test multi-line macro: 
 
-const 
+const
   MUILTILINE* = "abcxyzdef"
 
-template MULTILINE*(x, y: expr): stmt = 
-  while true: 
+template MULTILINE*(x, y: expr): stmt =
+  while true:
   inc(y)
   inc(x)
-  if not 0: break 
+  if not 0: break
 
- {.deadCodeElim: on.}
-when defined(windows): 
-  const 
+{.deadCodeElim: on.}
+when defined(windows):
+  const
     iupdll* = "iup.dll"
-elif defined(macosx): 
-  const 
+elif defined(macosx):
+  const
     iupdll* = "libiup.dynlib"
-else: 
-  const 
+else:
+  const
     iupdll* = "libiup.so"
-type 
-  TGtkMyStruct* = object 
+type
+  TGtkMyStruct* = object
     a*: mytype
     b*: mytype
 
   PGtkMyStruct* = ptr TGtkMyStruct
-  TGtkMyStruct* = object 
+  TGtkMyStruct* = object
     a*: mytype
     b*: mytype
 
   PGtkMyStruct* = ptr TGtkMyStruct
 
-proc IupConvertXYToPos*(ih: PIhandle; x: cint; y: cint): cint {.cdecl, 
+proc IupConvertXYToPos*(ih: PIhandle; x: cint; y: cint): cint {.cdecl,
     importc: "IupConvertXYToPos", dynlib: iupdll.}
-when defined(DEBUG): 
-  template OUT*(x: expr): expr = 
+when defined(DEBUG):
+  template OUT*(x: expr): expr =
     printf("%s\x0A", x)
 
-else: 
-  template OUT*(x: expr): stmt = 
+else:
+  template OUT*(x: expr): stmt =
     nil
 
 # parses now!
@@ -241,15 +241,15 @@ proc f*(): cint {.cdecl, importc: "f", dynlib: iupdll.}
 proc g*(): cint {.cdecl, importc: "g", dynlib: iupdll.}
 var x* {.importc: "x", dynlib: iupdll.}: ptr cint
 
-const 
+const
   abc* = 34
   xyz* = 42
   wuseldusel* = "my string\x0Aconstant"
 
 var x* {.importc: "x", dynlib: iupdll.}: cstring
 
-type 
-  point* = object 
+type
+  point* = object
     x*: char
     y*: char
     z*: cstring
@@ -262,80 +262,79 @@ proc myinlineProc*(frmt: cstring; strArray: cstringArray; dummy: ptr cint): cstr
 # Test void parameter list:
 
 proc myVoidProc*() {.cdecl, importc: "myVoidProc", dynlib: iupdll.}
-proc emptyReturn*() {.cdecl.} = 
-  return 
+proc emptyReturn*() {.cdecl.} =
+  return
 
 # POSIX stuff:
 
 var c2nimBranch* {.importc: "c2nimBranch", dynlib: iupdll.}: cint
 
-when defined(Windows): 
+when defined(Windows):
   var WindowsTrue* {.importc: "WindowsTrue", dynlib: iupdll.}: cint
-proc spawn*(a2: ptr pid_t; a3: cstring; a4: ptr spawn_file_actions_t; 
-            a5: ptr spawnattr_t; a6: ptr cstring; a7: ptr cstring): cint {.
-    cdecl, importc: "posix_spawn", dynlib: iupdll.}
+proc spawn*(a2: ptr pid_t; a3: cstring; a4: ptr spawn_file_actions_t;
+           a5: ptr spawnattr_t; a6: ptr cstring; a7: ptr cstring): cint {.cdecl,
+    importc: "posix_spawn", dynlib: iupdll.}
 proc spawn_file_actions_addclose*(a2: ptr spawn_file_actions_t; a3: cint): cint {.
     cdecl, importc: "posix_spawn_file_actions_addclose", dynlib: iupdll.}
-proc spawn_file_actions_adddup2*(a2: ptr spawn_file_actions_t; a3: cint; 
-                                 a4: cint): cint {.cdecl, 
-    importc: "posix_spawn_file_actions_adddup2", dynlib: iupdll.}
-proc spawn_file_actions_addopen*(a2: ptr spawn_file_actions_t; a3: cint; 
-                                 a4: cstring; a5: cint; a6: mode_t): cint {.
-    cdecl, importc: "posix_spawn_file_actions_addopen", dynlib: iupdll.}
-proc spawn_file_actions_destroy*(a2: ptr spawn_file_actions_t): cint {.cdecl, 
+proc spawn_file_actions_adddup2*(a2: ptr spawn_file_actions_t; a3: cint; a4: cint): cint {.
+    cdecl, importc: "posix_spawn_file_actions_adddup2", dynlib: iupdll.}
+proc spawn_file_actions_addopen*(a2: ptr spawn_file_actions_t; a3: cint; a4: cstring;
+                                a5: cint; a6: mode_t): cint {.cdecl,
+    importc: "posix_spawn_file_actions_addopen", dynlib: iupdll.}
+proc spawn_file_actions_destroy*(a2: ptr spawn_file_actions_t): cint {.cdecl,
     importc: "posix_spawn_file_actions_destroy", dynlib: iupdll.}
-proc spawn_file_actions_init*(a2: ptr spawn_file_actions_t): cint {.cdecl, 
+proc spawn_file_actions_init*(a2: ptr spawn_file_actions_t): cint {.cdecl,
     importc: "posix_spawn_file_actions_init", dynlib: iupdll.}
-proc spawnattr_destroy*(a2: ptr spawnattr_t): cint {.cdecl, 
+proc spawnattr_destroy*(a2: ptr spawnattr_t): cint {.cdecl,
     importc: "posix_spawnattr_destroy", dynlib: iupdll.}
-proc spawnattr_getsigdefault*(a2: ptr spawnattr_t; a3: ptr sigset_t): cint {.
-    cdecl, importc: "posix_spawnattr_getsigdefault", dynlib: iupdll.}
-proc spawnattr_getflags*(a2: ptr spawnattr_t; a3: ptr cshort): cint {.cdecl, 
+proc spawnattr_getsigdefault*(a2: ptr spawnattr_t; a3: ptr sigset_t): cint {.cdecl,
+    importc: "posix_spawnattr_getsigdefault", dynlib: iupdll.}
+proc spawnattr_getflags*(a2: ptr spawnattr_t; a3: ptr cshort): cint {.cdecl,
     importc: "posix_spawnattr_getflags", dynlib: iupdll.}
-proc spawnattr_getpgroup*(a2: ptr spawnattr_t; a3: ptr pid_t): cint {.cdecl, 
+proc spawnattr_getpgroup*(a2: ptr spawnattr_t; a3: ptr pid_t): cint {.cdecl,
     importc: "posix_spawnattr_getpgroup", dynlib: iupdll.}
-proc spawnattr_getschedparam*(a2: ptr spawnattr_t; a3: ptr sched_param): cint {.
-    cdecl, importc: "posix_spawnattr_getschedparam", dynlib: iupdll.}
-proc spawnattr_getschedpolicy*(a2: ptr spawnattr_t; a3: ptr cint): cint {.cdecl, 
+proc spawnattr_getschedparam*(a2: ptr spawnattr_t; a3: ptr sched_param): cint {.cdecl,
+    importc: "posix_spawnattr_getschedparam", dynlib: iupdll.}
+proc spawnattr_getschedpolicy*(a2: ptr spawnattr_t; a3: ptr cint): cint {.cdecl,
     importc: "posix_spawnattr_getschedpolicy", dynlib: iupdll.}
-proc spawnattr_getsigmask*(a2: ptr spawnattr_t; a3: ptr sigset_t): cint {.cdecl, 
+proc spawnattr_getsigmask*(a2: ptr spawnattr_t; a3: ptr sigset_t): cint {.cdecl,
     importc: "posix_spawnattr_getsigmask", dynlib: iupdll.}
-proc spawnattr_init*(a2: ptr spawnattr_t): cint {.cdecl, 
+proc spawnattr_init*(a2: ptr spawnattr_t): cint {.cdecl,
     importc: "posix_spawnattr_init", dynlib: iupdll.}
-proc spawnattr_setsigdefault*(a2: ptr spawnattr_t; a3: ptr sigset_t): cint {.
-    cdecl, importc: "posix_spawnattr_setsigdefault", dynlib: iupdll.}
-proc spawnattr_setflags*(a2: ptr spawnattr_t; a3: cshort): cint {.cdecl, 
+proc spawnattr_setsigdefault*(a2: ptr spawnattr_t; a3: ptr sigset_t): cint {.cdecl,
+    importc: "posix_spawnattr_setsigdefault", dynlib: iupdll.}
+proc spawnattr_setflags*(a2: ptr spawnattr_t; a3: cshort): cint {.cdecl,
     importc: "posix_spawnattr_setflags", dynlib: iupdll.}
-proc spawnattr_setpgroup*(a2: ptr spawnattr_t; a3: pid_t): cint {.cdecl, 
+proc spawnattr_setpgroup*(a2: ptr spawnattr_t; a3: pid_t): cint {.cdecl,
     importc: "posix_spawnattr_setpgroup", dynlib: iupdll.}
-proc spawnattr_setschedparam*(a2: ptr spawnattr_t; a3: ptr sched_param): cint {.
-    cdecl, importc: "posix_spawnattr_setschedparam", dynlib: iupdll.}
-proc spawnattr_setschedpolicy*(a2: ptr spawnattr_t; a3: cint): cint {.cdecl, 
+proc spawnattr_setschedparam*(a2: ptr spawnattr_t; a3: ptr sched_param): cint {.cdecl,
+    importc: "posix_spawnattr_setschedparam", dynlib: iupdll.}
+proc spawnattr_setschedpolicy*(a2: ptr spawnattr_t; a3: cint): cint {.cdecl,
     importc: "posix_spawnattr_setschedpolicy", dynlib: iupdll.}
-proc spawnattr_setsigmask*(a2: ptr spawnattr_t; a3: ptr sigset_t): cint {.cdecl, 
+proc spawnattr_setsigmask*(a2: ptr spawnattr_t; a3: ptr sigset_t): cint {.cdecl,
     importc: "posix_spawnattr_setsigmask", dynlib: iupdll.}
-proc spawnp*(a2: ptr pid_t; a3: cstring; a4: ptr spawn_file_actions_t; 
-             a5: ptr spawnattr_t; a6: ptr cstring; a7: ptr cstring): cint {.
-    cdecl, importc: "posix_spawnp", dynlib: iupdll.}
-type 
-  RGBType* = object 
+proc spawnp*(a2: ptr pid_t; a3: cstring; a4: ptr spawn_file_actions_t;
+            a5: ptr spawnattr_t; a6: ptr cstring; a7: ptr cstring): cint {.cdecl,
+    importc: "posix_spawnp", dynlib: iupdll.}
+type
+  RGBType* = object
     R*: cfloat
     G*: cfloat
     B*: cfloat
 
-  HWBType* = object 
+  HWBType* = object
     H*: cfloat
     W*: cfloat
     B*: cfloat
 
 
-proc RGB_to_HWB*(RGB: RGBType; HWB: ptr HWBType): ptr HWBType {.cdecl.} = 
+proc RGB_to_HWB*(RGB: RGBType; HWB: ptr HWBType): ptr HWBType {.cdecl.} =
   var myArray: array[20, ptr HWBType]
   #
   #    RGB are each on [0, 1]. W and B are returned on [0, 1] and H is  
   #    returned on [0, 6]. Exception: H is returned UNDEFINED if W == 1 - B.  
   #   
-  var 
+  var
     R: cfloat
     G: cfloat
     B: cfloat
@@ -352,13 +351,13 @@ proc RGB_to_HWB*(RGB: RGBType; HWB: ptr HWBType): ptr HWBType {.cdecl.} =
   i = if (R == w): 3 else: (if (G == w): 5 else: 1)
   RETURN_HWB(i - f div (v - w), w, b)
 
-proc clip_1d*(x0: ptr cint; y0: ptr cint; x1: ptr cint; y1: ptr cint; 
-              mindim: cint; maxdim: cint): cint {.cdecl.} = 
+proc clip_1d*(x0: ptr cint; y0: ptr cint; x1: ptr cint; y1: ptr cint; mindim: cint;
+             maxdim: cint): cint {.cdecl.} =
   var m: cdouble
   # gradient of line
-  if x0[] < mindim: 
+  if x0[] < mindim:
     # start of line is left of window 
-    if x1[] < mindim: 
+    if x1[] < mindim:
       return 0
     m = (y1[] - y0[]) div (double)(x1[] - x0[])
     # calculate the slope of the line
@@ -366,13 +365,13 @@ proc clip_1d*(x0: ptr cint; y0: ptr cint; x1: ptr cint; y1: ptr cint;
     dec(y0[], m * (x0[] - mindim))
     x0[] = mindim
     # now, perhaps, adjust the far end of the line as well
-    if x1[] > maxdim: 
+    if x1[] > maxdim:
       inc(y1[], m * (maxdim - x1[]))
       x1[] = maxdim
     return 1
-  if x0[] > maxdim: 
+  if x0[] > maxdim:
     # start of line is right of window - complement of above 
-    if x1[] > maxdim: 
+    if x1[] > maxdim:
       return 0
     m = (y1[] - y0[]) div (double)(x1[] - x0[])
     # calculate the slope of the line
@@ -381,18 +380,18 @@ proc clip_1d*(x0: ptr cint; y0: ptr cint; x1: ptr cint; y1: ptr cint;
     # boundary
     x0[] = maxdim
     # now, perhaps, adjust the end of the line
-    if x1[] < mindim: 
+    if x1[] < mindim:
       dec(y1[], m * (x1[] - mindim))
       x1[] = mindim
     return 1
-  if x1[] > maxdim: 
+  if x1[] > maxdim:
     # other end is outside to the right
     m = (y1[] - y0[]) div (double)(x1[] - x0[])
     # calculate the slope of the line 
     inc(y1[], m * (maxdim - x1[]))
     x1[] = maxdim
     return 1
-  if x1[] < mindim: 
+  if x1[] < mindim:
     # other end is outside to the left 
     m = (y1[] - y0[]) div (double)(x1[] - x0[])
     # calculate the slope of line 
@@ -403,22 +402,22 @@ proc clip_1d*(x0: ptr cint; y0: ptr cint; x1: ptr cint; y1: ptr cint;
 
 # end of line clipping code
 
-proc gdImageBrushApply*(im: gdImagePtr; x: cint; y: cint) {.cdecl.} = 
-  var 
+proc gdImageBrushApply*(im: gdImagePtr; x: cint; y: cint) {.cdecl.} =
+  var
     lx: cint
     ly: cint
   var hy: cint
   var hx: cint
-  var 
+  var
     x1: cint
     y1: cint
     x2: cint
     y2: cint
-  var 
+  var
     srcx: cint
     srcy: cint
-  if not im.brush: 
-    return 
+  if not im.brush:
+    return
   hy = gdImageSY(im.brush) div 2
   y1 = y - hy
   y2 = y1 + gdImageSY(im.brush)
@@ -426,98 +425,98 @@ proc gdImageBrushApply*(im: gdImagePtr; x: cint; y: cint) {.cdecl.} =
   x1 = x - hx
   x2 = x1 + gdImageSX(im.brush)
   srcy = 0
-  if im.trueColor: 
-    if im.brush.trueColor: 
+  if im.trueColor:
+    if im.brush.trueColor:
       ly = y1
-      while (ly < y2): 
+      while (ly < y2):
         srcx = 0
         lx = x1
-        while (lx < x2): 
+        while (lx < x2):
           var p: cint
           p = gdImageGetTrueColorPixel(im.brush, srcx, srcy)
           # 2.0.9, Thomas Winzig: apply simple full transparency
-          if p != gdImageGetTransparent(im.brush): 
+          if p != gdImageGetTransparent(im.brush):
             gdImageSetPixel(im, lx, ly, p)
           inc(srcx)
           inc(lx)
         inc(srcy)
         inc(ly)
-    else: 
+    else:
       # 2.0.12: Brush palette, image truecolor (thanks to Thorben Kundinger
       # for pointing out the issue)
       ly = y1
-      while (ly < y2): 
+      while (ly < y2):
         srcx = 0
         lx = x1
-        while (lx < x2): 
-          var 
+        while (lx < x2):
+          var
             p: cint
             tc: cint
           p = gdImageGetPixel(im.brush, srcx, srcy)
           tc = gdImageGetTrueColorPixel(im.brush, srcx, srcy)
           # 2.0.9, Thomas Winzig: apply simple full transparency 
-          if p != gdImageGetTransparent(im.brush): 
+          if p != gdImageGetTransparent(im.brush):
             gdImageSetPixel(im, lx, ly, tc)
           inc(srcx)
           inc(lx)
         inc(srcy)
         inc(ly)
-  else: 
+  else:
     ly = y1
-    while (ly < y2): 
+    while (ly < y2):
       srcx = 0
       lx = x1
-      while (lx < x2): 
+      while (lx < x2):
         var p: cint
         p = gdImageGetPixel(im.brush, srcx, srcy)
         # Allow for non-square brushes!
-        if p != gdImageGetTransparent(im.brush): 
+        if p != gdImageGetTransparent(im.brush):
           # Truecolor brush. Very slow
           # on a palette destination.
-          if im.brush.trueColor: 
-            gdImageSetPixel(im, lx, ly, gdImageColorResolveAlpha(im, 
-                gdTrueColorGetRed(p), gdTrueColorGetGreen(p), 
+          if im.brush.trueColor:
+            gdImageSetPixel(im, lx, ly, gdImageColorResolveAlpha(im,
+                gdTrueColorGetRed(p), gdTrueColorGetGreen(p),
                 gdTrueColorGetBlue(p), gdTrueColorGetAlpha(p)))
-          else: 
+          else:
             gdImageSetPixel(im, lx, ly, im.brushColorMap[p])
         inc(srcx)
         inc(lx)
       inc(srcy)
       inc(ly)
 
-proc gdImageSetPixel*(im: gdImagePtr; x: cint; y: cint; color: cint) {.cdecl.} = 
+proc gdImageSetPixel*(im: gdImagePtr; x: cint; y: cint; color: cint) {.cdecl.} =
   var p: cint
   case color
-  of gdStyled: 
-    if not im.style: 
+  of gdStyled:
+    if not im.style:
       # Refuse to draw if no style is set.
-      return 
-    else: 
+      return
+    else:
       p = im.style[inc(im.stylePos)]
-    if p != (gdTransparent): 
+    if p != (gdTransparent):
       gdImageSetPixel(im, x, y, p)
     im.stylePos = im.stylePos mod im.styleLength
-  of gdStyledBrushed: 
-    if not im.style: 
+  of gdStyledBrushed:
+    if not im.style:
       # Refuse to draw if no style is set.
-      return 
+      return
     p = im.style[inc(im.stylePos)]
-    if (p != gdTransparent) and (p != 0): 
+    if (p != gdTransparent) and (p != 0):
       gdImageSetPixel(im, x, y, gdBrushed)
     im.stylePos = im.stylePos mod im.styleLength
-  of gdBrushed: 
+  of gdBrushed:
     gdImageBrushApply(im, x, y)
-  of gdTiled: 
+  of gdTiled:
     gdImageTileApply(im, x, y)
   of gdAntiAliased: # This shouldn't happen (2.0.26) because we just call
-                    # gdImageAALine now, but do something sane.
+                  # gdImageAALine now, but do something sane.
     gdImageSetPixel(im, x, y, im.AA_color)
-  else: 
-    if gdImageBoundsSafeMacro(im, x, y): 
-      if im.trueColor: 
-        if im.alphaBlendingFlag: 
+  else:
+    if gdImageBoundsSafeMacro(im, x, y):
+      if im.trueColor:
+        if im.alphaBlendingFlag:
           im.tpixels[y][x] = gdAlphaBlend(im.tpixels[y][x], color)
-        else: 
+        else:
           im.tpixels[y][x] = color
-      else: 
+      else:
         im.pixels[y][x] = color
