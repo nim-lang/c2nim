@@ -21,12 +21,14 @@ c2nim is preliminary meant to translate C header files. Because of this, the
 preprocessor is part of the parser. For example:
 
 .. code-block:: C
+
   #define abc 123
   #define xyz 789
 
 Is translated into:
 
 .. code-block:: Nim
+
   const
     abc* = 123
     xyz* = 789
@@ -48,6 +50,7 @@ code so that c2nim can parse it properly. c2nim's preprocessor defines the
 symbol ``C2NIM`` that can be used to mark code sections:
 
 .. code-block:: C
+
   #ifndef C2NIM
     // C2NIM should ignore this prototype:
     int fprintf(FILE* f, const char* frmt, ...);
@@ -60,6 +63,7 @@ c2nim *processes* ``#ifdef C2NIM`` and ``#ifndef C2NIM`` directives, but other
 ``#if[def]`` directives are *translated* into Nim's ``when`` construct:
 
 .. code-block:: C
+
   #ifdef DEBUG
   #  define OUT(x) printf("%s\n", x)
   #else
@@ -69,6 +73,7 @@ c2nim *processes* ``#ifdef C2NIM`` and ``#ifndef C2NIM`` directives, but other
 Is translated into:
 
 .. code-block:: Nim
+
   when defined(debug):
     template OUT*(x: expr): expr =
       printf("%s\x0A", x)
@@ -133,6 +138,7 @@ from a C function prototype with the ``dynlib`` pragma:
 Is translated to:
 
 .. code-block:: Nim
+
   when defined(windows):
     const iupdll* = "iup.dll"
   elif defined(macosx):
@@ -167,6 +173,7 @@ the ``header`` pragma:
 Is translated to:
 
 .. code-block:: Nim
+
   proc IupConvertXYToPos*(ih: PIhandle, x: cint, y: cint): cint {.
     importc: "IupConvertXYToPos", header: "iup.h".}
 
@@ -212,12 +219,14 @@ directive: It takes a PEG pattern and format string that specify how the
 identifier should be converted:
 
 .. code-block:: C
+
   #mangle "'GTK_'{.*}" "TGtk$1"
 
 For convenience the PEG pattern and the replacement can be single identifiers
 too, there is no need to quote them:
 
 .. code-block:: C
+
   #mangle ssize_t  int
   // is short for:
   #mangle "'ssize_t'" "int"
@@ -232,6 +241,7 @@ directive identifiers can be marked as private so that the resulting Nim
 module does not export them. The ``#private`` directive takes a PEG pattern:
 
 .. code-block:: C
+
   #private "@('_'!.)" // all identifiers ending in '_' are private
 
 Note: The pattern refers to the original C identifiers, not to the resulting
@@ -263,6 +273,7 @@ Often C code contains special macros that affect the declaration of a function
 prototype but confuse c2nim's parser:
 
 .. code-block:: C
+
   // does not parse!
   EXTERN(int) f(void);
   EXTERN(int) g(void);
@@ -272,6 +283,7 @@ done reliably even with a regular expression!), one can tell c2nim
 that ``EXTERN`` is a macro that should be expanded by c2nim too:
 
 .. code-block:: C
+
   #ifdef C2NIM
   #  def EXTERN(x) static x
   #endif
@@ -286,6 +298,7 @@ It can also be used when defines are being referred to, as c2nim currently does
 not expand defines:
 
 .. code-block:: C
+
   #define DEFINE_COMPLEX(R, C) typedef R C[2]
 
   #define DEFINE_API(X, R, C)   \
@@ -298,6 +311,7 @@ The above example will fail, to ensure c2nim *processes* these defines and
 expands them, use c2nim's ``#def`` directive:
 
 .. code-block:: C
+
   #ifdef C2NIM
   #  def DEFINE_COMPLEX(R, C) typedef R C[2]
   #endif
@@ -324,6 +338,7 @@ to tell c2nim that ``foo`` is to be interpreted as a ``#def``. This is what
 the ``#pp`` directive accomplishes:
 
 .. code-block:: C
+
   #ifdef C2NIM
   #pp DECLARE_NO_COPY_CLASS
   #endif
@@ -345,6 +360,7 @@ value is frequently ignored and so the Nim wrapper should contain
 a ``.discardable`` pragma:
 
 .. code-block:: C
+
   bool AddPoint(Sizer* s, int x, int y);
   int SetSize(Widget* w, int w, int h);
 
@@ -354,6 +370,7 @@ suggests functions of the given prefix(es) that have non-void return type get
 annotated with ``.discardable``:
 
 .. code-block:: C
+
   #discardableprefix Add
   #discardableprefix Set
 
@@ -363,6 +380,7 @@ annotated with ``.discardable``:
 Produces:
 
 .. code-block:: Nim
+
   proc AddPoint*(s: ptr Sizer; x: cint; y: cint): bool {.discardable.}
   proc SetSize*(w: ptr Widget; w: cint; h: cint): cint {.discardable.}
 
@@ -378,6 +396,7 @@ code in the C file. This is handy when you don't want to modify the generated
 Nim code at all. Nim code can be embedded directly via ``#@ Nim code here @#``:
 
 .. code-block:: C
+
   #ifdef C2NIM
   #@
   proc handwrittenNim(): string =
@@ -393,12 +412,14 @@ the example shows.
 wild stuff like:
 
 .. code-block:: C
+
   #define foobar #@ 5 or 9
   @#
 
 Produces:
 
 .. code-block:: Nim
+
   const
     foobar* = 5 or 9
 
@@ -407,6 +428,7 @@ Instead of ``#@  @#`` Nim's pragma brackets ``{.  .}`` can also be used, but
 not nested since the ``.}`` doesn't have to be on a line of its own:
 
 .. code-block:: C
+
   #define foobar {. 5 or 9 .}
 
 
@@ -420,4 +442,3 @@ Limitations
   binary compatible to the union.
 * The condition in a ``do while(condition)`` statement must be ``0``.
 * Lots of other small issues...
-
