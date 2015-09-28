@@ -781,7 +781,10 @@ proc parseStructBody(p: var Parser, stmtList: PNode, isUnion: bool,
         var bits = p.tok.iNumber
         eat(p, pxIntLit)
         var pragma = newNodeP(nkPragma, p)
-        addSon(pragma, newIdentNodeP("bitsize:" & $bits, p))
+        var bitsize = newNodeP(nkExprColonExpr, p)
+        addSon(bitsize, newIdentNodeP("bitsize", p))
+        addSon(bitsize, newIntNodeP(nkIntLit, bits, p))
+        addSon(pragma, bitsize)
         addSon(result, pragma)
       if p.tok.xkind != pxComma: break
       getTok(p, def)
