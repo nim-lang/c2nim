@@ -76,7 +76,9 @@ type
 
   ERetryParsing = object of Exception
 
+  SectionParser = proc(p: var Parser): PNode {.nimcall.}
 
+proc parseDir(p: var Parser; sectionParser: SectionParser): PNode
 proc addTypeDef(section, name, t, genericParams: PNode)
 proc parseStruct(p: var Parser, stmtList: PNode, isUnion: bool): PNode
 proc parseStructBody(p: var Parser, stmtList: PNode, isUnion: bool,
@@ -766,6 +768,10 @@ proc parseStructBody(p: var Parser, stmtList: PNode, isUnion: bool,
           addSon(result, def)
           getTok(p, nil)
           continue
+    elif p.tok.xkind == pxDirective or p.tok.xkind == pxDirectiveParLe:
+      var define = parseDir(p, statement)
+      addSon(result, define)
+      baseTyp = typeAtom(p)
     else:
       baseTyp = typeAtom(p)
 

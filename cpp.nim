@@ -12,9 +12,6 @@
 const
   c2nimSymbol = "C2NIM"
 
-type
-  SectionParser = proc(p: var Parser): PNode {.nimcall.}
-
 proc eatNewLine(p: var Parser, n: PNode) =
   if p.tok.xkind == pxLineComment:
     skipCom(p, n)
