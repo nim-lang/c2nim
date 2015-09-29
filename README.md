@@ -5,6 +5,8 @@ c2nim is a tool to translate Ansi C code to Nim. The output is human-readable
 Nim code that is meant to be tweaked by hand after the translation process.
 c2nim is no real compiler!
 
+Please see the manual [here](doc/c2nim.rst).
+
 Installing
 ----------
 
