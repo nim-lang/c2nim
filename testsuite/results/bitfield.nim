@@ -1,7 +1,5 @@
 type
   bits* = object
-    flag*: cint
-    {.bitsize:1.}
-    opts*: cint
-    {.bitsize:4.}
+    flag* {.bitsize: 1.}: cint
+    opts* {.bitsize: 4.}: cint
 

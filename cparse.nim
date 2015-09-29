@@ -774,8 +774,6 @@ proc parseStructBody(p: var Parser, stmtList: PNode, isUnion: bool,
       var t = pointer(p, baseTyp)
       var i = parseField(p, kind)
       t = parseTypeSuffix(p, t)
-      addSon(def, i, t, ast.emptyNode)
-      addSon(result, def)
       if p.tok.xkind == pxColon:
         getTok(p)
         var bits = p.tok.iNumber
@@ -785,7 +783,12 @@ proc parseStructBody(p: var Parser, stmtList: PNode, isUnion: bool,
         addSon(bitsize, newIdentNodeP("bitsize", p))
         addSon(bitsize, newIntNodeP(nkIntLit, bits, p))
         addSon(pragma, bitsize)
-        addSon(result, pragma)
+        var pragmaExpr = newNodeP(nkPragmaExpr, p)
+        addSon(pragmaExpr, i)
+        addSon(pragmaExpr, pragma)
+        i = pragmaExpr
+      addSon(def, i, t, ast.emptyNode)
+      addSon(result, def)
       if p.tok.xkind != pxComma: break
       getTok(p, def)
     eat(p, pxSemicolon, lastSon(result))
@@ -2554,4 +2557,3 @@ proc parseUnit(p: var Parser): PNode =
   except ERetryParsing:
     parMessage(p, errGenerated, getCurrentExceptionMsg())
     #"Uncaught parsing exception raised")
-
