@@ -1,8 +1,11 @@
 const
-  LENGTH* = 123
+  N* = 123
 
 const
-  SIZE* = 123
+  LENGTH* = N
+
+const
+  SIZE* = N
 
 type
   test* = object

@@ -1,6 +1,8 @@
+#define N 123
+
 struct test {
-#define LENGTH 123
+#define LENGTH N
   int field;
-#define SIZE 123
+#define SIZE N
   int ary[SIZE];
 };
