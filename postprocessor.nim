@@ -28,10 +28,9 @@ proc pp(n: var PNode, stmtList: PNode = nil) =
   of nkRecList:
     var consts: seq[int] = @[]
     for i in 0.. < n.safeLen:
+      pp(n.sons[i], stmtList)
       if n.sons[i].kind == nkConstSection:
         consts.insert(i)
-      else:
-        pp(n.sons[i], stmtList)
     for i in consts:
       var c = n.sons[i]
       delete(n.sons, i)
