@@ -1,4 +1,7 @@
 const
+  LENGTH* = 123
+
+const
   SIZE* = 123
 
 type
