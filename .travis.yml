@@ -13,8 +13,8 @@ before_script:
   - export PATH=$(pwd)/nim-0.11.2/bin:$(pwd):$PATH
   - git clone https://github.com/nim-lang/nimble.git nimble
   - cd nimble
-  - nim c nimble
-  - cp nimble ../nim-0.11.2/bin/
+  - nim c src/nimble
+  - cp src/nimble ../nim-0.11.2/bin/
   - cd ..
   - nimble update
   - nimble install compiler
