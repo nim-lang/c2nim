@@ -20,4 +20,5 @@ before_script:
   - nimble install compiler
 script:
   - nim c c2nim.nim
+  - which c2nim
   - nim c -r testsuite/tester.nim
