@@ -2,15 +2,13 @@ sudo: false
 language: c
 os: linux
 install:
-  - |
-      wget http://nim-lang.org/download/nim-0.11.2.tar.xz
-      tar xf nim-0.11.2.tar.xz
-      cd nim-0.11.2
-      sh build.sh
-      cd ..
+  - git clone https://github.com/nim-lang/nim
+  - cd nim
+  - ./bootstrap.sh
+  - cd ..
 before_script:
   - set -e
-  - export PATH=$(pwd)/nim-0.11.2/bin:$(pwd):$PATH
+  - export PATH=$(pwd)/nim/bin:$(pwd):$PATH
   - git clone https://github.com/nim-lang/nimble.git nimble
   - cd nimble
   - nim c src/nimble
@@ -20,5 +18,4 @@ before_script:
   - nimble install compiler
 script:
   - nim c c2nim.nim
-  - which c2nim
   - nim c -r testsuite/tester.nim
