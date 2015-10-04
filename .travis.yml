@@ -10,8 +10,14 @@ install:
       cd ..
 before_script:
   - set -e
-  - set -x
   - export PATH=$(pwd)/nim-0.11.2/bin:$(pwd):$PATH
+  - git clone https://github.com/nim-lang/nimble.git nimble
+  - cd nimble
+  - nim c nimble
+  - cp nimble ../nim-0.11.2/bin/
+  - cd ..
+  - nimble update
+  - nimble install compiler
 script:
   - nim c c2nim.nim
   - nim c -r testsuite/tester.nim
