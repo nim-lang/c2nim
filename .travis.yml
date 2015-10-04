@@ -5,14 +5,10 @@ install:
   - git clone https://github.com/nim-lang/nim
   - cd nim
   - ./bootstrap.sh
-  - export PATH=$(pwd)/bin:$PATH
-  - nim e install_nimble.nims
   - cd ..
 before_script:
   - set -e
   - export PATH=$(pwd)/nim/bin:$(pwd):$PATH
-  - nimble update
-  - nimble install compiler
 script:
   - nim c c2nim.nim
   - nim c -r testsuite/tester.nim
