@@ -319,7 +319,7 @@ proc parseMangleDir(p: var Parser) =
   eatNewLine(p, nil)
 
 proc modulePragmas(p: var Parser): PNode =
-  if p.options.dynlibSym.len > 0 and not p.hasDeadCodeElimPragma:
+  if (p.options.dynlibSym.len > 0 or p.options.staticlibSym.len > 0) and not p.hasDeadCodeElimPragma:
     p.hasDeadCodeElimPragma = true
     result = newNodeP(nkPragma, p)
     var e = newNodeP(nkExprColonExpr, p)

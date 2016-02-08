@@ -45,7 +45,7 @@ type
     prefixes, suffixes: seq[string]
     mangleRules: seq[tuple[pattern: Peg, frmt: string]]
     privateRules: seq[Peg]
-    dynlibSym, headerOverride: string
+    dynlibSym, staticlibSym, headerOverride: string
     macros: seq[Macro]
     toMangle: StringTableRef
     classes: StringTableRef
@@ -94,6 +94,7 @@ proc newParserOptions*(): PParserOptions =
   result.discardablePrefixes = @[]
   result.flags = {}
   result.dynlibSym = ""
+  result.staticlibSym = ""
   result.headerOverride = ""
   result.toMangle = newStringTable(modeCaseSensitive)
   result.classes = newStringTable(modeCaseSensitive)
@@ -108,6 +109,7 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   case key.normalize
   of "ref": incl(parserOptions.flags, pfRefs)
   of "dynlib": parserOptions.dynlibSym = val
+  of "staticlib": parserOptions.staticlibSym = val
   of "header":
     parserOptions.useHeader = true
     if val.len > 0: parserOptions.headerOverride = val
@@ -804,7 +806,7 @@ proc enumPragmas(p: Parser, name: PNode; origName: string): PNode =
   result = newNodeP(nkPragmaExpr, p)
   addSon(result, name)
   var pragmas = newNodeP(nkPragma, p)
-  if p.options.dynlibSym.len > 0 or p.options.useHeader:
+  if p.options.dynlibSym.len > 0 or p.options.staticlibSym.len > 0 or p.options.useHeader:
     var e = newNodeP(nkExprColonExpr, p)
     # HACK: sizeof(cint) should be constructed as AST
     addSon(e, newIdentNodeP("size", p), newIdentNodeP("sizeof(cint)", p))
@@ -1220,7 +1222,7 @@ proc addInitializer(p: var Parser, def: PNode) =
   if p.tok.xkind == pxAsgn:
     getTok(p, def)
     let initVal = parseInitializer(p)
-    if p.options.dynlibSym.len > 0 or p.options.useHeader:
+    if p.options.dynlibSym.len > 0 or p.options.staticlibSym.len > 0 or p.options.useHeader:
       addSon(def, ast.emptyNode)
     else:
       addSon(def, initVal)

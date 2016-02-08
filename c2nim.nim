@@ -24,6 +24,7 @@ Options:
   -o, --out:FILE         set output filename
   --cpp                  process C++ input file
   --dynlib:SYMBOL        import from dynlib: SYMBOL will be used for the import
+  --staticlib:SYMBOL     import from staticlib: SYMBOL will be used for the import
   --header:HEADER_FILE   import from a HEADER_FILE (discouraged!)
   --header               import from the given header file
   --cdecl                annotate procs with ``{.cdecl.}``
