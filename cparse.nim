@@ -33,7 +33,8 @@ type
     pfCpp,              ## process C++
     pfIgnoreRValueRefs, ## transform C++'s 'T&&' to 'T'
     pfKeepBodies,       ## do not skip C++ method bodies
-    pfAssumeIfIsTrue    ## assume #if is true
+    pfAssumeIfIsTrue,   ## assume #if is true
+    pfStructStruct      ## do not treat struct Foo Foo as a forward decl
 
   Macro = object
     name: string
@@ -130,6 +131,7 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "destructor": parserOptions.destructor = val
   of "assumeifistrue": incl(parserOptions.flags, pfAssumeIfIsTrue)
   of "discardableprefix": parserOptions.discardablePrefixes.add(val)
+  of "structstruct": incl(parserOptions.flags, pfStructStruct)
   else: result = false
 
 proc parseUnit*(p: var Parser): PNode
@@ -698,6 +700,7 @@ proc structPragmas(p: Parser, name: PNode, origName: string): PNode =
       getHeaderPair(p))
   if p.options.inheritable.hasKey(origName):
     addSon(pragmas, newIdentNodeP("inheritable", p))
+    addSon(pragmas, newIdentNodeP("pure", p))
   if pragmas.len > 0: addSon(result, pragmas)
   else: addSon(result, ast.emptyNode)
 
@@ -824,6 +827,28 @@ proc enumPragmas(p: Parser, name: PNode; origName: string): PNode =
   else:
     result = name
 
+
+proc skipInheritKeyw(p: var Parser) =
+  if p.tok.xkind == pxSymbol and (p.tok.s == "private" or
+                                  p.tok.s == "protected" or
+                                  p.tok.s == "public"):
+    getTok(p)
+
+proc parseInheritance(p: var Parser; result: PNode) =
+  if p.tok.xkind == pxColon:
+    getTok(p, result)
+    skipInheritKeyw(p)
+    var baseTyp = typeAtom(p)
+    var inh = newNodeP(nkOfInherit, p)
+    inh.add(baseTyp)
+    if p.tok.xkind == pxComma:
+      parMessage(p, warnUser, "multiple inheritance is not supported")
+      while p.tok.xkind == pxComma:
+        getTok(p)
+        skipInheritKeyw(p)
+        discard typeAtom(p)
+    result.sons[0] = inh
+
 proc parseStruct(p: var Parser, stmtList: PNode, isUnion: bool): PNode =
   result = newNodeP(nkObjectTy, p)
   var pragmas = ast.emptyNode
@@ -831,6 +856,7 @@ proc parseStruct(p: var Parser, stmtList: PNode, isUnion: bool): PNode =
     pragmas = newNodeP(nkPragma, p)
     addSon(pragmas, newIdentNodeP("union", p))
   addSon(result, pragmas, ast.emptyNode) # no inheritance
+  parseInheritance(p, result)
   if p.tok.xkind == pxCurlyLe:
     addSon(result, parseStructBody(p, stmtList, isUnion))
   else:
@@ -1107,7 +1133,11 @@ proc parseTypedefStruct(p: var Parser, result, stmtList: PNode, isUnion: bool) =
       # typedef struct a a?
       if mangleName(p.tok.s, p, skType) == nameOrType.ident.s:
         # ignore the declaration:
-        getTok(p, nil)
+        if pfStructStruct in p.options.flags:
+          # XXX to implement
+          getTok(p, nil)
+        else:
+          getTok(p, nil)
       else:
         # typedef struct a b; or typedef struct a b[45];
         otherTypeDef(p, result, nameOrType)
@@ -1944,7 +1974,7 @@ proc parseStandaloneStruct(p: var Parser, isUnion: bool;
     markTypeIdent(p, nil)
     origName = p.tok.s
     getTok(p, result)
-  if p.tok.xkind in {pxCurlyLe, pxSemiColon}:
+  if p.tok.xkind in {pxCurlyLe, pxSemiColon, pxColon}:
     if origName.len > 0:
       var name = mangledIdent(origName, p, skType)
       var t = parseStruct(p, result, isUnion)
@@ -2070,12 +2100,6 @@ proc compoundStatement(p: var Parser; newScope=true): PNode =
     result.add(ast.emptyNode)
   if newScope: dec(p.scopeCounter)
   eat(p, pxCurlyRi)
-
-proc skipInheritKeyw(p: var Parser) =
-  if p.tok.xkind == pxSymbol and (p.tok.s == "private" or
-                                  p.tok.s == "protected" or
-                                  p.tok.s == "public"):
-    getTok(p)
 
 proc applyGenericParams(t, gp: PNode): PNode =
   if gp.kind == nkEmpty:
@@ -2259,20 +2283,7 @@ proc parseClass(p: var Parser; isStruct: bool;
 
   var recList = newNodeP(nkRecList, p)
   addSon(result, recList)
-  if p.tok.xkind == pxColon:
-    getTok(p, result)
-    skipInheritKeyw(p)
-    var baseTyp = typeAtom(p)
-    var inh = newNodeP(nkOfInherit, p)
-    inh.add(baseTyp)
-    if p.tok.xkind == pxComma:
-      parMessage(p, warnUser, "multiple inheritance is not supported")
-      while p.tok.xkind == pxComma:
-        getTok(p)
-        skipInheritKeyw(p)
-        discard typeAtom(p)
-    result.sons[0] = inh
-
+  parseInheritance(p, result)
   # 'class foo;' <- forward declaration; in order to avoid multiple definitions,
   # we ignore those completely:
   if p.tok.xkind == pxSemicolon:
