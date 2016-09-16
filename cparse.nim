@@ -55,6 +55,8 @@ type
     debugMode, followNep1, useHeader: bool
     discardablePrefixes: seq[string]
     constructor, destructor, importcLit: string
+    exportPrefix*: string
+
   PParserOptions* = ref ParserOptions
 
   Parser* = object
@@ -103,6 +105,7 @@ proc newParserOptions*(): PParserOptions =
   result.constructor = "construct"
   result.destructor = "destroy"
   result.importcLit = "importc"
+  result.exportPrefix = ""
 
 proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   result = true

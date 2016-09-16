@@ -13,10 +13,10 @@ import
   clex, cparse, postprocessor
 
 const
-  Version = "0.9.8" # keep in sync with Nimble version. D'oh!
+  Version = "0.9.10" # keep in sync with Nimble version. D'oh!
   Usage = """
 c2nim - C to Nim source converter
-  (c) 2015 Andreas Rumpf
+  (c) 2016 Andreas Rumpf
 Usage: c2nim [options] [optionfile(s)] inputfile(s) [options]
   Optionfiles are C files with the 'c2nim' extension. These are parsed like
   other C files but produce no output file.
@@ -41,40 +41,52 @@ Options:
   --keepBodies           keep C++'s method bodies
   --concat               concat the list of files into a single .nim file
   --debug                prints a c2nim stack trace in case of an error
+  --exportdll:PREFIX     produce a DLL wrapping the C++ code
   -v, --version          write c2nim's version
   -h, --help             show this help
 """
 
-proc parse(infile: string, options: PParserOptions): PNode =
+proc parse(infile: string, options: PParserOptions; dllExport: var PNode): PNode =
   var stream = llStreamOpen(infile, fmRead)
   if stream == nil: rawMessage(errCannotOpenFile, infile)
   var p: Parser
   openParser(p, infile, stream, options)
   result = parseUnit(p).postprocess
   closeParser(p)
+  if options.exportPrefix.len > 0:
+    let dllprocs = exportAsDll(result, options.exportPrefix)
+    assert dllprocs.kind == nkStmtList
+    if dllExport.isNil:
+      dllExport = dllprocs
+    else:
+      for x in dllprocs: dllExport.add x
 
 proc isC2nimFile(s: string): bool = splitFile(s).ext.toLower == ".c2nim"
 
 proc main(infiles: seq[string], outfile: var string,
           options: PParserOptions, concat: bool) =
   var start = getTime()
+  var dllexport: PNode = nil
   if concat:
     var tree = newNode(nkStmtList)
     for infile in infiles:
-      let m = parse(infile.addFileExt("h"), options)
+      let m = parse(infile.addFileExt("h"), options, dllexport)
       if not isC2nimFile(infile):
         if outfile.len == 0: outfile = changeFileExt(infile, "nim")
         for n in m: tree.add(n)
     renderModule(tree, outfile)
   else:
     for infile in infiles:
-      let m = parse(infile, options)
+      let m = parse(infile, options, dllexport)
       if not isC2nimFile(infile):
         if outfile.len > 0:
           renderModule(m, outfile)
           outfile = ""
         else:
           renderModule(m, changeFileExt(infile, "nim"))
+  if dllexport != nil:
+    let (path, name, _) = infiles[0].splitFile
+    renderModule(dllexport, path / name & "_dllimpl" & ".nim")
   rawMessage(hintSuccessX, [$gLinesCompiled, $(getTime() - start),
                             formatSize(getTotalMem()), ""])
 
@@ -100,6 +112,8 @@ for kind, key, val in getopt():
     of "spliceheader":
       quit "[Error] 'spliceheader' doesn't exist anymore" &
            " use a list of files and --concat instead"
+    of "exportdll":
+      parserOptions.exportPrefix = val
     else:
       if not parserOptions.setOption(key, val):
         stdout.writeln("[Error] unknown option: " & key)

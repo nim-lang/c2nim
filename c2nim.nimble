@@ -1,6 +1,6 @@
 [Package]
 name          = "c2nim"
-version       = "0.9.8"
+version       = "0.9.10"
 author        = "Andreas Rumpf"
 description   = "c2nim is a tool to translate Ansi C code to Nim."
 license       = "MIT"
