@@ -227,7 +227,7 @@ proc debugTok*(L: Lexer; tok: Token): string =
   if L.debugMode: result.add(" (" & $tok.xkind & ")")
 
 proc printTok(tok: Token) =
-  writeln(stdout, $tok)
+  writeline(stdout, $tok)
 
 proc matchUnderscoreChars(L: var Lexer, tok: var Token, chars: set[char]) =
   # matches ([chars]_)*
