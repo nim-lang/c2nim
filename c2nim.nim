@@ -13,10 +13,11 @@ import
   clex, cparse, postprocessor
 
 const
-  Version = "0.9.8" # keep in sync with Nimble version. D'oh!
+  Version = "0.9.9" # keep in sync with Nimble version. D'oh!
   Usage = """
 c2nim - C to Nim source converter
-  (c) 2015 Andreas Rumpf
+  Version """ & $Version & " [" & $hostOS & ": " & $hostCPU & """]
+  Copyright (c) 2015 Andreas Rumpf
 Usage: c2nim [options] [optionfile(s)] inputfile(s) [options]
   Optionfiles are C files with the 'c2nim' extension. These are parsed like
   other C files but produce no output file.
