@@ -70,12 +70,16 @@ proc parseDefine(p: var Parser; hasParams: bool): PNode =
     result = newNodeP(nkConstSection, p)
     while true:
       var c = newNodeP(nkConstDef, p)
+      var mTokStr = p.tok.s  # name of macro for reservedMacros
       addSon(c, skipIdentExport(p, skConst))
       addSon(c, ast.emptyNode)
       skipStarCom(p, c)
       if p.tok.xkind in {pxLineComment, pxNewLine, pxEof}:
         addSon(c, newIdentNodeP("true", p))
+        p.options.reservedMacros.add(mTokStr, nil)  # empty (reserved) Macro
       else:
+        if p.tok.s.startsWith("__"):
+          p.options.reservedMacros.add(mTokStr, p.tok.s)  # reserved Macro
         addSon(c, expression(p))
       addSon(result, c)
       eatNewLine(p, c)

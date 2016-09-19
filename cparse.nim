@@ -41,6 +41,10 @@ type
     params: int # number of parameters; 0 for empty (); -1 for no () at all
     body: seq[ref Token] # can contain pxMacroParam tokens
 
+  ReservedMacro* = object
+    name: string
+    value: string
+
   ParserOptions = object ## shared parser state!
     flags: set[ParserFlag]
     prefixes, suffixes: seq[string]
@@ -48,6 +52,7 @@ type
     privateRules: seq[Peg]
     dynlibSym, headerOverride: string
     macros: seq[Macro]
+    reservedMacros: seq[ReservedMacro]   # empty macro or reserved compiler word
     toMangle: StringTableRef
     classes: StringTableRef
     toPreprocess: StringTableRef
@@ -90,6 +95,7 @@ proc newParserOptions*(): PParserOptions =
   result.prefixes = @[]
   result.suffixes = @[]
   result.macros = @[]
+  result.reservedMacros = @[]
   result.mangleRules = @[]
   result.privateRules = @[]
   result.discardablePrefixes = @[]
@@ -183,9 +189,23 @@ proc findMacro(p: Parser): int =
     if p.tok.s == p.options.macros[i].name: return i
   return -1
 
+proc findReservedMacro(p: Parser): int =
+  for i in 0..high(p.options.reservedMacros):
+    if p.tok.s == p.options.reservedMacros[i].name: return i
+  return -1
+
+proc isEmptyMacro(p: Parser, indx: int): bool =
+  result = (indx > -1) and isNil(p.options.reservedMacros[indx].value)
+
 proc rawEat(p: var Parser, xkind: Tokkind) =
   if p.tok.xkind == xkind: rawGetTok(p)
   else: parMessage(p, errTokenExpected, tokKindToStr(xkind))
+
+proc add(rm: var seq[ReservedMacro], n, v: string) =
+  let rmLen = rm.len
+  setLen(rm, rmLen+1)
+  rm[rmLen].name = n
+  rm[rmLen].value = v
 
 proc parseMacroArguments(p: var Parser): seq[seq[ref Token]] =
   result = @[]
@@ -2473,6 +2493,11 @@ proc fullTemplate(p: var Parser): PNode =
 proc statement(p: var Parser): PNode =
   case p.tok.xkind
   of pxSymbol:
+    let rMacroId = p.findReservedMacro()
+    if p.isEmptyMacro(rMacroId):
+      eat(p, pxSymbol)
+    elif rMacroId > -1:
+      p.tok.s = p.options.reservedMacros[rMacroId].value
     case p.tok.s
     of "if": result = parseIf(p)
     of "switch": result = parseSwitch(p)
