@@ -33,7 +33,7 @@ proc nep1(s: string, k: TSymKind): string =
              "range", "openarray", "varargs", "set", "cfloat"]:
       result.add s[i]
     else:
-      result.add toUpper(s[i])
+      result.add toUpperAscii(s[i])
   of skConst, skEnumField:
     # for 'const' we keep how it's spelt; either upper case or lower case:
     result.add s[i]
@@ -41,7 +41,7 @@ proc nep1(s: string, k: TSymKind): string =
     # as a special rule, don't transform 'L' to 'l'
     if L == 1 and s[L-1] == 'L': result.add 'L'
     else:
-      result.add toLower(s[i])
+      result.add toLowerAscii(s[i])
   inc i
   while i < L:
     if s[i] == '_':
@@ -52,9 +52,9 @@ proc nep1(s: string, k: TSymKind): string =
         result.add('_')
         result.add s[i]
       else:
-        result.add toUpper(s[i])
+        result.add toUpperAscii(s[i])
     elif allUpper:
-      result.add toLower(s[i])
+      result.add toLowerAscii(s[i])
     else:
       result.add s[i]
     inc i

@@ -13,10 +13,11 @@ import
   clex, cparse, postprocessor
 
 const
-  Version = "0.9.8" # keep in sync with Nimble version. D'oh!
+  Version = "0.9.9" # keep in sync with Nimble version. D'oh!
   Usage = """
 c2nim - C to Nim source converter
-  (c) 2015 Andreas Rumpf
+  Version """ & $Version & " [" & $hostOS & ": " & $hostCPU & """]
+  Copyright (c) 2015 Andreas Rumpf
 Usage: c2nim [options] [optionfile(s)] inputfile(s) [options]
   Optionfiles are C files with the 'c2nim' extension. These are parsed like
   other C files but produce no output file.
@@ -53,7 +54,7 @@ proc parse(infile: string, options: PParserOptions): PNode =
   result = parseUnit(p).postprocess
   closeParser(p)
 
-proc isC2nimFile(s: string): bool = splitFile(s).ext.toLower == ".c2nim"
+proc isC2nimFile(s: string): bool = splitFile(s).ext.toLowerAscii == ".c2nim"
 
 proc main(infiles: seq[string], outfile: var string,
           options: PParserOptions, concat: bool) =
@@ -102,7 +103,7 @@ for kind, key, val in getopt():
            " use a list of files and --concat instead"
     else:
       if not parserOptions.setOption(key, val):
-        stdout.writeln("[Error] unknown option: " & key)
+        stdout.writeline("[Error] unknown option: " & key)
   of cmdEnd: assert(false)
 if infiles.len == 0:
   # no filename has been given, so we show the help:

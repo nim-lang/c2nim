@@ -1,10 +1,10 @@
-sudo: false
+sudo: required
 language: c
 os: linux
 install:
   - git clone https://github.com/nim-lang/nim
   - cd nim
-  - ./bootstrap.sh
+  - sh ./bootstrap.sh
   - export PATH=$(pwd)/bin:$PATH
   - nim e install_nimble.nims
   - nimble install
