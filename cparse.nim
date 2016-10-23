@@ -707,11 +707,23 @@ proc structPragmas(p: Parser, name: PNode, origName: string): PNode =
   if pragmas.len > 0: addSon(result, pragmas)
   else: addSon(result, ast.emptyNode)
 
+type
+  FilenameHash* = uint32
+
+proc sdbmHash(hash: FilenameHash, c: char): FilenameHash {.inline.} =
+  return FilenameHash(c) + (hash shl 6) + (hash shl 16) - hash
+
+proc sdbmHash(s: string): FilenameHash =
+  template `&=`(x, c) = x = sdbmHash(x, c)
+  result = 0
+  for i in 0..<s.len:
+    result &= s[i]
+
 proc hashPosition(p: Parser): string =
   let lineInfo = parLineInfo(p)
   let fileInfo = fileInfos[lineInfo.fileIndex]
-  result = $hash(fileInfo.shortName & "_" & $lineInfo.line & "_" &
-     $lineInfo.col).uint
+  result = $sdbmHash(fileInfo.shortName & "_" & $lineInfo.line & "_" &
+     $lineInfo.col)
 
 proc parseInnerStruct(p: var Parser, stmtList: PNode,
                       isUnion: bool, name: string): PNode =
