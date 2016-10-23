@@ -511,6 +511,7 @@ proc scanLineComment(L: var Lexer, tok: var Token) =
       add(tok.s, "\n")
     else:
       break
+  while tok.s.len > 0 and tok.s[^1] in {'\t', ' '}: setLen(tok.s, tok.s.len-1)
   L.bufpos = pos
 
 proc scanStarComment(L: var Lexer, tok: var Token) =
@@ -532,7 +533,12 @@ proc scanStarComment(L: var Lexer, tok: var Token) =
       while buf[pos] in {' ', '\t'}:
         #add(tok.s, ' ')
         inc(pos)
-      if buf[pos] == '*' and buf[pos+1] != '/': inc(pos)
+      if buf[pos] == '*':
+        if buf[pos+1] != '/':
+          inc(pos)
+        else:
+          inc(pos, 2)
+          break
       else: pos = oldPos
     of '*':
       inc(pos)
@@ -546,6 +552,8 @@ proc scanStarComment(L: var Lexer, tok: var Token) =
     else:
       add(tok.s, buf[pos])
       inc(pos)
+  # strip trailing whitespace
+  while tok.s.len > 0 and tok.s[^1] in {'\t', ' '}: setLen(tok.s, tok.s.len-1)
   L.bufpos = pos
 
 proc scanVerbatim(L: var Lexer, tok: var Token; isCurlyDot: bool) =
