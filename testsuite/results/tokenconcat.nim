@@ -1,7 +1,7 @@
 type
   fftw_double* = cdouble
 
-# test the toString macro operator
+##  test the toString macro operator
 
 proc main*(argc: cint; argv: ptr cstring): cint =
   var test: fftw_double = 1.234

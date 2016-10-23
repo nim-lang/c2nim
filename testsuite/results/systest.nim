@@ -1,16 +1,16 @@
-# This file has been written by Blablub.
-# 
-#  Another comment line.
-# 
+##  This file has been written by Blablub.
+## 
+##  Another comment line.
+## 
 
-template interrupts*(): expr =
+template interrupts*(): untyped =
   sei()
 
-const                         # 8bit, color or not 
-  CV_LOAD_IMAGE_UNCHANGED* = - 1 # 8bit, gray 
-  CV_LOAD_IMAGE_GRAYSCALE* = 0  # ?, color 
-  CV_LOAD_IMAGE_COLOR* = 1      # any depth, ? 
-  CV_LOAD_IMAGE_ANYDEPTH* = 2   # ?, any color 
+const                         ##  8bit, color or not
+  CV_LOAD_IMAGE_UNCHANGED* = - 1 ##  8bit, gray
+  CV_LOAD_IMAGE_GRAYSCALE* = 0  ##  ?, color
+  CV_LOAD_IMAGE_COLOR* = 1      ##  any depth, ?
+  CV_LOAD_IMAGE_ANYDEPTH* = 2   ##  ?, any color
   CV_LOAD_IMAGE_ANYCOLOR* = 4
 
 type
@@ -21,7 +21,7 @@ proc aw_callback_set*(c: AW_CALLBACK; callback: callback_t): cint
 proc aw_instance_callback_set*(c: AW_CALLBACK; callback: callback_t): cint
 var wawa*: culong
 
-template MAX*(x, y: expr): expr =
+template MAX*(x, y: untyped): untyped =
   (if (x) < (y): (y) else: (x))
 
 const
@@ -57,9 +57,9 @@ var fn*: proc (): pointer
 
 var fn*: proc (a2: pointer): pointer
 
-#
-#  Very ugly real world code ahead:
-# 
+## 
+##  Very ugly real world code ahead:
+## 
 
 type
   cjpeg_source_ptr* = ptr cjpeg_source_struct
@@ -72,7 +72,7 @@ type
     buffer_height*: JDIMENSION
 
 
-# Test standalone structs: 
+##  Test standalone structs:
 
 type
   myunion* = object {.union.}
@@ -108,30 +108,30 @@ var
   myvar*: ptr mystruct = nil
   myvar2*: ptr ptr mystruct = nil
 
-# anonymous struct: 
+##  anonymous struct:
 
 var
   varX*: tuple[x: char, y: char, z: cstring, a: myint, b: myint]
   varY*: ptr ptr tuple[x: char, y: char, z: cstring, a: myint, b: myint]
 
-# empty anonymous struct: 
+##  empty anonymous struct:
 
 var
   varX*: tuple[]
   varY*: ptr ptr tuple[]
 
-# Test C2NIM skipping:
+##  Test C2NIM skipping:
 
-template MASK*(x: expr): expr =
+template MASK*(x: untyped): untyped =
   ((x) and 0x000000FF)
 
-template CAST1*(x: expr): expr =
+template CAST1*(x: untyped): untyped =
   ((int) and x)
 
-template CAST2*(x: expr): expr =
+template CAST2*(x: untyped): untyped =
   cast[ptr typ](addr(x))
 
-template CAST3*(x: expr): expr =
+template CAST3*(x: untyped): untyped =
   (cast[ptr ptr cuchar](addr(x)))
 
 type
@@ -162,8 +162,8 @@ proc newPoint*(): ptr point =
     p = 45 + cast[ptr mytype](45)
     p = 45 + (cast[ptr mytype](45))
     p = 45 + (cast[mytype](45))
-    # BUG: This does not parse:
-    # p = 45 + (mytype)45;
+    ##  BUG: This does not parse:
+    ##  p = 45 + (mytype)45;
   while x >= 6 and x <= 20: dec(x)
   case p[]
   of 'A'..'Z', 'a'..'z':
@@ -188,12 +188,12 @@ type
 
 
 
-# Test multi-line macro: 
+##  Test multi-line macro:
 
 const
   MUILTILINE* = "abcxyzdef"
 
-template MULTILINE*(x, y: expr): stmt =
+template MULTILINE*(x, y: untyped): void =
   while true:
   inc(y)
   inc(x)
@@ -224,18 +224,18 @@ type
 proc IupConvertXYToPos*(ih: PIhandle; x: cint; y: cint): cint {.cdecl,
     importc: "IupConvertXYToPos", dynlib: iupdll.}
 when defined(DEBUG):
-  template OUT*(x: expr): expr =
+  template OUT*(x: untyped): untyped =
     printf("%s\x0A", x)
 
 else:
-  template OUT*(x: expr): stmt =
+  template OUT*(x: untyped): void =
     nil
 
-# parses now!
+##  parses now!
 
 proc f*(): cint {.cdecl, importc: "f", dynlib: iupdll.}
 proc g*(): cint {.cdecl, importc: "g", dynlib: iupdll.}
-# does parse now!
+##  does parse now!
 
 proc f*(): cint {.cdecl, importc: "f", dynlib: iupdll.}
 proc g*(): cint {.cdecl, importc: "g", dynlib: iupdll.}
@@ -259,13 +259,13 @@ proc printf*(frmt: cstring; ptrToStrArray: ptr cstringArray; dummy: ptr cint): c
     stdcall, varargs, cdecl, importc: "printf", dynlib: iupdll.}
 proc myinlineProc*(frmt: cstring; strArray: cstringArray; dummy: ptr cint): cstring {.
     inline, varargs, cdecl, importc: "myinlineProc", dynlib: iupdll.}
-# Test void parameter list:
+##  Test void parameter list:
 
 proc myVoidProc*() {.cdecl, importc: "myVoidProc", dynlib: iupdll.}
 proc emptyReturn*() {.cdecl.} =
   return
 
-# POSIX stuff:
+##  POSIX stuff:
 
 var c2nimBranch* {.importc: "c2nimBranch", dynlib: iupdll.}: cint
 
@@ -330,10 +330,10 @@ type
 
 proc RGB_to_HWB*(RGB: RGBType; HWB: ptr HWBType): ptr HWBType {.cdecl.} =
   var myArray: array[20, ptr HWBType]
-  #
-  #    RGB are each on [0, 1]. W and B are returned on [0, 1] and H is  
-  #    returned on [0, 6]. Exception: H is returned UNDEFINED if W == 1 - B.  
-  #   
+  ## 
+  ##  RGB are each on [0, 1]. W and B are returned on [0, 1] and H is  
+  ##  returned on [0, 6]. Exception: H is returned UNDEFINED if W == 1 - B.  
+  ## 
   var
     R: cfloat
     G: cfloat
@@ -354,53 +354,53 @@ proc RGB_to_HWB*(RGB: RGBType; HWB: ptr HWBType): ptr HWBType {.cdecl.} =
 proc clip_1d*(x0: ptr cint; y0: ptr cint; x1: ptr cint; y1: ptr cint; mindim: cint;
              maxdim: cint): cint {.cdecl.} =
   var m: cdouble
-  # gradient of line
+  ##  gradient of line
   if x0[] < mindim:
-    # start of line is left of window 
+    ##  start of line is left of window
     if x1[] < mindim:
       return 0
     m = (y1[] - y0[]) div (double)(x1[] - x0[])
-    # calculate the slope of the line
-    # adjust x0 to be on the left boundary (ie to be zero), and y0 to match 
+    ##  calculate the slope of the line
+    ##  adjust x0 to be on the left boundary (ie to be zero), and y0 to match
     dec(y0[], m * (x0[] - mindim))
     x0[] = mindim
-    # now, perhaps, adjust the far end of the line as well
+    ##  now, perhaps, adjust the far end of the line as well
     if x1[] > maxdim:
       inc(y1[], m * (maxdim - x1[]))
       x1[] = maxdim
     return 1
   if x0[] > maxdim:
-    # start of line is right of window - complement of above 
+    ##  start of line is right of window - complement of above
     if x1[] > maxdim:
       return 0
     m = (y1[] - y0[]) div (double)(x1[] - x0[])
-    # calculate the slope of the line
+    ##  calculate the slope of the line
     inc(y0[], m * (maxdim - x0[]))
-    # adjust so point is on the right
-    # boundary
+    ##  adjust so point is on the right
+    ##  boundary
     x0[] = maxdim
-    # now, perhaps, adjust the end of the line
+    ##  now, perhaps, adjust the end of the line
     if x1[] < mindim:
       dec(y1[], m * (x1[] - mindim))
       x1[] = mindim
     return 1
   if x1[] > maxdim:
-    # other end is outside to the right
+    ##  other end is outside to the right
     m = (y1[] - y0[]) div (double)(x1[] - x0[])
-    # calculate the slope of the line 
+    ##  calculate the slope of the line
     inc(y1[], m * (maxdim - x1[]))
     x1[] = maxdim
     return 1
   if x1[] < mindim:
-    # other end is outside to the left 
+    ##  other end is outside to the left
     m = (y1[] - y0[]) div (double)(x1[] - x0[])
-    # calculate the slope of line 
+    ##  calculate the slope of line
     dec(y1[], m * (x1[] - mindim))
     x1[] = mindim
     return 1
   return 1
 
-# end of line clipping code
+##  end of line clipping code
 
 proc gdImageBrushApply*(im: gdImagePtr; x: cint; y: cint) {.cdecl.} =
   var
@@ -434,7 +434,7 @@ proc gdImageBrushApply*(im: gdImagePtr; x: cint; y: cint) {.cdecl.} =
         while (lx < x2):
           var p: cint
           p = gdImageGetTrueColorPixel(im.brush, srcx, srcy)
-          # 2.0.9, Thomas Winzig: apply simple full transparency
+          ##  2.0.9, Thomas Winzig: apply simple full transparency
           if p != gdImageGetTransparent(im.brush):
             gdImageSetPixel(im, lx, ly, p)
           inc(srcx)
@@ -442,8 +442,8 @@ proc gdImageBrushApply*(im: gdImagePtr; x: cint; y: cint) {.cdecl.} =
         inc(srcy)
         inc(ly)
     else:
-      # 2.0.12: Brush palette, image truecolor (thanks to Thorben Kundinger
-      # for pointing out the issue)
+      ##  2.0.12: Brush palette, image truecolor (thanks to Thorben Kundinger
+      ##  for pointing out the issue)
       ly = y1
       while (ly < y2):
         srcx = 0
@@ -454,7 +454,7 @@ proc gdImageBrushApply*(im: gdImagePtr; x: cint; y: cint) {.cdecl.} =
             tc: cint
           p = gdImageGetPixel(im.brush, srcx, srcy)
           tc = gdImageGetTrueColorPixel(im.brush, srcx, srcy)
-          # 2.0.9, Thomas Winzig: apply simple full transparency 
+          ##  2.0.9, Thomas Winzig: apply simple full transparency
           if p != gdImageGetTransparent(im.brush):
             gdImageSetPixel(im, lx, ly, tc)
           inc(srcx)
@@ -469,10 +469,10 @@ proc gdImageBrushApply*(im: gdImagePtr; x: cint; y: cint) {.cdecl.} =
       while (lx < x2):
         var p: cint
         p = gdImageGetPixel(im.brush, srcx, srcy)
-        # Allow for non-square brushes!
+        ##  Allow for non-square brushes!
         if p != gdImageGetTransparent(im.brush):
-          # Truecolor brush. Very slow
-          # on a palette destination.
+          ##  Truecolor brush. Very slow
+          ##  on a palette destination.
           if im.brush.trueColor:
             gdImageSetPixel(im, lx, ly, gdImageColorResolveAlpha(im,
                 gdTrueColorGetRed(p), gdTrueColorGetGreen(p),
@@ -489,7 +489,7 @@ proc gdImageSetPixel*(im: gdImagePtr; x: cint; y: cint; color: cint) {.cdecl.} =
   case color
   of gdStyled:
     if not im.style:
-      # Refuse to draw if no style is set.
+      ##  Refuse to draw if no style is set.
       return
     else:
       p = im.style[inc(im.stylePos)]
@@ -498,7 +498,7 @@ proc gdImageSetPixel*(im: gdImagePtr; x: cint; y: cint; color: cint) {.cdecl.} =
     im.stylePos = im.stylePos mod im.styleLength
   of gdStyledBrushed:
     if not im.style:
-      # Refuse to draw if no style is set.
+      ##  Refuse to draw if no style is set.
       return
     p = im.style[inc(im.stylePos)]
     if (p != gdTransparent) and (p != 0):
@@ -508,8 +508,8 @@ proc gdImageSetPixel*(im: gdImagePtr; x: cint; y: cint; color: cint) {.cdecl.} =
     gdImageBrushApply(im, x, y)
   of gdTiled:
     gdImageTileApply(im, x, y)
-  of gdAntiAliased: # This shouldn't happen (2.0.26) because we just call
-                  # gdImageAALine now, but do something sane.
+  of gdAntiAliased: ##  This shouldn't happen (2.0.26) because we just call
+                  ##  gdImageAALine now, but do something sane.
     gdImageSetPixel(im, x, y, im.AA_color)
   else:
     if gdImageBoundsSafeMacro(im, x, y):
