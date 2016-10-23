@@ -16,7 +16,7 @@ proc test(t, cmd: string) =
   if strip(readFile(dir & "tests" / nimFile)) !=
      strip(readFile(dir & "results" / nimFile)):
     echo "FAILURE: files differ: ", nimFile
-    discard execShellCmd("diff -uNdr " & dir & "tests" / nimFile & " " & dir & "results" / nimFile)
+    discard execShellCmd("diff -uNdr " & dir & "results" / nimFile & " " & dir & "tests" / nimFile)
     failures += 1
   else:
     echo "SUCCESS: files identical: ", nimFile
