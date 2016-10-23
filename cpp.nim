@@ -28,13 +28,13 @@ proc parseDefineBody(p: var Parser, tmplDef: PNode): string =
     (p.tok.xkind == pxSymbol and (
         declKeyword(p, p.tok.s) or stmtKeyword(p.tok.s))):
     addSon(tmplDef, statement(p))
-    result = "stmt"
+    result = "void"
   elif p.tok.xkind in {pxLineComment, pxNewLine}:
     addSon(tmplDef, buildStmtList(newNodeP(nkNilLit, p)))
-    result = "stmt"
+    result = "void"
   else:
     addSon(tmplDef, buildStmtList(expression(p)))
-    result = "expr"
+    result = "untyped"
 
 proc parseDefine(p: var Parser; hasParams: bool): PNode =
   if hasParams:
@@ -53,7 +53,7 @@ proc parseDefine(p: var Parser; hasParams: bool): PNode =
         skipStarCom(p, nil)
         if p.tok.xkind != pxComma: break
         getTok(p)
-      addSon(identDefs, newIdentNodeP("expr", p))
+      addSon(identDefs, newIdentNodeP("untyped", p))
       addSon(identDefs, ast.emptyNode)
       addSon(params, identDefs)
     eat(p, pxParRi)
