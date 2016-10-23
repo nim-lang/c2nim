@@ -13,7 +13,7 @@ import
   clex, cparse, postprocessor
 
 const
-  Version = "0.9.10" # keep in sync with Nimble version. D'oh!
+  Version = "0.9.12" # keep in sync with Nimble version. D'oh!
   Usage = """
 c2nim - C to Nim source converter
   (c) 2016 Andreas Rumpf
