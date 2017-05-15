@@ -291,15 +291,29 @@ proc parseIfndef(p: var Parser; sectionParser: SectionParser): PNode =
       addSon(result.sons[0], e)
       parseIfDirAux(p, result, sectionParser)
 
+proc definedGuard(n: PNode): string =
+  if (not n.sons.isNil) and (n.sons.len == 2):
+    let call = n.sons[0]
+    if call.ident.s == "defined":
+      result = n.sons[1].ident.s
+
 proc parseIfDir(p: var Parser; sectionParser: SectionParser): PNode =
   result = newNodeP(nkWhenStmt, p)
   addSon(result, newNodeP(nkElifBranch, p))
   getTok(p)
-  addSon(result.sons[0], expression(p))
-  eatNewLine(p, nil)
-  parseIfDirAux(p, result, sectionParser)
-  if pfAssumeIfIsTrue in p.options.flags:
-    result = result.sons[0].sons[1]
+  let condition = expression(p)
+  let guard = definedGuard(condition)
+  if (guard == "__cplusplus") or p.options.skipped.contains(guard):
+    skipUntilEndif(p)
+    result = ast.emptyNode
+  else:
+    addSon(result.sons[0], condition)
+    echo "sons -> ", condition
+    eatNewLine(p, nil)
+    parseIfDirAux(p, result, sectionParser)
+    echo "result: ", result
+    if pfAssumeIfIsTrue in p.options.flags:
+      result = result.sons[0].sons[1]
 
 proc parsePegLit(p: var Parser): Peg =
   var col = getColumn(p.lex) + 2
