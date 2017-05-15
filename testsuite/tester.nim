@@ -3,8 +3,8 @@
 import strutils, os
 
 const
-  c2nimCmd = "c2nim $#"
-  cpp2nimCmd = "c2nim --cpp $#"
+  c2nimCmd = "./c2nim $#"
+  cpp2nimCmd = "./c2nim --cpp $#"
   dir = "testsuite/"
 
 var

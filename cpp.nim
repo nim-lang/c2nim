@@ -226,20 +226,24 @@ proc skipUntilElifElseEndif(p: var Parser): TEndifMarker =
 proc parseIfdef(p: var Parser; sectionParser: SectionParser): PNode =
   getTok(p) # skip #ifdef
   expectIdent(p)
-  case p.tok.s
-  of "__cplusplus":
+  if p.options.skipped.contains(p.tok.s):
     skipUntilEndif(p)
     result = ast.emptyNode
-  of c2nimSymbol:
-    skipLine(p)
-    result = parseStmtList(p, sectionParser)
-    skipUntilEndif(p)
   else:
-    result = newNodeP(nkWhenStmt, p)
-    addSon(result, newNodeP(nkElifBranch, p))
-    addSon(result.sons[0], definedExprAux(p))
-    eatNewLine(p, nil)
-    parseIfDirAux(p, result, sectionParser)
+    case p.tok.s
+    of "__cplusplus":
+      skipUntilEndif(p)
+      result = ast.emptyNode
+    of c2nimSymbol:
+      skipLine(p)
+      result = parseStmtList(p, sectionParser)
+      skipUntilEndif(p)
+    else:
+      result = newNodeP(nkWhenStmt, p)
+      addSon(result, newNodeP(nkElifBranch, p))
+      addSon(result.sons[0], definedExprAux(p))
+      eatNewLine(p, nil)
+      parseIfDirAux(p, result, sectionParser)
 
 proc isIncludeGuard(p: var Parser): bool =
   var guard = p.tok.s
@@ -373,7 +377,7 @@ proc parseDir(p: var Parser; sectionParser: SectionParser): PNode =
       getTok(p)
     eatNewLine(p, nil)
     result = modulePragmas(p)
-  of "dynlib", "prefix", "suffix", "class", "discardableprefix":
+  of "dynlib", "prefix", "suffix", "class", "discardableprefix", "skip":
     var key = p.tok.s
     getTok(p)
     if p.tok.xkind != pxStrLit: expectIdent(p)

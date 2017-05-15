@@ -231,6 +231,31 @@ too, there is no need to quote them:
   // is short for:
   #mangle "'ssize_t'" "int"
 
+``#skip`` directive
+--------------------------------------
+
+**Note**: There is also a ``--skip`` command line option that can be used for
+the same purpose.
+
+c2nim can be configured to skip certain ``#ifdef`` sections. For instance,
+the following directive
+
+.. code-block:: C
+  #skip NVGRAPH_API
+
+can be used to ignore the whole code block
+
+.. code-block:: C
+  #ifndef NVGRAPH_API
+  #ifdef _WIN32
+  #define NVGRAPH_API __stdcall
+  #else
+  #define NVGRAPH_API
+  #endif
+  #endif
+
+which may otherwise confuse the c2nim parser.
+
 
 ``#private`` directive
 ----------------------
