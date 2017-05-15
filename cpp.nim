@@ -308,10 +308,8 @@ proc parseIfDir(p: var Parser; sectionParser: SectionParser): PNode =
     result = ast.emptyNode
   else:
     addSon(result.sons[0], condition)
-    echo "sons -> ", condition
     eatNewLine(p, nil)
     parseIfDirAux(p, result, sectionParser)
-    echo "result: ", result
     if pfAssumeIfIsTrue in p.options.flags:
       result = result.sons[0].sons[1]
 
