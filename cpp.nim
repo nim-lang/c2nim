@@ -258,38 +258,42 @@ proc parseIfndef(p: var Parser; sectionParser: SectionParser): PNode =
   result = ast.emptyNode
   getTok(p) # skip #ifndef
   expectIdent(p)
-  if p.tok.s == c2nimSymbol:
-    skipLine(p)
-    case skipUntilElifElseEndif(p)
-    of emElif:
-      result = newNodeP(nkWhenStmt, p)
-      addSon(result, newNodeP(nkElifBranch, p))
-      getTok(p)
-      addSon(result.sons[0], expression(p))
-      eatNewLine(p, nil)
-      parseIfDirAux(p, result, sectionParser)
-    of emElse:
-      skipLine(p)
-      result = parseStmtList(p, sectionParser)
-      eatEndif(p)
-    of emEndif: skipLine(p)
+  if p.options.skipped.contains(p.tok.s):
+    skipUntilEndif(p)
+    result = ast.emptyNode
   else:
-    # test if include guard:
-    saveContext(p)
-    if isIncludeGuard(p):
-      closeContext(p)
-      result = parseStmtList(p, sectionParser)
-      eatEndif(p)
+    if p.tok.s == c2nimSymbol:
+      skipLine(p)
+      case skipUntilElifElseEndif(p)
+      of emElif:
+        result = newNodeP(nkWhenStmt, p)
+        addSon(result, newNodeP(nkElifBranch, p))
+        getTok(p)
+        addSon(result.sons[0], expression(p))
+        eatNewLine(p, nil)
+        parseIfDirAux(p, result, sectionParser)
+      of emElse:
+        skipLine(p)
+        result = parseStmtList(p, sectionParser)
+        eatEndif(p)
+      of emEndif: skipLine(p)
     else:
-      backtrackContext(p)
-      result = newNodeP(nkWhenStmt, p)
-      addSon(result, newNodeP(nkElifBranch, p))
-      var e = newNodeP(nkPrefix, p)
-      addSon(e, newIdentNodeP("not", p))
-      addSon(e, definedExprAux(p))
-      eatNewLine(p, nil)
-      addSon(result.sons[0], e)
-      parseIfDirAux(p, result, sectionParser)
+      # test if include guard:
+      saveContext(p)
+      if isIncludeGuard(p):
+        closeContext(p)
+        result = parseStmtList(p, sectionParser)
+        eatEndif(p)
+      else:
+        backtrackContext(p)
+        result = newNodeP(nkWhenStmt, p)
+        addSon(result, newNodeP(nkElifBranch, p))
+        var e = newNodeP(nkPrefix, p)
+        addSon(e, newIdentNodeP("not", p))
+        addSon(e, definedExprAux(p))
+        eatNewLine(p, nil)
+        addSon(result.sons[0], e)
+        parseIfDirAux(p, result, sectionParser)
 
 proc definedGuard(n: PNode): string =
   if (not n.sons.isNil) and (n.sons.len == 2):

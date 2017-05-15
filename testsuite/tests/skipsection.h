@@ -8,6 +8,10 @@
 #endif
 #endif
 
+#ifndef skipme
+#define thisShouldAlsoBeSkipped 1
+#endif
+
 #if defined(skipme)
 #define thisShouldAlsoBeSkipped 1
 #endif
