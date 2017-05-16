@@ -1,4 +1,5 @@
-#skip skipme
+#skipifdef skipme
+#skipifndef skipme1
 
 #ifdef skipme
 #ifdef innerifdef
@@ -8,8 +9,12 @@
 #endif
 #endif
 
-#ifndef skipme
+#ifndef skipme1
 #define thisShouldAlsoBeSkipped 1
+#endif
+
+#ifdef skipme1
+#define thisShouldNotBeSkipped 1
 #endif
 
 #if defined(skipme)

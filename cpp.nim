@@ -226,24 +226,19 @@ proc skipUntilElifElseEndif(p: var Parser): TEndifMarker =
 proc parseIfdef(p: var Parser; sectionParser: SectionParser): PNode =
   getTok(p) # skip #ifdef
   expectIdent(p)
-  if p.options.skipped.contains(p.tok.s):
+  if p.options.skipIfDef.contains(p.tok.s):
     skipUntilEndif(p)
     result = ast.emptyNode
+  elif p.tok.s == c2nimSymbol:
+    skipLine(p)
+    result = parseStmtList(p, sectionParser)
+    skipUntilEndif(p)
   else:
-    case p.tok.s
-    of "__cplusplus":
-      skipUntilEndif(p)
-      result = ast.emptyNode
-    of c2nimSymbol:
-      skipLine(p)
-      result = parseStmtList(p, sectionParser)
-      skipUntilEndif(p)
-    else:
-      result = newNodeP(nkWhenStmt, p)
-      addSon(result, newNodeP(nkElifBranch, p))
-      addSon(result.sons[0], definedExprAux(p))
-      eatNewLine(p, nil)
-      parseIfDirAux(p, result, sectionParser)
+    result = newNodeP(nkWhenStmt, p)
+    addSon(result, newNodeP(nkElifBranch, p))
+    addSon(result.sons[0], definedExprAux(p))
+    eatNewLine(p, nil)
+    parseIfDirAux(p, result, sectionParser)
 
 proc isIncludeGuard(p: var Parser): bool =
   var guard = p.tok.s
@@ -258,47 +253,46 @@ proc parseIfndef(p: var Parser; sectionParser: SectionParser): PNode =
   result = ast.emptyNode
   getTok(p) # skip #ifndef
   expectIdent(p)
-  if p.options.skipped.contains(p.tok.s):
+  if p.options.skipIfnDef.contains(p.tok.s):
     skipUntilEndif(p)
     result = ast.emptyNode
-  else:
-    if p.tok.s == c2nimSymbol:
+  elif p.tok.s == c2nimSymbol:
+    skipLine(p)
+    case skipUntilElifElseEndif(p)
+    of emElif:
+      result = newNodeP(nkWhenStmt, p)
+      addSon(result, newNodeP(nkElifBranch, p))
+      getTok(p)
+      addSon(result.sons[0], expression(p))
+      eatNewLine(p, nil)
+      parseIfDirAux(p, result, sectionParser)
+    of emElse:
       skipLine(p)
-      case skipUntilElifElseEndif(p)
-      of emElif:
-        result = newNodeP(nkWhenStmt, p)
-        addSon(result, newNodeP(nkElifBranch, p))
-        getTok(p)
-        addSon(result.sons[0], expression(p))
-        eatNewLine(p, nil)
-        parseIfDirAux(p, result, sectionParser)
-      of emElse:
-        skipLine(p)
-        result = parseStmtList(p, sectionParser)
-        eatEndif(p)
-      of emEndif: skipLine(p)
+      result = parseStmtList(p, sectionParser)
+      eatEndif(p)
+    of emEndif: skipLine(p)
+  else:
+    # test if include guard:
+    saveContext(p)
+    if isIncludeGuard(p):
+      closeContext(p)
+      result = parseStmtList(p, sectionParser)
+      eatEndif(p)
     else:
-      # test if include guard:
-      saveContext(p)
-      if isIncludeGuard(p):
-        closeContext(p)
-        result = parseStmtList(p, sectionParser)
-        eatEndif(p)
-      else:
-        backtrackContext(p)
-        result = newNodeP(nkWhenStmt, p)
-        addSon(result, newNodeP(nkElifBranch, p))
-        var e = newNodeP(nkPrefix, p)
-        addSon(e, newIdentNodeP("not", p))
-        addSon(e, definedExprAux(p))
-        eatNewLine(p, nil)
-        addSon(result.sons[0], e)
-        parseIfDirAux(p, result, sectionParser)
+      backtrackContext(p)
+      result = newNodeP(nkWhenStmt, p)
+      addSon(result, newNodeP(nkElifBranch, p))
+      var e = newNodeP(nkPrefix, p)
+      addSon(e, newIdentNodeP("not", p))
+      addSon(e, definedExprAux(p))
+      eatNewLine(p, nil)
+      addSon(result.sons[0], e)
+      parseIfDirAux(p, result, sectionParser)
 
 proc definedGuard(n: PNode): string =
-  if (not n.sons.isNil) and (n.sons.len == 2):
+  if n.len == 2:
     let call = n.sons[0]
-    if call.ident.s == "defined":
+    if call.kind == nkIdent and call.ident.s == "defined":
       result = n.sons[1].ident.s
 
 proc parseIfDir(p: var Parser; sectionParser: SectionParser): PNode =
@@ -307,7 +301,7 @@ proc parseIfDir(p: var Parser; sectionParser: SectionParser): PNode =
   getTok(p)
   let condition = expression(p)
   let guard = definedGuard(condition)
-  if (guard == "__cplusplus") or p.options.skipped.contains(guard):
+  if p.options.skipIfDef.contains(guard):
     skipUntilEndif(p)
     result = ast.emptyNode
   else:
@@ -393,7 +387,7 @@ proc parseDir(p: var Parser; sectionParser: SectionParser): PNode =
       getTok(p)
     eatNewLine(p, nil)
     result = modulePragmas(p)
-  of "dynlib", "prefix", "suffix", "class", "discardableprefix", "skip":
+  of "dynlib", "prefix", "suffix", "class", "discardableprefix", "skipifdef", "skipifndef":
     var key = p.tok.s
     getTok(p)
     if p.tok.xkind != pxStrLit: expectIdent(p)
