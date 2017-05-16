@@ -224,7 +224,7 @@ proc skipUntilElifElseEndif(p: var Parser): TEndifMarker =
   parMessage(p, errXExpected, "#endif")
 
 proc parseIfdef(p: var Parser; sectionParser: SectionParser): PNode =
-  getTok(p) # skip #ifdef
+  rawGetTok(p) # skip #ifdef
   expectIdent(p)
   if p.options.skipIfDef.contains(p.tok.s):
     skipUntilEndif(p)
@@ -251,7 +251,7 @@ proc isIncludeGuard(p: var Parser): bool =
 
 proc parseIfndef(p: var Parser; sectionParser: SectionParser): PNode =
   result = ast.emptyNode
-  getTok(p) # skip #ifndef
+  rawGetTok(p) # skip #ifndef
   expectIdent(p)
   if p.options.skipIfnDef.contains(p.tok.s):
     skipUntilEndif(p)
