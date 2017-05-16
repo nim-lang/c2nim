@@ -33,8 +33,10 @@ Options:
                          (multiple --prefix options are supported)
   --suffix:SUFFIX        strip suffix for the generated Nim identifiers
                          (multiple --suffix options are supported)
-  --skip:IDENT           skips #ifdef section for the given C identifier
-                         (multiple --skip options are supported)
+  --skipifdef:IDENT      skips #ifdef sections for the given C identifier
+                         (multiple --skipifdef options are supported)
+  --skipifndef:IDENT     skips #ifndef sections for the given C identifier
+                         (multiple --skipifndef options are supported)
   --skipinclude          do not convert ``#include`` to ``import``
   --typeprefixes         generate ``T`` and ``P`` type prefixes
   --nep1                 follow 'NEP 1': Style Guide for Nim Code
