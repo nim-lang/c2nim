@@ -307,11 +307,9 @@ proc definedGuard(n: PNode): string =
 # we can substitute `defined(IDENT)` with `true`
 # Then, boolean conditions are simplified recursively as far as possible
 proc simplify(p: Parser, n: PNode): PNode =
-  var
-    trueNode = newNodeP(nkIdent, p)
-    falseNode = newNodeP(nkIdent, p)
-  trueNode.ident = getIdent("true")
-  falseNode.ident = getIdent("false")
+  let
+    trueNode = newIdentNodeP("true", p)
+    falseNode = newIdentNodeP("false", p)
 
   case n.kind
   of nkCall:
