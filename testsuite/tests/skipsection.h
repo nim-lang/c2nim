@@ -32,6 +32,22 @@
 #define skipMeAsWell 1
 #endif
 
+#if defined(skipme) || defined(somethingelse)
+#define thisShouldAlsoBeSkipped 1
+#endif
+
+#if defined(skipme) && defined(somethingelse)
+#define thisShouldBePresent 1
+#endif
+
+#if !defined(skipme1) || defined(somethingelse)
+#define thisShouldAlsoBeSkipped 1
+#endif
+
+#if defined(somethingelse) && !defined(skipme1)
+#define oneMoreConstant 1
+#endif
+
 struct foo {
     int x,y,z;
 };

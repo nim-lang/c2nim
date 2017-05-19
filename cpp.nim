@@ -295,13 +295,41 @@ proc definedGuard(n: PNode): string =
     if call.kind == nkIdent and call.ident.s == "defined":
       result = n.sons[1].ident.s
 
+proc shouldSkip(p: Parser, n: PNode): bool =
+  case n.kind
+  of nkCall:
+    let guard = definedGuard(n)
+    result = p.options.skipIfDef.contains(guard)
+  of nkInfix:
+    let op = n.sons[0]
+    if op.kind == nkIdent and op.ident.s == "and":
+      result = true
+      for i in 1 ..< n.len:
+        if not p.shouldSkip(n.sons[i]):
+          result = false
+    elif op.kind == nkIdent and op.ident.s == "or":
+      result = false
+      for i in 1 ..< n.len:
+        if p.shouldSkip(n.sons[i]):
+          result = true
+    else:
+      result = false
+  of nkPrefix:
+    let op = n.sons[0]
+    if op.kind == nkIdent and op.ident.s == "not":
+      let guard = definedGuard(n.sons[1])
+      result = p.options.skipIfnDef.contains(guard)
+    else:
+      result = false
+  else:
+    result = false
+
 proc parseIfDir(p: var Parser; sectionParser: SectionParser): PNode =
   result = newNodeP(nkWhenStmt, p)
   addSon(result, newNodeP(nkElifBranch, p))
   getTok(p)
   let condition = expression(p)
-  let guard = definedGuard(condition)
-  if p.options.skipIfDef.contains(guard):
+  if p.shouldSkip(condition):
     skipUntilEndif(p)
     result = ast.emptyNode
   else:
