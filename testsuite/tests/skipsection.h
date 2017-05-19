@@ -33,19 +33,19 @@
 #endif
 
 #if defined(skipme) || defined(somethingelse)
-#define thisShouldAlsoBeSkipped 1
-#endif
-
-#if defined(skipme) && defined(somethingelse)
 #define thisShouldBePresent 1
 #endif
 
-#if !defined(skipme1) || defined(somethingelse)
+#if defined(skipme) && defined(somethingelse)
 #define thisShouldAlsoBeSkipped 1
 #endif
 
-#if defined(somethingelse) && !defined(skipme1)
+#if !defined(skipme1) || defined(somethingelse)
 #define oneMoreConstant 1
+#endif
+
+#if defined(somethingelse) && !defined(skipme1)
+#define thisShouldAlsoBeSkipped 1
 #endif
 
 struct foo {
