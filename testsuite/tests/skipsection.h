@@ -1,6 +1,5 @@
-#skipifdef skipme
-#skipifndef skipme1
-#skipifdef skipme2
+#assumendef skipme
+#assumedef skipme1
 
 #def skipme2 somethingelse
 
@@ -20,7 +19,7 @@
 #define thisShouldNotBeSkipped 1
 #endif
 
-#ifdef skipme2
+#ifndef skipme2
 #define thisShouldBeSkipped 1
 #endif
 

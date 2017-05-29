@@ -223,10 +223,17 @@ proc skipUntilElifElseEndif(p: var Parser): TEndifMarker =
     getTok(p)
   parMessage(p, errXExpected, "#endif")
 
+proc defines(p: Parser, s: string): bool =
+  if p.options.assumeDef.contains(s): return true
+  for m in p.options.macros:
+    if m.name == s:
+      return true
+  return false
+
 proc parseIfdef(p: var Parser; sectionParser: SectionParser): PNode =
   rawGetTok(p) # skip #ifdef
   expectIdent(p)
-  if p.options.skipIfDef.contains(p.tok.s):
+  if p.options.assumenDef.contains(p.tok.s):
     skipUntilEndif(p)
     result = ast.emptyNode
   elif p.tok.s == c2nimSymbol:
@@ -253,7 +260,7 @@ proc parseIfndef(p: var Parser; sectionParser: SectionParser): PNode =
   result = ast.emptyNode
   rawGetTok(p) # skip #ifndef
   expectIdent(p)
-  if p.options.skipIfnDef.contains(p.tok.s):
+  if p.defines(p.tok.s):
     skipUntilEndif(p)
     result = ast.emptyNode
   elif p.tok.s == c2nimSymbol:
@@ -314,9 +321,9 @@ proc simplify(p: Parser, n: PNode): PNode =
   case n.kind
   of nkCall:
     let guard = definedGuard(n)
-    if p.options.skipIfDef.contains(guard):
+    if p.options.assumenDef.contains(guard):
       return falseNode
-    if p.options.skipIfnDef.contains(guard):
+    if p.defines(guard):
       return trueNode
   of nkInfix:
     let op = n.sons[0]
@@ -451,7 +458,7 @@ proc parseDir(p: var Parser; sectionParser: SectionParser): PNode =
       getTok(p)
     eatNewLine(p, nil)
     result = modulePragmas(p)
-  of "dynlib", "prefix", "suffix", "class", "discardableprefix", "skipifdef", "skipifndef":
+  of "dynlib", "prefix", "suffix", "class", "discardableprefix", "assumedef", "assumendef":
     var key = p.tok.s
     getTok(p)
     if p.tok.xkind != pxStrLit: expectIdent(p)

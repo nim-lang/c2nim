@@ -44,7 +44,7 @@ type
   ParserOptions = object ## shared parser state!
     flags: set[ParserFlag]
     prefixes, suffixes: seq[string]
-    skipIfDef, skipIfnDef: seq[string]
+    assumeDef, assumenDef: seq[string]
     mangleRules: seq[tuple[pattern: Peg, frmt: string]]
     privateRules: seq[Peg]
     dynlibSym, headerOverride: string
@@ -92,8 +92,8 @@ proc newParserOptions*(): PParserOptions =
   new(result)
   result.prefixes = @[]
   result.suffixes = @[]
-  result.skipIfDef = @["__cplusplus"]
-  result.skipIfnDef = @[]
+  result.assumeDef = @[]
+  result.assumenDef = @["__cplusplus"]
   result.macros = @[]
   result.mangleRules = @[]
   result.privateRules = @[]
@@ -122,8 +122,8 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "stdcall": incl(parserOptions.flags, pfStdCall)
   of "prefix": parserOptions.prefixes.add(val)
   of "suffix": parserOptions.suffixes.add(val)
-  of "skipifdef": parserOptions.skipIfDef.add(val)
-  of "skipifndef": parserOptions.skipIfnDef.add(val)
+  of "assumedef": parserOptions.assumeDef.add(val)
+  of "assumendef": parserOptions.assumenDef.add(val)
   of "skipinclude": incl(parserOptions.flags, pfSkipInclude)
   of "typeprefixes": incl(parserOptions.flags, pfTypePrefixes)
   of "skipcomments": incl(parserOptions.flags, pfSkipComments)
