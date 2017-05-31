@@ -223,6 +223,9 @@ proc skipUntilElifElseEndif(p: var Parser): TEndifMarker =
     getTok(p)
   parMessage(p, errXExpected, "#endif")
 
+# Returns `true` if there is a declaration
+#   #assumedef `s`
+# or there is a macro with name `s`.
 proc defines(p: Parser, s: string): bool =
   if p.options.assumeDef.contains(s): return true
   for m in p.options.macros:
@@ -307,11 +310,11 @@ proc definedGuard(n: PNode): string =
 
 # Simplifies a condition based on the following assumptions:
 # - if there is a declaration
-#   #skipifdef IDENT
-# we can substitute `defined(IDENT)` with `false`
-# - if there is a declaration
-#   #skipifndef IDENT
+#   #assumedef IDENT
 # we can substitute `defined(IDENT)` with `true`
+# - if there is a declaration
+#   #assumendef IDENT
+# we can substitute `defined(IDENT)` with `false`
 # Then, boolean conditions are simplified recursively as far as possible
 proc simplify(p: Parser, n: PNode): PNode =
   let
