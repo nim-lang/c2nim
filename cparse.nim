@@ -248,7 +248,7 @@ proc expandMacro(p: var Parser, m: Macro) =
     new(newList)
     var lastTok = newList
     var mergeToken = false
-    template appendTok(t) {.dirty, immediate.} =
+    template appendTok(t) {.dirty.} =
       if mergeToken:
         mergeToken = false
         lastTok.s &= t.s
@@ -1034,7 +1034,7 @@ proc exprToNumber(n: PNode): tuple[succ: bool, val: BiggestInt] =
   else: discard
 
 when not declared(sequtils.any):
-  template any(x, cond: expr): expr =
+  template any(x, cond: untyped): untyped =
     var result = false
     for it {.inject.} in x:
       if cond: result = true; break
@@ -1332,14 +1332,14 @@ proc parseOperator(p: var Parser, origName: var string): bool =
   else:
     parMessage(p, errGenerated, "operator symbol expected")
 
-proc declarationName(p: var Parser): string =
-    when false:
-      while p.tok.xkind == pxScope and pfCpp in p.options.flags:
-        getTok(p) # skip "::"
-        expectIdent(p)
-        result.add("::")
-        result.add(p.tok.s)
-        getTok(p)
+when false:
+  proc declarationName(p: var Parser): string =
+    while p.tok.xkind == pxScope and pfCpp in p.options.flags:
+      getTok(p) # skip "::"
+      expectIdent(p)
+      result.add("::")
+      result.add(p.tok.s)
+      getTok(p)
 
 proc parseMethod(p: var Parser, origName: string, rettyp, pragmas: PNode,
                  isStatic, isOperator, hasPointlessPar: bool;
