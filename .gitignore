@@ -1,3 +1,5 @@
 nimcache
 testsuite/tests/*.nim
+testsuite/tester
 c2nim.exe
+/c2nim

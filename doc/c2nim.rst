@@ -231,6 +231,41 @@ too, there is no need to quote them:
   // is short for:
   #mangle "'ssize_t'" "int"
 
+``#assumedef`` and ``#assumendef`` directives
+----------------------------------------------
+
+**Note**: There are also ``--assumedef`` and ``--assumendef`` command line
+options that can be used for the same purpose.
+
+c2nim can be configured to skip certain ``#ifdef`` or ``#ifndef`` sections.
+If a directive ``#assumedef SYMBOL``is found, c2nim will assume that the symbol
+``SYMBOL`` is defined, and thus skip ``#ifndef SYMBOL`` sections. The same
+happens if ``SYMBOL`` is actually defined with a ``#def`` directive.
+
+Viceversa, one can also use ``#assumendef SYMBOL`` to declare that ``SYMBOL``
+should be considered not defined, and hence skip ``#ifdef SYMBOL`` sections.
+
+These features also work for declarations like ``#if defined(SYMBOL)`` and
+boolean combinations of such declarations.
+
+For instance, the following directive
+
+.. code-block:: C
+  #assumedef NVGRAPH_API
+
+can be used to ignore the whole code block
+
+.. code-block:: C
+  #ifndef NVGRAPH_API
+  #ifdef _WIN32
+  #define NVGRAPH_API __stdcall
+  #else
+  #define NVGRAPH_API
+  #endif
+  #endif
+
+which may otherwise confuse the c2nim parser.
+
 
 ``#private`` directive
 ----------------------

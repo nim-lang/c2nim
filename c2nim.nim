@@ -13,7 +13,7 @@ import
   clex, cparse, postprocessor
 
 const
-  Version = "0.9.12" # keep in sync with Nimble version. D'oh!
+  Version = "0.9.13" # keep in sync with Nimble version. D'oh!
   Usage = """
 c2nim - C to Nim source converter
   (c) 2016 Andreas Rumpf
@@ -33,6 +33,10 @@ Options:
                          (multiple --prefix options are supported)
   --suffix:SUFFIX        strip suffix for the generated Nim identifiers
                          (multiple --suffix options are supported)
+  --assumedef:IDENT      skips #ifndef sections for the given C identifier
+                         (multiple --assumedef options are supported)
+  --assumendef:IDENT     skips #ifdef sections for the given C identifier
+                         (multiple --assumendef options are supported)
   --skipinclude          do not convert ``#include`` to ``import``
   --typeprefixes         generate ``T`` and ``P`` type prefixes
   --nep1                 follow 'NEP 1': Style Guide for Nim Code
@@ -61,7 +65,7 @@ proc parse(infile: string, options: PParserOptions; dllExport: var PNode): PNode
     else:
       for x in dllprocs: dllExport.add x
 
-proc isC2nimFile(s: string): bool = splitFile(s).ext.toLower == ".c2nim"
+proc isC2nimFile(s: string): bool = splitFile(s).ext.toLowerAscii == ".c2nim"
 
 proc main(infiles: seq[string], outfile: var string,
           options: PParserOptions, concat: bool) =
@@ -116,7 +120,7 @@ for kind, key, val in getopt():
       parserOptions.exportPrefix = val
     else:
       if not parserOptions.setOption(key, val):
-        stdout.writeln("[Error] unknown option: " & key)
+        stdout.writeLine("[Error] unknown option: " & key)
   of cmdEnd: assert(false)
 if infiles.len == 0:
   # no filename has been given, so we show the help:
