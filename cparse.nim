@@ -2177,6 +2177,11 @@ proc parseConstructor(p: var Parser, pragmas: PNode, isDestructor: bool;
     let body = compoundStatement(p)
     if pfKeepBodies in p.options.flags:
       result.sons[bodyPos] = body
+  of pxAsgn:
+    # '= default;' C++11 defaulted constructor
+    getTok(p)
+    eat(p, pxSymbol)
+    eat(p, pxSemicolon)
   else:
     parMessage(p, errTokenExpected, ";")
   if result.sons[bodyPos].kind == nkEmpty:
