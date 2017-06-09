@@ -4,14 +4,16 @@ os: linux
 install:
   - git clone https://github.com/nim-lang/nim
   - cd nim
-  - sh bootstrap.sh
-  - export PATH=$(pwd)/bin:$PATH
-  - nim e install_nimble.nims
-  - nimble install
+  - git clone --depth 1 https://github.com/nim-lang/csources.git
+  - cd csources
+  - sh build.sh
+  - cd ../
+  - bin/nim c koch
+  - ./koch boot -d:release
   - cd ..
 before_script:
   - set -e
   - export PATH=$(pwd)/nim/bin:$(pwd):$PATH
 script:
-  - nim c c2nim.nim
+  - nim c --noNimblePath --path:nim c2nim.nim
   - nim c -r testsuite/tester.nim
