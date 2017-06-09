@@ -2180,8 +2180,11 @@ proc parseConstructor(p: var Parser, pragmas: PNode, isDestructor: bool;
   of pxAsgn:
     # '= default;' C++11 defaulted constructor
     getTok(p)
-    eat(p, pxSymbol)
-    eat(p, pxSemicolon)
+    if p.tok.s == "default":
+      eat(p, pxSymbol)
+      eat(p, pxSemicolon)
+    else:
+      parMessage(p, errTokenExpected, "default")
   else:
     parMessage(p, errTokenExpected, ";")
   if result.sons[bodyPos].kind == nkEmpty:
