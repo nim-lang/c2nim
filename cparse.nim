@@ -1945,6 +1945,18 @@ proc declarationOrStatement(p: var Parser): PNode =
     # ordinary identifier:
     saveContext(p)
     getTok(p) # skip identifier to look ahead
+
+    if pfCpp in p.options.flags and p.tok.xkind == pxScope:
+      # match qualified identifier eg. `std::ostream`
+      backtrackContext(p)
+      saveContext(p)
+      let retType = typeAtom(p)
+      discard pointer(p, retType)
+      if p.tok.s == "operator":
+        backtrackContext(p)
+        return declaration(p)
+      backtrackContext(p)
+
     case p.tok.xkind
     of pxSymbol, pxStar, pxLt, pxAmp, pxAmpAmp:
       # we parse
@@ -2391,7 +2403,6 @@ proc parseClass(p: var Parser; isStruct: bool;
           parMessage(p, errGenerated, "invalid destructor")
       else:
         # field declaration or method:
-        #echo "tok ", p.tok.s, " ", p.tok.xkind
         if p.tok.xkind == pxSemicolon:
           getTok(p)
           skipCom(p, stmtList)
