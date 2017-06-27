@@ -10,7 +10,7 @@
 import
   strutils, os, times, parseopt, compiler/llstream, compiler/ast,
   compiler/renderer, compiler/options, compiler/msgs,
-  clex, cparse, postprocessor
+  c2nimpkg/clex, c2nimpkg/cparse, c2nimpkg/postprocessor
 
 const
   Version = "0.9.13" # keep in sync with Nimble version. D'oh!
