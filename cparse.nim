@@ -23,7 +23,7 @@ import
 import pegs except Token, Tokkind
 
 type
-  ParserFlag = enum
+  ParserFlag* = enum
     pfRefs,             ## use "ref" instead of "ptr" for C's typ*
     pfCDecl,            ## annotate procs with cdecl
     pfStdCall,          ## annotate procs with stdcall
@@ -42,7 +42,7 @@ type
     body: seq[ref Token] # can contain pxMacroParam tokens
 
   ParserOptions = object ## shared parser state!
-    flags: set[ParserFlag]
+    flags*: set[ParserFlag]
     prefixes, suffixes: seq[string]
     mangleRules: seq[tuple[pattern: Peg, frmt: string]]
     privateRules: seq[Peg]

@@ -46,13 +46,19 @@ Options:
   -h, --help             show this help
 """
 
+proc isCppFile(s: string): bool =
+  splitFile(s).ext.toLowerAscii in [".cpp", ".cxx", ".hpp"]
+
 proc parse(infile: string, options: PParserOptions; dllExport: var PNode): PNode =
   var stream = llStreamOpen(infile, fmRead)
   if stream == nil: rawMessage(errCannotOpenFile, infile)
+  let isCpp = pfCpp notin options.flags and isCppFile(infile)
   var p: Parser
+  if isCpp: options.flags.incl pfCpp
   openParser(p, infile, stream, options)
   result = parseUnit(p).postprocess
   closeParser(p)
+  if isCpp: options.flags.excl pfCpp
   if options.exportPrefix.len > 0:
     let dllprocs = exportAsDll(result, options.exportPrefix)
     assert dllprocs.kind == nkStmtList
@@ -61,7 +67,8 @@ proc parse(infile: string, options: PParserOptions; dllExport: var PNode): PNode
     else:
       for x in dllprocs: dllExport.add x
 
-proc isC2nimFile(s: string): bool = splitFile(s).ext.toLower == ".c2nim"
+proc isC2nimFile(s: string): bool =
+   splitFile(s).ext.toLowerAscii == ".c2nim"
 
 proc main(infiles: seq[string], outfile: var string,
           options: PParserOptions, concat: bool) =
