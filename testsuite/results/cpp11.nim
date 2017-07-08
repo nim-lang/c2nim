@@ -1,5 +1,5 @@
 type
-  Event* = object
+  Event* {.bycopy.} = object
   
 
 proc constructEvent*(): Event {.constructor.}

@@ -26,8 +26,8 @@ import
 ## / Shared pointer template class with intrusive reference counting.
 
 type
-  SharedPtr*[T] = object        ## / Construct a null shared pointer.
-                      ## / Prevent direct assignment from a shared pointer of another type.
+  SharedPtr* {.bycopy.}[T] = object ## / Construct a null shared pointer.
+                                ## / Prevent direct assignment from a shared pointer of another type.
   
 
 proc constructSharedPtr*[T](): SharedPtr[T] {.constructor.}
@@ -59,8 +59,8 @@ proc DynamicCast*[T, U](`ptr`: SharedPtr[U]): SharedPtr[T]
 ## / Weak pointer template class with intrusive reference counting. Does not keep the object pointed to alive.
 
 type
-  WeakPtr*[T] = object          ## / Construct a null weak pointer.
-                    ## / Prevent direct assignment from a weak pointer of different type.
+  WeakPtr* {.bycopy.}[T] = object ## / Construct a null weak pointer.
+                              ## / Prevent direct assignment from a weak pointer of different type.
     ## / Pointer to the RefCount structure.
   
 

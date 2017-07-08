@@ -709,8 +709,8 @@ proc structPragmas(p: Parser, name: PNode, origName: string): PNode =
   if p.options.inheritable.hasKey(origName):
     addSon(pragmas, newIdentNodeP("inheritable", p))
     addSon(pragmas, newIdentNodeP("pure", p))
-  if pragmas.len > 0: addSon(result, pragmas)
-  else: addSon(result, ast.emptyNode)
+  pragmas.add newIdentNodeP("bycopy", p)
+  result.add pragmas
 
 type
   FilenameHash* = uint32

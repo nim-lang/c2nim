@@ -43,7 +43,7 @@ var uiVar*: cint
 var myPrivateVar__: cint
 
 type
-  ParserStruct = object
+  ParserStruct {.bycopy.} = object
   
   ElementDeclHandler* = proc (userData: pointer; name: ptr Char; model: ptr Content) {.
       cdecl.}
@@ -63,7 +63,7 @@ var fn*: proc (a2: pointer): pointer
 
 type
   cjpeg_source_ptr* = ptr cjpeg_source_struct
-  cjpeg_source_struct* = object
+  cjpeg_source_struct* {.bycopy.} = object
     start_input*: proc (cinfo: j_compress_ptr; sinfo: cjpeg_source_ptr)
     get_pixel_rows*: proc (cinfo: j_compress_ptr; sinfo: cjpeg_source_ptr): JDIMENSION
     finish_input*: proc (cinfo: j_compress_ptr; sinfo: cjpeg_source_ptr)
@@ -75,7 +75,7 @@ type
 ##  Test standalone structs:
 
 type
-  myunion* = object {.union.}
+  myunion* {.bycopy.} = object {.union.}
     x*: char
     y*: char
     z*: cstring
@@ -86,7 +86,7 @@ type
 var u*: myunion
 
 type
-  mystruct* = object
+  mystruct* {.bycopy.} = object
     x*: char
     y*: char
     z*: cstring
@@ -96,7 +96,7 @@ type
 
 proc fn*(x: i32; y: i64): mystruct
 type
-  mystruct* = object
+  mystruct* {.bycopy.} = object
     x*: char
     y*: char
     z*: cstring
@@ -210,12 +210,12 @@ else:
   const
     iupdll* = "libiup.so"
 type
-  TGtkMyStruct* = object
+  TGtkMyStruct* {.bycopy.} = object
     a*: mytype
     b*: mytype
 
   PGtkMyStruct* = ptr TGtkMyStruct
-  TGtkMyStruct* = object
+  TGtkMyStruct* {.bycopy.} = object
     a*: mytype
     b*: mytype
 
@@ -249,7 +249,7 @@ const
 var x* {.importc: "x", dynlib: iupdll.}: cstring
 
 type
-  point* = object
+  point* {.bycopy.} = object
     x*: char
     y*: char
     z*: cstring
@@ -317,12 +317,12 @@ proc spawnp*(a2: ptr pid_t; a3: cstring; a4: ptr spawn_file_actions_t;
             a5: ptr spawnattr_t; a6: ptr cstring; a7: ptr cstring): cint {.cdecl,
     importc: "posix_spawnp", dynlib: iupdll.}
 type
-  RGBType* = object
+  RGBType* {.bycopy.} = object
     R*: cfloat
     G*: cfloat
     B*: cfloat
 
-  HWBType* = object
+  HWBType* {.bycopy.} = object
     H*: cfloat
     W*: cfloat
     B*: cfloat

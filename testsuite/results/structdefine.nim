@@ -8,7 +8,7 @@ const
   SIZE* = N
 
 type
-  test* = object
+  test* {.bycopy.} = object
     field*: cint
     ary*: array[SIZE, cint]
 
