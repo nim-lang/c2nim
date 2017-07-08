@@ -28,13 +28,13 @@ proc parseDefineBody(p: var Parser, tmplDef: PNode): string =
     (p.tok.xkind == pxSymbol and (
         declKeyword(p, p.tok.s) or stmtKeyword(p.tok.s))):
     addSon(tmplDef, statement(p))
-    result = "stmt"
+    result = "void"
   elif p.tok.xkind in {pxLineComment, pxNewLine}:
     addSon(tmplDef, buildStmtList(newNodeP(nkNilLit, p)))
-    result = "stmt"
+    result = "void"
   else:
     addSon(tmplDef, buildStmtList(expression(p)))
-    result = "expr"
+    result = "untyped"
 
 proc parseDefine(p: var Parser; hasParams: bool): PNode =
   if hasParams:
@@ -53,7 +53,7 @@ proc parseDefine(p: var Parser; hasParams: bool): PNode =
         skipStarCom(p, nil)
         if p.tok.xkind != pxComma: break
         getTok(p)
-      addSon(identDefs, newIdentNodeP("expr", p))
+      addSon(identDefs, newIdentNodeP("untyped", p))
       addSon(identDefs, ast.emptyNode)
       addSon(params, identDefs)
     eat(p, pxParRi)
@@ -223,14 +223,23 @@ proc skipUntilElifElseEndif(p: var Parser): TEndifMarker =
     getTok(p)
   parMessage(p, errXExpected, "#endif")
 
+# Returns `true` if there is a declaration
+#   #assumedef `s`
+# or there is a macro with name `s`.
+proc defines(p: Parser, s: string): bool =
+  if p.options.assumeDef.contains(s): return true
+  for m in p.options.macros:
+    if m.name == s:
+      return true
+  return false
+
 proc parseIfdef(p: var Parser; sectionParser: SectionParser): PNode =
-  getTok(p) # skip #ifdef
+  rawGetTok(p) # skip #ifdef
   expectIdent(p)
-  case p.tok.s
-  of "__cplusplus":
+  if p.options.assumenDef.contains(p.tok.s):
     skipUntilEndif(p)
     result = ast.emptyNode
-  of c2nimSymbol:
+  elif p.tok.s == c2nimSymbol:
     skipLine(p)
     result = parseStmtList(p, sectionParser)
     skipUntilEndif(p)
@@ -252,9 +261,12 @@ proc isIncludeGuard(p: var Parser): bool =
 
 proc parseIfndef(p: var Parser; sectionParser: SectionParser): PNode =
   result = ast.emptyNode
-  getTok(p) # skip #ifndef
+  rawGetTok(p) # skip #ifndef
   expectIdent(p)
-  if p.tok.s == c2nimSymbol:
+  if p.defines(p.tok.s):
+    skipUntilEndif(p)
+    result = ast.emptyNode
+  elif p.tok.s == c2nimSymbol:
     skipLine(p)
     case skipUntilElifElseEndif(p)
     of emElif:
@@ -287,15 +299,91 @@ proc parseIfndef(p: var Parser; sectionParser: SectionParser): PNode =
       addSon(result.sons[0], e)
       parseIfDirAux(p, result, sectionParser)
 
+proc isIdent(n: PNode, id: string): bool =
+  n.kind == nkIdent and n.ident.s == id
+
+proc definedGuard(n: PNode): string =
+  if n.len == 2:
+    let call = n.sons[0]
+    if call.isIdent("defined"):
+      result = n.sons[1].ident.s
+
+# Simplifies a condition based on the following assumptions:
+# - if there is a declaration
+#   #assumedef IDENT
+# we can substitute `defined(IDENT)` with `true`
+# - if there is a declaration
+#   #assumendef IDENT
+# we can substitute `defined(IDENT)` with `false`
+# Then, boolean conditions are simplified recursively as far as possible
+proc simplify(p: Parser, n: PNode): PNode =
+  let
+    trueNode = newIdentNodeP("true", p)
+    falseNode = newIdentNodeP("false", p)
+
+  case n.kind
+  of nkCall:
+    let guard = definedGuard(n)
+    if p.options.assumenDef.contains(guard):
+      return falseNode
+    if p.defines(guard):
+      return trueNode
+  of nkInfix:
+    let op = n.sons[0]
+    if op.isIdent("and"):
+      # subconditions can be true, false or unknown
+      var allTrue = true
+      for i in 1 ..< n.len:
+        let n1 = p.simplify(n.sons[i])
+        if n1.isIdent("true"):
+          discard
+        elif n1.isIdent("false"):
+          return falseNode
+        else:
+          allTrue = false
+      if allTrue:
+        return trueNode
+    elif op.isIdent("or"):
+      # subconditions can be true, false or unknown
+      var allFalse = true
+      for i in 1 ..< n.len:
+        let n1 = p.simplify(n.sons[i])
+        if n1.isIdent("true"):
+          return trueNode
+        elif n1.isIdent("false"):
+          discard
+        else:
+          allFalse = false
+      if allFalse:
+        return falseNode
+  of nkPrefix:
+    if n.len == 2:
+      let
+        op = n.sons[0]
+        n1 = p.simplify(n.sons[1])
+      if op.isIdent("not"):
+        if n1.isIdent("true"):
+          return falseNode
+        if n1.isIdent("false"):
+          return trueNode
+  else:
+    discard
+  return n
+
 proc parseIfDir(p: var Parser; sectionParser: SectionParser): PNode =
   result = newNodeP(nkWhenStmt, p)
   addSon(result, newNodeP(nkElifBranch, p))
   getTok(p)
-  addSon(result.sons[0], expression(p))
-  eatNewLine(p, nil)
-  parseIfDirAux(p, result, sectionParser)
-  if pfAssumeIfIsTrue in p.options.flags:
-    result = result.sons[0].sons[1]
+  let condition = expression(p)
+  if p.simplify(condition).isIdent("false"):
+    skipUntilEndif(p)
+    result = ast.emptyNode
+  else:
+    addSon(result.sons[0], condition)
+    eatNewLine(p, nil)
+    parseIfDirAux(p, result, sectionParser)
+    if pfAssumeIfIsTrue in p.options.flags:
+      result = result.sons[0].sons[1]
 
 proc parsePegLit(p: var Parser): Peg =
   var col = getColumn(p.lex) + 2
@@ -373,7 +461,7 @@ proc parseDir(p: var Parser; sectionParser: SectionParser): PNode =
       getTok(p)
     eatNewLine(p, nil)
     result = modulePragmas(p)
-  of "dynlib", "prefix", "suffix", "class", "discardableprefix":
+  of "dynlib", "prefix", "suffix", "class", "discardableprefix", "assumedef", "assumendef":
     var key = p.tok.s
     getTok(p)
     if p.tok.xkind != pxStrLit: expectIdent(p)

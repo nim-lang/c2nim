@@ -1,33 +1,33 @@
-#
-# Copyright (c) 2008-2014 the Urho3D project.
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-# THE SOFTWARE.
-#
+## 
+##  Copyright (c) 2008-2014 the Urho3D project.
+## 
+##  Permission is hereby granted, free of charge, to any person obtaining a copy
+##  of this software and associated documentation files (the "Software"), to deal
+##  in the Software without restriction, including without limitation the rights
+##  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+##  copies of the Software, and to permit persons to whom the Software is
+##  furnished to do so, subject to the following conditions:
+## 
+##  The above copyright notice and this permission notice shall be included in
+##  all copies or substantial portions of the Software.
+## 
+##  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+##  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+##  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+##  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+##  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+##  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+##  THE SOFTWARE.
+## 
 
 import
   RefCounted
 
-#/ Shared pointer template class with intrusive reference counting.
+## / Shared pointer template class with intrusive reference counting.
 
 type
-  SharedPtr*[T] = object        #/ Construct a null shared pointer.
-                      #/ Prevent direct assignment from a shared pointer of another type.
+  SharedPtr*[T] = object        ## / Construct a null shared pointer.
+                      ## / Prevent direct assignment from a shared pointer of another type.
   
 
 proc constructSharedPtr*[T](): SharedPtr[T] {.constructor.}
@@ -50,18 +50,18 @@ proc Refs*[T](this: SharedPtr[T]): cint {.noSideEffect.}
 proc WeakRefs*[T](this: SharedPtr[T]): cint {.noSideEffect.}
 proc RefCountPtr*[T](this: SharedPtr[T]): ptr RefCount {.noSideEffect.}
 proc ToHash*[T](this: SharedPtr[T]): cuint {.noSideEffect.}
-#/ Perform a static cast from one shared pointer type to another.
+## / Perform a static cast from one shared pointer type to another.
 
 proc StaticCast*[T, U](`ptr`: SharedPtr[U]): SharedPtr[T]
-#/ Perform a dynamic cast from one weak pointer type to another.
+## / Perform a dynamic cast from one weak pointer type to another.
 
 proc DynamicCast*[T, U](`ptr`: SharedPtr[U]): SharedPtr[T]
-#/ Weak pointer template class with intrusive reference counting. Does not keep the object pointed to alive.
+## / Weak pointer template class with intrusive reference counting. Does not keep the object pointed to alive.
 
 type
-  WeakPtr*[T] = object          #/ Construct a null weak pointer.
-                    #/ Prevent direct assignment from a weak pointer of different type.
-    #/ Pointer to the RefCount structure.
+  WeakPtr*[T] = object          ## / Construct a null weak pointer.
+                    ## / Prevent direct assignment from a weak pointer of different type.
+    ## / Pointer to the RefCount structure.
   
 
 proc constructWeakPtr*[T](): WeakPtr[T] {.constructor.}
@@ -86,9 +86,9 @@ proc WeakRefs*[T](this: WeakPtr[T]): cint {.noSideEffect.}
 proc Expired*[T](this: WeakPtr[T]): bool {.noSideEffect.}
 proc RefCountPtr*[T](this: WeakPtr[T]): ptr RefCount {.noSideEffect.}
 proc ToHash*[T](this: WeakPtr[T]): cuint {.noSideEffect.}
-#/ Perform a static cast from one weak pointer type to another.
+## / Perform a static cast from one weak pointer type to another.
 
 proc StaticCast*[T, U](`ptr`: WeakPtr[U]): WeakPtr[T]
-#/ Perform a dynamic cast from one weak pointer type to another.
+## / Perform a dynamic cast from one weak pointer type to another.
 
 proc DynamicCast*[T, U](`ptr`: WeakPtr[U]): WeakPtr[T]

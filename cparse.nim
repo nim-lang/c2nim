@@ -44,6 +44,7 @@ type
   ParserOptions = object ## shared parser state!
     flags*: set[ParserFlag]
     prefixes, suffixes: seq[string]
+    assumeDef, assumenDef: seq[string]
     mangleRules: seq[tuple[pattern: Peg, frmt: string]]
     privateRules: seq[Peg]
     dynlibSym, headerOverride: string
@@ -91,6 +92,8 @@ proc newParserOptions*(): PParserOptions =
   new(result)
   result.prefixes = @[]
   result.suffixes = @[]
+  result.assumeDef = @[]
+  result.assumenDef = @["__cplusplus"]
   result.macros = @[]
   result.mangleRules = @[]
   result.privateRules = @[]
@@ -119,6 +122,8 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "stdcall": incl(parserOptions.flags, pfStdCall)
   of "prefix": parserOptions.prefixes.add(val)
   of "suffix": parserOptions.suffixes.add(val)
+  of "assumedef": parserOptions.assumeDef.add(val)
+  of "assumendef": parserOptions.assumenDef.add(val)
   of "skipinclude": incl(parserOptions.flags, pfSkipInclude)
   of "typeprefixes": incl(parserOptions.flags, pfTypePrefixes)
   of "skipcomments": incl(parserOptions.flags, pfSkipComments)
@@ -243,7 +248,7 @@ proc expandMacro(p: var Parser, m: Macro) =
     new(newList)
     var lastTok = newList
     var mergeToken = false
-    template appendTok(t) {.dirty, immediate.} =
+    template appendTok(t) {.dirty.} =
       if mergeToken:
         mergeToken = false
         lastTok.s &= t.s
@@ -707,11 +712,23 @@ proc structPragmas(p: Parser, name: PNode, origName: string): PNode =
   if pragmas.len > 0: addSon(result, pragmas)
   else: addSon(result, ast.emptyNode)
 
+type
+  FilenameHash* = uint32
+
+proc sdbmHash(hash: FilenameHash, c: char): FilenameHash {.inline.} =
+  return FilenameHash(c) + (hash shl 6) + (hash shl 16) - hash
+
+proc sdbmHash(s: string): FilenameHash =
+  template `&=`(x, c) = x = sdbmHash(x, c)
+  result = 0
+  for i in 0..<s.len:
+    result &= s[i]
+
 proc hashPosition(p: Parser): string =
   let lineInfo = parLineInfo(p)
   let fileInfo = fileInfos[lineInfo.fileIndex]
-  result = $hash(fileInfo.shortName & "_" & $lineInfo.line & "_" &
-     $lineInfo.col).uint
+  result = $sdbmHash(fileInfo.shortName & "_" & $lineInfo.line & "_" &
+     $lineInfo.col)
 
 proc parseInnerStruct(p: var Parser, stmtList: PNode,
                       isUnion: bool, name: string): PNode =
@@ -1017,7 +1034,7 @@ proc exprToNumber(n: PNode): tuple[succ: bool, val: BiggestInt] =
   else: discard
 
 when not declared(sequtils.any):
-  template any(x, cond: expr): expr =
+  template any(x, cond: untyped): untyped =
     var result = false
     for it {.inject.} in x:
       if cond: result = true; break
@@ -1315,14 +1332,14 @@ proc parseOperator(p: var Parser, origName: var string): bool =
   else:
     parMessage(p, errGenerated, "operator symbol expected")
 
-proc declarationName(p: var Parser): string =
-    when false:
-      while p.tok.xkind == pxScope and pfCpp in p.options.flags:
-        getTok(p) # skip "::"
-        expectIdent(p)
-        result.add("::")
-        result.add(p.tok.s)
-        getTok(p)
+when false:
+  proc declarationName(p: var Parser): string =
+    while p.tok.xkind == pxScope and pfCpp in p.options.flags:
+      getTok(p) # skip "::"
+      expectIdent(p)
+      result.add("::")
+      result.add(p.tok.s)
+      getTok(p)
 
 proc parseMethod(p: var Parser, origName: string, rettyp, pragmas: PNode,
                  isStatic, isOperator, hasPointlessPar: bool;
@@ -1928,6 +1945,18 @@ proc declarationOrStatement(p: var Parser): PNode =
     # ordinary identifier:
     saveContext(p)
     getTok(p) # skip identifier to look ahead
+
+    if pfCpp in p.options.flags and p.tok.xkind == pxScope:
+      # match qualified identifier eg. `std::ostream`
+      backtrackContext(p)
+      saveContext(p)
+      let retType = typeAtom(p)
+      discard pointer(p, retType)
+      if p.tok.s == "operator":
+        backtrackContext(p)
+        return declaration(p)
+      backtrackContext(p)
+
     case p.tok.xkind
     of pxSymbol, pxStar, pxLt, pxAmp, pxAmpAmp:
       # we parse
@@ -2160,6 +2189,14 @@ proc parseConstructor(p: var Parser, pragmas: PNode, isDestructor: bool;
     let body = compoundStatement(p)
     if pfKeepBodies in p.options.flags:
       result.sons[bodyPos] = body
+  of pxAsgn:
+    # '= default;' C++11 defaulted constructor
+    getTok(p)
+    if p.tok.s == "default":
+      eat(p, pxSymbol)
+      eat(p, pxSemicolon)
+    else:
+      parMessage(p, errTokenExpected, "default")
   else:
     parMessage(p, errTokenExpected, ";")
   if result.sons[bodyPos].kind == nkEmpty:
@@ -2366,7 +2403,6 @@ proc parseClass(p: var Parser; isStruct: bool;
           parMessage(p, errGenerated, "invalid destructor")
       else:
         # field declaration or method:
-        #echo "tok ", p.tok.s, " ", p.tok.xkind
         if p.tok.xkind == pxSemicolon:
           getTok(p)
           skipCom(p, stmtList)

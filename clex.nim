@@ -227,7 +227,7 @@ proc debugTok*(L: Lexer; tok: Token): string =
   if L.debugMode: result.add(" (" & $tok.xkind & ")")
 
 proc printTok(tok: Token) =
-  writeln(stdout, $tok)
+  writeLine(stdout, $tok)
 
 proc matchUnderscoreChars(L: var Lexer, tok: var Token, chars: set[char]) =
   # matches ([chars]_)*
@@ -497,7 +497,7 @@ proc scanLineComment(L: var Lexer, tok: var Token) =
   var col = getColNumber(L, pos)
   while true:
     inc(pos, 2)               # skip //
-    add(tok.s, '#')
+    #add(tok.s, '#')
     while buf[pos] notin {CR, LF, nimlexbase.EndOfFile}:
       add(tok.s, buf[pos])
       inc(pos)
@@ -511,27 +511,35 @@ proc scanLineComment(L: var Lexer, tok: var Token) =
       add(tok.s, "\n")
     else:
       break
+  while tok.s.len > 0 and tok.s[^1] in {'\t', ' '}: setLen(tok.s, tok.s.len-1)
   L.bufpos = pos
 
 proc scanStarComment(L: var Lexer, tok: var Token) =
   var pos = L.bufpos
   var buf = L.buf
-  tok.s = "#"
+  tok.s = ""
   tok.xkind = pxStarComment
   while true:
     case buf[pos]
     of CR, LF:
       pos = handleCRLF(L, pos)
       buf = L.buf
-      add(tok.s, "\n#")
+      add(tok.s, "\n")
       # skip annoying stars as line prefix: (eg.
       # /*
       #  * ugly comment <-- this star
       #  */
+      let oldPos = pos
       while buf[pos] in {' ', '\t'}:
-        add(tok.s, ' ')
+        #add(tok.s, ' ')
         inc(pos)
-      if buf[pos] == '*' and buf[pos+1] != '/': inc(pos)
+      if buf[pos] == '*':
+        if buf[pos+1] != '/':
+          inc(pos)
+        else:
+          inc(pos, 2)
+          break
+      else: pos = oldPos
     of '*':
       inc(pos)
       if buf[pos] == '/':
@@ -544,6 +552,8 @@ proc scanStarComment(L: var Lexer, tok: var Token) =
     else:
       add(tok.s, buf[pos])
       inc(pos)
+  # strip trailing whitespace
+  while tok.s.len > 0 and tok.s[^1] in {'\t', ' '}: setLen(tok.s, tok.s.len-1)
   L.bufpos = pos
 
 proc scanVerbatim(L: var Lexer, tok: var Token; isCurlyDot: bool) =
