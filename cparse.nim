@@ -2311,17 +2311,17 @@ proc parseTemplate(p: var Parser): PNode =
         while true:
           if p.tok.xkind == pxSymbol and
               (p.tok.s == "class" or p.tok.s == "typename"): 
-                      getTok(p)
-                      var identDefs = newNodeP(nkIdentDefs, p)
-                      identDefs.addSon(skipIdent(p, skType), ast.emptyNode, ast.emptyNode)
-                      result.add identDefs
+                getTok(p)
+                var identDefs = newNodeP(nkIdentDefs, p)
+                identDefs.addSon(skipIdent(p, skType), ast.emptyNode, ast.emptyNode)
+                result.add identDefs
           if p.tok.xkind == pxSymbol and isIntType(p.tok.s) and
               p.tok.s != "double" and p.tok.s != "float":
-                      var staticTy = newNodeP(nkStaticTy, p)
-                      staticTy.add(typeDesc(p))
-                      var identDefs = newNodeP(nkIdentDefs, p)
-                      identDefs.addSon(skipIdent(p, skType), staticTy, ast.emptyNode)
-                      result.add identDefs
+                var staticTy = newNodeP(nkStaticTy, p)
+                staticTy.add(typeDesc(p))
+                var identDefs = newNodeP(nkIdentDefs, p)
+                identDefs.addSon(skipIdent(p, skType), staticTy, ast.emptyNode)
+                result.add identDefs
           if p.tok.xkind != pxComma: break
           getTok(p)
       eat(p, pxAngleRi)
