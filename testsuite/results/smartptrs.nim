@@ -41,8 +41,8 @@ proc `<`*[T](this: SharedPtr[T]; rhs: SharedPtr[T]): bool {.noSideEffect.}
 proc `==`*[T](this: SharedPtr[T]; rhs: SharedPtr[T]): bool {.noSideEffect.}
 proc Reset*[T](this: var SharedPtr[T])
 proc Detach*[T](this: var SharedPtr[T])
-proc StaticCast*[T, U](this: var SharedPtr[T]; rhs: SharedPtr[U])
-proc DynamicCast*[T, U](this: var SharedPtr[T]; rhs: SharedPtr[U])
+proc StaticCast*[T; U](this: var SharedPtr[T]; rhs: SharedPtr[U])
+proc DynamicCast*[T; U](this: var SharedPtr[T]; rhs: SharedPtr[U])
 proc Null*[T](this: SharedPtr[T]): bool {.noSideEffect.}
 proc NotNull*[T](this: SharedPtr[T]): bool {.noSideEffect.}
 proc Get*[T](this: SharedPtr[T]): ptr T {.noSideEffect.}
@@ -52,10 +52,10 @@ proc RefCountPtr*[T](this: SharedPtr[T]): ptr RefCount {.noSideEffect.}
 proc ToHash*[T](this: SharedPtr[T]): cuint {.noSideEffect.}
 ## / Perform a static cast from one shared pointer type to another.
 
-proc StaticCast*[T, U](`ptr`: SharedPtr[U]): SharedPtr[T]
+proc StaticCast*[T; U](`ptr`: SharedPtr[U]): SharedPtr[T]
 ## / Perform a dynamic cast from one weak pointer type to another.
 
-proc DynamicCast*[T, U](`ptr`: SharedPtr[U]): SharedPtr[T]
+proc DynamicCast*[T; U](`ptr`: SharedPtr[U]): SharedPtr[T]
 ## / Weak pointer template class with intrusive reference counting. Does not keep the object pointed to alive.
 
 type
@@ -77,8 +77,8 @@ proc `[]`*[T](this: var WeakPtr[T]; index: cint): var T
 proc `==`*[T](this: WeakPtr[T]; rhs: WeakPtr[T]): bool {.noSideEffect.}
 proc `<`*[T](this: WeakPtr[T]; rhs: WeakPtr[T]): bool {.noSideEffect.}
 proc Reset*[T](this: var WeakPtr[T])
-proc StaticCast*[T, U](this: var WeakPtr[T]; rhs: WeakPtr[U])
-proc DynamicCast*[T, U](this: var WeakPtr[T]; rhs: WeakPtr[U])
+proc StaticCast*[T; U](this: var WeakPtr[T]; rhs: WeakPtr[U])
+proc DynamicCast*[T; U](this: var WeakPtr[T]; rhs: WeakPtr[U])
 proc Null*[T](this: WeakPtr[T]): bool {.noSideEffect.}
 proc NotNull*[T](this: WeakPtr[T]): bool {.noSideEffect.}
 proc Refs*[T](this: WeakPtr[T]): cint {.noSideEffect.}
@@ -88,7 +88,7 @@ proc RefCountPtr*[T](this: WeakPtr[T]): ptr RefCount {.noSideEffect.}
 proc ToHash*[T](this: WeakPtr[T]): cuint {.noSideEffect.}
 ## / Perform a static cast from one weak pointer type to another.
 
-proc StaticCast*[T, U](`ptr`: WeakPtr[U]): WeakPtr[T]
+proc StaticCast*[T; U](`ptr`: WeakPtr[U]): WeakPtr[T]
 ## / Perform a dynamic cast from one weak pointer type to another.
 
-proc DynamicCast*[T, U](`ptr`: WeakPtr[U]): WeakPtr[T]
+proc DynamicCast*[T; U](`ptr`: WeakPtr[U]): WeakPtr[T]

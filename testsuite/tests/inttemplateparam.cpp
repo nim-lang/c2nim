@@ -1,0 +1,1 @@
+template<typename T, int N, size_t U, class C, long CA, short S, typename T2, long long LL, unsigned int UI, unsigned short US>  void foo();
