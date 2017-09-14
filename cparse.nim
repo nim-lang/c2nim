@@ -839,7 +839,7 @@ proc enumPragmas(p: Parser, name: PNode; origName: string): PNode =
           if p.currentClassOrig.len > 0:
             p.currentNamespace & p.currentClassOrig & "::" & origName
           else:
-            origName
+            p.currentNamespace & origName
     addSon(pragmas, newIdentStrLitPair("importcpp", importName, p))
     addSon(pragmas, getHeaderPair(p))
   if pragmas.len > 0:
@@ -2490,6 +2490,8 @@ proc parseStandaloneClass(p: var Parser, isStruct: bool;
       if t.isNil:
         result = newNodeP(nkDiscardStmt, p)
         result.add(newStrNodeP(nkStrLit, "forward decl of " & p.currentClassOrig, p))
+        p.currentClass = oldClass
+        p.currentClassOrig = oldClassOrig
         return result
       addTypeDef(typeSection, structPragmas(p, name, p.currentClassOrig), t,
                  genericParams)

@@ -5,6 +5,7 @@ import strutils, os
 const
   c2nimCmd = "c2nim $#"
   cpp2nimCmd = "c2nim --cpp $#"
+  hpp2nimCmd = "c2nim --cpp --header $#"
   dir = "testsuite/"
 
 var
@@ -24,5 +25,6 @@ proc test(t, cmd: string) =
 for t in walkFiles(dir & "tests/*.c"): test(t, c2nimCmd)
 for t in walkFiles(dir & "tests/*.h"): test(t, c2nimCmd)
 for t in walkFiles(dir & "tests/*.cpp"): test(t, cpp2nimCmd)
+for t in walkFiles(dir & "tests/*.hpp"): test(t, hpp2nimCmd)
 
 if failures > 0: quit($failures & " failures occurred.")
