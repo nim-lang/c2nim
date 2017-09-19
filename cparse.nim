@@ -1255,6 +1255,12 @@ proc skipDeclarationSpecifiers(p: var Parser) =
       else: break
     else: break
 
+proc skipThrowSpecifier(p: var Parser) =
+  getTok(p)
+  var pms = newNodeP(nkFormalParams, p)
+  var pgms = newNodeP(nkPragma, p)
+  parseFormalParams(p, pms, pgms) #ignore
+
 proc parseInitializer(p: var Parser): PNode =
   if p.tok.xkind == pxCurlyLe:
     result = newNodeP(nkBracket, p)
@@ -1400,6 +1406,8 @@ proc declaration(p: var Parser; genericParams: PNode = ast.emptyNode): PNode =
     # no pattern, no exceptions:
     addSon(result, exportSym(p, name, origName), ast.emptyNode, genericParams)
     addSon(result, params, pragmas, ast.emptyNode) # no exceptions
+    if p.tok.xkind == pxSymbol and p.tok.s == "throw": 
+      skipThrowSpecifier(p)
     case p.tok.xkind
     of pxSemicolon:
       getTok(p)
@@ -1557,7 +1565,10 @@ proc startExpression(p: var Parser, tok: Token): PNode =
         addSon(result, expression(p, 139))
     else:
       let kind = if p.inAngleBracket > 0: skType else: skProc
-      result = mangledIdent(tok.s, p, kind)
+      if kind == skProc and p.options.classes.hasKey(tok.s):
+        result = mangledIdent(p.options.constructor & tok.s, p, kind)
+      else:
+        result = mangledIdent(tok.s, p, kind)
       result = optScope(p, result, kind)
       result = optAngle(p, result)
   of pxIntLit:
@@ -2183,6 +2194,8 @@ proc parseConstructor(p: var Parser, pragmas: PNode, isDestructor: bool;
   addSon(result, exportSym(p, name, origName), ast.emptyNode, genericParams)
   addSon(result, params, pragmas, ast.emptyNode) # no exceptions
   addSon(result, ast.emptyNode) # no body
+  if p.tok.xkind == pxSymbol and p.tok.s == "throw": 
+    skipThrowSpecifier(p)
   case p.tok.xkind
   of pxSemicolon: getTok(p)
   of pxCurlyLe:
@@ -2245,6 +2258,8 @@ proc parseMethod(p: var Parser, origName: string, rettyp, pragmas: PNode,
          ast.emptyNode, genericParams)
   addSon(result, params, pragmas, ast.emptyNode) # no exceptions
   addSon(result, ast.emptyNode) # no body
+  if p.tok.xkind == pxSymbol and p.tok.s == "throw": 
+    skipThrowSpecifier(p)
   case p.tok.xkind
   of pxSemicolon: getTok(p)
   of pxCurlyLe:
@@ -2492,6 +2507,7 @@ proc parseStandaloneClass(p: var Parser, isStruct: bool;
         result.add(newStrNodeP(nkStrLit, "forward decl of " & p.currentClassOrig, p))
         p.currentClass = oldClass
         p.currentClassOrig = oldClassOrig
+        p.options.classes[p.currentClassOrig] = "true"
         return result
       addTypeDef(typeSection, structPragmas(p, name, p.currentClassOrig), t,
                  genericParams)
