@@ -1557,10 +1557,7 @@ proc startExpression(p: var Parser, tok: Token): PNode =
         addSon(result, expression(p, 139))
     else:
       let kind = if p.inAngleBracket > 0: skType else: skProc
-      if kind == skProc and p.options.classes.hasKey(tok.s):
-        result = mangledIdent(p.options.constructor & tok.s, p, kind)
-      else:
-        result = mangledIdent(tok.s, p, kind)
+      result = mangledIdent(tok.s, p, kind)
       result = optScope(p, result, kind)
       result = optAngle(p, result)
   of pxIntLit:
@@ -2495,7 +2492,6 @@ proc parseStandaloneClass(p: var Parser, isStruct: bool;
         result.add(newStrNodeP(nkStrLit, "forward decl of " & p.currentClassOrig, p))
         p.currentClass = oldClass
         p.currentClassOrig = oldClassOrig
-        p.options.classes[p.currentClassOrig] = "true"
         return result
       addTypeDef(typeSection, structPragmas(p, name, p.currentClassOrig), t,
                  genericParams)
