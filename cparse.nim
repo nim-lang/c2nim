@@ -1256,10 +1256,11 @@ proc skipDeclarationSpecifiers(p: var Parser) =
     else: break
 
 proc skipThrowSpecifier(p: var Parser) =
-  getTok(p)
-  var pms = newNodeP(nkFormalParams, p)
-  var pgms = newNodeP(nkPragma, p)
-  parseFormalParams(p, pms, pgms) #ignore
+  if p.tok.xkind == pxSymbol and p.tok.s == "throw": 
+    getTok(p)
+    var pms = newNodeP(nkFormalParams, p)
+    var pgms = newNodeP(nkPragma, p)
+    parseFormalParams(p, pms, pgms) #ignore
 
 proc parseInitializer(p: var Parser): PNode =
   if p.tok.xkind == pxCurlyLe:
@@ -1406,8 +1407,7 @@ proc declaration(p: var Parser; genericParams: PNode = ast.emptyNode): PNode =
     # no pattern, no exceptions:
     addSon(result, exportSym(p, name, origName), ast.emptyNode, genericParams)
     addSon(result, params, pragmas, ast.emptyNode) # no exceptions
-    if p.tok.xkind == pxSymbol and p.tok.s == "throw": 
-      skipThrowSpecifier(p)
+    skipThrowSpecifier(p)
     case p.tok.xkind
     of pxSemicolon:
       getTok(p)
@@ -2194,8 +2194,7 @@ proc parseConstructor(p: var Parser, pragmas: PNode, isDestructor: bool;
   addSon(result, exportSym(p, name, origName), ast.emptyNode, genericParams)
   addSon(result, params, pragmas, ast.emptyNode) # no exceptions
   addSon(result, ast.emptyNode) # no body
-  if p.tok.xkind == pxSymbol and p.tok.s == "throw": 
-    skipThrowSpecifier(p)
+  skipThrowSpecifier(p)
   case p.tok.xkind
   of pxSemicolon: getTok(p)
   of pxCurlyLe:
@@ -2258,8 +2257,7 @@ proc parseMethod(p: var Parser, origName: string, rettyp, pragmas: PNode,
          ast.emptyNode, genericParams)
   addSon(result, params, pragmas, ast.emptyNode) # no exceptions
   addSon(result, ast.emptyNode) # no body
-  if p.tok.xkind == pxSymbol and p.tok.s == "throw": 
-    skipThrowSpecifier(p)
+  skipThrowSpecifier(p)
   case p.tok.xkind
   of pxSemicolon: getTok(p)
   of pxCurlyLe:
