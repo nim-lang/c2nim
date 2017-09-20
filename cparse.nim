@@ -1301,7 +1301,7 @@ proc parseVarDecl(p: var Parser, baseTyp, typ: PNode,
 proc parseOperator(p: var Parser, origName: var string): bool =
   getTok(p) # skip 'operator' keyword
   case p.tok.xkind
-  of pxAmp..pxArrowStar:
+  of pxAmp..pxArrowStar, pxComma:
     # ordinary operator symbol:
     origName.add(tokKindToStr(p.tok.xkind))
     getTok(p)
