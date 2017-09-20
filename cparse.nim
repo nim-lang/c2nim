@@ -2282,6 +2282,7 @@ proc parseMethod(p: var Parser, origName: string, rettyp, pragmas: PNode,
         doImportCpp("(" & origName & " #)", pragmas, p)
       of "()": doImportCpp("#(@)", pragmas, p)
       of "[]": doImportCpp("#[@]", pragmas, p)
+      of ",": doImportCpp("#,@", pragmas, p)
       else:
         # XXX the above list is exhaustive really
         doImportCpp(p.currentClassOrig & "::operator" & origName, pragmas, p)
