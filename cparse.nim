@@ -2335,12 +2335,8 @@ proc getConverterCppType(p: var Parser): string =
   result = ""
   while true:
     case p.tok.xkind
-    of pxStar:
-      result &= '*'
-    of pxAmp:
-      result &= '&'
-    of pxAmpAmp:
-      result &= "&&"
+    of pxStar, pxAmp, pxAmpAmp:
+      result &= tokKindToStr(p.tok.xkind)
     of pxSymbol:
       result &= p.tok.s
     else: break
