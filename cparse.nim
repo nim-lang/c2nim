@@ -1301,7 +1301,7 @@ proc parseVarDecl(p: var Parser, baseTyp, typ: PNode,
 proc parseOperator(p: var Parser, origName: var string): bool =
   getTok(p) # skip 'operator' keyword
   case p.tok.xkind
-  of pxAmp..pxArrowStar:
+  of pxAmp..pxArrowStar, pxComma:
     # ordinary operator symbol:
     origName.add(tokKindToStr(p.tok.xkind))
     getTok(p)
@@ -2282,6 +2282,7 @@ proc parseMethod(p: var Parser, origName: string, rettyp, pragmas: PNode,
         doImportCpp("(" & origName & " #)", pragmas, p)
       of "()": doImportCpp("#(@)", pragmas, p)
       of "[]": doImportCpp("#[@]", pragmas, p)
+      of ",": doImportCpp("#,@", pragmas, p)
       else:
         # XXX the above list is exhaustive really
         doImportCpp(p.currentClassOrig & "::operator" & origName, pragmas, p)
