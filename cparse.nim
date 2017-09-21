@@ -2295,7 +2295,7 @@ proc parseMethod(p: var Parser, origName: string, rettyp, pragmas: PNode,
       of ",": doImportCpp("#,@", pragmas, p)
       else:
         # XXX the above list is exhaustive really
-        doImportCpp(p.currentClassOrig & "::operator" & origName, pragmas, p)
+        doImportCpp(p.currentClassOrig & "::operator " & origName, pragmas, p)
     elif isStatic:
       doImportCpp(p.currentNamespace & p.currentClassOrig & "::" &
                   origName & "(@)", pragmas, p)
@@ -2339,6 +2339,20 @@ proc parseTemplate(p: var Parser): PNode =
           if p.tok.xkind != pxComma: break
           getTok(p)
       eat(p, pxAngleRi)
+
+proc getConverterCppType(p: var Parser): string =
+  getTok(p) # skip "operator"
+  saveContext(p)
+  result = ""
+  while true:
+    case p.tok.xkind
+    of pxStar, pxAmp, pxAmpAmp:
+      result &= tokKindToStr(p.tok.xkind)
+    of pxSymbol:
+      result &= p.tok.s
+    else: break
+    getTok(p)
+  backtrackContext(p)
 
 proc parseClass(p: var Parser; isStruct: bool;
                 stmtList, genericParams: PNode): PNode =
@@ -2425,6 +2439,17 @@ proc parseClass(p: var Parser; isStruct: bool;
           if not private or pfKeepBodies in p.options.flags: stmtList.add(des)
         else:
           parMessage(p, errGenerated, "invalid destructor")
+      elif p.tok.xkind == pxSymbol and p.tok.s == "operator":
+        let origName = getConverterCppType(p)
+        var baseTyp = typeAtom(p)
+        var t = pointer(p, baseTyp)
+        let meth = parseMethod(p, origName, t, pragmas, isStatic, true,
+                                false, gp, genericParams)
+        if not private or pfKeepBodies in p.options.flags:
+          meth.kind = nkConverterDef
+          # don't add trivial operators that Nim ends up using anyway:
+          if origName notin ["=", "!=", ">", ">="]:
+            stmtList.add(meth)
       else:
         # field declaration or method:
         if p.tok.xkind == pxSemicolon:
