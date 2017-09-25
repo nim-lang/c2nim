@@ -1214,7 +1214,93 @@ proc parseTypedefEnum(p: var Parser, result, constSection: PNode) =
   else:
     expectIdent(p)
 
-proc parseTypeDef(p: var Parser): PNode =
+proc findGenericParam(g: PNode, name: string): bool =
+  for a in g:
+    if a.len > 0 and a[0].kind == nkIdent and a[0].ident.s == name:
+      return true
+
+proc parseGenericArgs(p: var Parser, genericParams: PNode,
+                      gArgsL, gArgsR: var PNode) =
+  getTok(p)
+  if p.tok.xkind == pxLt:
+    while true:
+      getTok(p)
+      expectIdent(p)
+      let name = mangleName(p.tok.s, p, skType)
+      let id = newNodeP(nkIdentDefs, p)
+      id.addSon(newIdentNodeP(name, p), ast.emptyNode, ast.emptyNode)
+      gArgsR.addSon(id)
+      if findGenericParam(genericParams, p.tok.s):
+        let id = newNodeP(nkIdentDefs, p)
+        id.addSon(newIdentNodeP(name, p), ast.emptyNode, ast.emptyNode)
+        gArgsL.addSon(id)
+      getTok(p)
+      if p.tok.xkind == pxGt:
+        getTok(p)
+        break
+      eat(p, pxComma)
+
+proc parseTypename(p: var Parser, result: var PNode, genericParams: PNode) =
+  var gpl = newNodeP(nkGenericParams, p)
+  var gpr = newNodeP(nkBracketExpr, p)
+  gpr.addSon(ast.emptyNode) # will hold type indentifier
+  var rname = ""
+  while true:
+    getTok(p)
+    expectIdent(p)
+    rname &= mangleName(p.tok.s, p, skType)
+    parseGenericArgs(p, genericParams, gpl, gpr)
+    if p.tok.xkind != pxScope:
+      break
+  expectIdent(p)
+  gpr.sons[0]=mangledIdent(rname, p, skType)
+  let lname = mangledIdent(p.tok.s, p, skType)
+  var typd = newNodeP(nkTypeDef, p)
+  let idt = mangledIdent(p.currentClass.ident.s & p.tok.s, p, skType)
+  typd.addSon(lname, gpl, gpr)
+  result.addSon(typd)
+  getTok(p) # ; 
+
+proc parseTypename_old(p: var Parser, result: var PNode, genericParams: PNode) =
+  var gp = newNodeP(nkGenericParams, p)
+  var cppImp = ""
+  var gpcount = 0
+  while true:
+    getTok(p)
+    expectIdent(p)
+    cppImp &= p.tok.s
+    parseGenericArgs(p, cppImp, gpcount, genericParams, gp)
+    if p.tok.xkind == pxScope:
+      cppImp &= tokKindToStr(pxScope)
+    else:
+      break
+  expectIdent(p)
+  var pragmas = newNodeP(nkPragma, p)
+  doImportCpp(cppImp, pragmas, p)
+  if p.options.dynlibSym.len > 0 or p.options.useHeader:
+    var typd = newNodeP(nkTypeDef, p)
+    var pge = newNodeP(nkPragmaExpr, p)
+    let idt = mangledIdent(p.currentClass.ident.s & p.tok.s, p, skType)
+    pge.addSon(idt)
+    pge.addSon(pragmas)
+    typd.addSon(pge, gp, ast.emptyNode)
+    result.addSon(typd)
+  else:
+    var typd = newNodeP(nkTypeDef, p)
+    var pge = newNodeP(nkPragmaExpr, p)
+    let idt = mangledIdent(p.currentClass.ident.s & p.tok.s, p, skType)
+    pge.addSon(idt)
+    pge.addSon(pragmas)
+    typd.addSon(pge, gp, ast.emptyNode)
+    result.addSon(typd)
+  getTok(p) # ; 
+
+  echo result
+  echo cppImp
+  echo p.currentClass.kind
+  echo p.currentClassOrig
+
+proc parseTypeDef(p: var Parser, genericParams: PNode = ast.emptyNode): PNode =
   result = newNodeP(nkStmtList, p)
   var typeSection = newNodeP(nkTypeSection, p)
   var afterStatements = newNodeP(nkStmtList, p)
@@ -1235,6 +1321,8 @@ proc parseTypeDef(p: var Parser): PNode =
       else:
         var t = typeAtom(p)
         otherTypeDef(p, typeSection, t)
+    of "typename":
+      parseTypename(p, typeSection, genericParams)
     else:
       var t = typeAtom(p)
       otherTypeDef(p, typeSection, t)
@@ -2403,7 +2491,7 @@ proc parseClass(p: var Parser; isStruct: bool;
       let x = enumSpecifier(p)
       if not private or pfKeepBodies in p.options.flags: stmtList.add(x)
     elif p.tok.xkind == pxSymbol and p.tok.s == "typedef":
-      let x = parseTypeDef(p)
+      let x = parseTypeDef(p, genericParams)
       if not private or pfKeepBodies in p.options.flags: stmtList.add(x)
     elif p.tok.xkind == pxSymbol and(p.tok.s == "struct" or p.tok.s == "class"):
       let x = parseStandaloneClass(p, isStruct=p.tok.s == "struct", gp)
