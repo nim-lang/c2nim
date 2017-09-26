@@ -496,23 +496,32 @@ proc optScope(p: var Parser, n: PNode; kind: TSymKind): PNode =
   result = n
   if pfCpp in p.options.flags:
     while p.tok.xkind == pxScope:
-      when true:
+      when false:
         getTok(p, result)
         expectIdent(p)
         result = mangledIdent(p.tok.s, p, kind)
       else:
-        let a = result
-        result = newNodeP(nkDotExpr, p)
-        result.add(a)
         getTok(p, result)
         expectIdent(p)
-        result.add(mangledIdent(p.tok.s, p, kind))
+        if n.kind == nkIdent:
+          if p.options.classes.hasKey(n.ident.s):
+            result = mangledIdent(n.ident.s & p.tok.s, p, kind)
+          else:
+            result = mangledIdent(p.tok.s, p, kind)
+        elif n.kind == nkBracketExpr:
+          if p.options.classes.hasKey(n[0].ident.s):
+            n.sons[0] = mangledIdent(n[0].ident.s & p.tok.s, p, kind)
+          else:
+            n.sons[0] = mangledIdent(p.tok.s, p, kind)
       getTok(p, result)
 
 proc optAngle(p: var Parser, n: PNode): PNode =
   if p.tok.xkind == pxLt and isTemplateAngleBracket(p):
     getTok(p)
-    result = newNodeP(nkBracketExpr, p)
+    if n.kind == nkBracketExpr:
+      result = n
+    else:
+      result = newNodeP(nkBracketExpr, p)
     result.add(n)
     inc p.inAngleBracket
     while true:
@@ -1222,25 +1231,69 @@ proc findGenericParam(g: PNode, name: string): bool =
 proc parseGenericArgs(p: var Parser, genericParams: PNode,
                       gArgsL, gArgsR: var PNode) =
   getTok(p)
-  if p.tok.xkind == pxLt:
+  if p.tok.xkind == pxLt and isTemplateAngleBracket(p):
+    inc p.inAngleBracket
+    getTok(p)
     while true:
+      let a = if p.tok.xkind == pxSymbol: typeDesc(p)
+              else: assignmentExpression(p)
+      if not a.isNil: gArgsR.add(a)
+      if a.kind == nkIdent and findGenericParam(genericParams, a.ident.s) and
+         not findGenericParam(gArgsL, a.ident.s):
+            gArgsL.add(a)
+      if p.tok.xkind != pxComma: break
       getTok(p)
-      expectIdent(p)
-      let name = mangleName(p.tok.s, p, skType)
-      let id = newNodeP(nkIdentDefs, p)
-      id.addSon(newIdentNodeP(name, p), ast.emptyNode, ast.emptyNode)
-      gArgsR.addSon(id)
-      if findGenericParam(genericParams, p.tok.s):
-        let id = newNodeP(nkIdentDefs, p)
-        id.addSon(newIdentNodeP(name, p), ast.emptyNode, ast.emptyNode)
-        gArgsL.addSon(id)
-      getTok(p)
-      if p.tok.xkind == pxGt:
-        getTok(p)
-        break
-      eat(p, pxComma)
+    dec p.inAngleBracket
+    eat(p, pxAngleRi)
+
+      # expectIdent(p)
+      # let name = mangleName(p.tok.s, p, skType)
+      # let id = newNodeP(nkIdentDefs, p)
+      # id.addSon(newIdentNodeP(name, p), ast.emptyNode, ast.emptyNode)
+      # gArgsR.addSon(id)
+      # if findGenericParam(genericParams, p.tok.s):
+      #   let id = newNodeP(nkIdentDefs, p)
+      #   id.addSon(newIdentNodeP(name, p), ast.emptyNode, ast.emptyNode)
+      #   gArgsL.addSon(id)
+      # getTok(p)
+      # if p.tok.xkind == pxGt:
+      #   getTok(p)
+      #   break
+      # eat(p, pxComma)
+
+  # inc p.inAngleBracket
+  # while true:
+  #     let a = if p.tok.xkind == pxSymbol: typeDesc(p)
+  #             else: assignmentExpression(p)
+  #     if not a.isNil: result.add(a)
+  #     if p.tok.xkind != pxComma: break
+  #     getTok(p)
+  #   dec p.inAngleBracket
+  #   eat(p, pxAngleRi)
+  #   result = optScope(p, result, skType)
 
 proc parseTypename(p: var Parser, result: var PNode, genericParams: PNode) =
+  getTok(p) #skip "typename"
+  let t = typeAtom(p)
+  echo "type = ", t
+  var gpl = newNodeP(nkGenericParams, p)
+  if t.kind == nkBracketExpr:
+    echo "hello"
+    for i in 1..<t.len:
+      echo i
+      if t[i].kind == nkIdent and findGenericParam(genericParams, t.sons[i].ident.s):
+        gpl.add(t.sons[i])
+        echo "added"
+  if gpl.len < 1: gpl = ast.emptyNode
+  echo "gpl = ", gpl
+  echo "tok = ", p.tok.s
+  let lname = skipIdentExport(p, skType)
+  echo "lname = ", lname
+  addTypeDef(result, lname, t, gpl)
+  echo "tok2 = ", p.tok.s
+  echo "tok2 kind = ", p.tok.xkind
+
+proc parseTypename_less_old(p: var Parser, result: var PNode, genericParams: PNode) =
   var gpl = newNodeP(nkGenericParams, p)
   var gpr = newNodeP(nkBracketExpr, p)
   gpr.addSon(ast.emptyNode) # will hold type indentifier
@@ -1253,52 +1306,18 @@ proc parseTypename(p: var Parser, result: var PNode, genericParams: PNode) =
     if p.tok.xkind != pxScope:
       break
   expectIdent(p)
-  gpr.sons[0]=mangledIdent(rname, p, skType)
-  let lname = mangledIdent(p.tok.s, p, skType)
+  if gpr.len > 1:
+    gpr.sons[0]= mangledIdent(rname, p, skType)
+  else:
+    gpr = mangledIdent(rname, p, skType)
+  if gpl.len < 1:
+    gpl = ast.emptyNode
+  let lname = exportSym(p, mangledIdent(p.currentClass.ident.s & p.tok.s, p, skType), p.tok.s)
   var typd = newNodeP(nkTypeDef, p)
-  let idt = mangledIdent(p.currentClass.ident.s & p.tok.s, p, skType)
   typd.addSon(lname, gpl, gpr)
   result.addSon(typd)
   getTok(p) # ; 
 
-proc parseTypename_old(p: var Parser, result: var PNode, genericParams: PNode) =
-  var gp = newNodeP(nkGenericParams, p)
-  var cppImp = ""
-  var gpcount = 0
-  while true:
-    getTok(p)
-    expectIdent(p)
-    cppImp &= p.tok.s
-    parseGenericArgs(p, cppImp, gpcount, genericParams, gp)
-    if p.tok.xkind == pxScope:
-      cppImp &= tokKindToStr(pxScope)
-    else:
-      break
-  expectIdent(p)
-  var pragmas = newNodeP(nkPragma, p)
-  doImportCpp(cppImp, pragmas, p)
-  if p.options.dynlibSym.len > 0 or p.options.useHeader:
-    var typd = newNodeP(nkTypeDef, p)
-    var pge = newNodeP(nkPragmaExpr, p)
-    let idt = mangledIdent(p.currentClass.ident.s & p.tok.s, p, skType)
-    pge.addSon(idt)
-    pge.addSon(pragmas)
-    typd.addSon(pge, gp, ast.emptyNode)
-    result.addSon(typd)
-  else:
-    var typd = newNodeP(nkTypeDef, p)
-    var pge = newNodeP(nkPragmaExpr, p)
-    let idt = mangledIdent(p.currentClass.ident.s & p.tok.s, p, skType)
-    pge.addSon(idt)
-    pge.addSon(pragmas)
-    typd.addSon(pge, gp, ast.emptyNode)
-    result.addSon(typd)
-  getTok(p) # ; 
-
-  echo result
-  echo cppImp
-  echo p.currentClass.kind
-  echo p.currentClassOrig
 
 proc parseTypeDef(p: var Parser, genericParams: PNode = ast.emptyNode): PNode =
   result = newNodeP(nkStmtList, p)
