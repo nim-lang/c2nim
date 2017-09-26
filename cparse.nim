@@ -382,14 +382,22 @@ proc newBinary(opr: string, a, b: PNode, p: Parser): PNode =
   addSon(result, a)
   addSon(result, b)
 
-proc skipIdent(p: var Parser; kind: TSymKind): PNode =
+proc skipIdent(p: var Parser; kind: TSymKind, nest: bool = false): PNode =
   expectIdent(p)
-  result = mangledIdent(p.tok.s, p, kind)
+  if nest and not p.currentClass.isNil and p.currentClass.kind == nkIdent:
+    let name = p.currentClass.ident.s & p.tok.s
+    result = exportSym(p, mangledIdent(name, p, kind), p.tok.s)
+  else:
+    result = mangledIdent(p.tok.s, p, kind)
   getTok(p, result)
 
-proc skipIdentExport(p: var Parser; kind: TSymKind): PNode =
+proc skipIdentExport(p: var Parser; kind: TSymKind, nest: bool = false): PNode =
   expectIdent(p)
-  result = exportSym(p, mangledIdent(p.tok.s, p, kind), p.tok.s)
+  if nest and not p.currentClass.isNil and p.currentClass.kind == nkIdent:
+    let name = p.currentClass.ident.s & p.tok.s
+    result = exportSym(p, mangledIdent(name, p, kind), p.tok.s)
+  else:
+    result = exportSym(p, mangledIdent(p.tok.s, p, kind), p.tok.s)
   getTok(p, result)
 
 proc markTypeIdent(p: var Parser, typ: PNode) =
@@ -979,7 +987,7 @@ proc parseFunctionPointerDecl(p: var Parser, rettyp: PNode): PNode =
   if p.tok.xkind == pxStar: getTok(p, params)
   #else: parMessage(p, errTokenExpected, "*")
   if p.inTypeDef > 0: markTypeIdent(p, nil)
-  var name = skipIdentExport(p, if p.inTypeDef > 0: skType else: skVar)
+  var name = skipIdentExport(p, if p.inTypeDef > 0: skType else: skVar, true)
   eat(p, pxParRi, name)
   parseFormalParams(p, params, pragmas)
   addSon(procType, params)
@@ -1000,7 +1008,14 @@ proc addTypeDef(section, name, t, genericParams: PNode) =
   addSon(def, name, genericParams, t)
   addSon(section, def)
 
-proc otherTypeDef(p: var Parser, section, typ: PNode) =
+proc findGenericParam(g: PNode, n: PNode): bool
+
+proc otherTypeDef(p: var Parser, section, typ: PNode,
+                  genericParams: PNode = ast.emptyNode) =
+  var gp = ast.emptyNode
+  if findGenericParam(genericParams, typ):
+    gp = newNodeP(nkGenericParams, p)
+    gp.add(typ)
   var name: PNode
   var t = typ
   if p.tok.xkind in {pxStar, pxAmp, pxAmpAmp}:
@@ -1013,16 +1028,16 @@ proc otherTypeDef(p: var Parser, section, typ: PNode) =
   else:
     # typedef typ name;
     markTypeIdent(p, t)
-    name = skipIdentExport(p, skType)
+    name = skipIdentExport(p, skType, true)
   t = parseTypeSuffix(p, t)
-  addTypeDef(section, name, t, ast.emptyNode)
+  addTypeDef(section, name, t, gp)
 
 proc parseTrailingDefinedTypes(p: var Parser, section, typ: PNode) =
   while p.tok.xkind == pxComma:
     getTok(p, nil)
     var newTyp = pointer(p, typ)
     markTypeIdent(p, newTyp)
-    var newName = skipIdentExport(p, skType)
+    var newName = skipIdentExport(p, skType, true)
     newTyp = parseTypeSuffix(p, newTyp)
     addTypeDef(section, newName, newTyp, ast.emptyNode)
 
@@ -1136,7 +1151,7 @@ proc parseTypedefStruct(p: var Parser, result, stmtList: PNode, isUnion: bool) =
     var t = parseStruct(p, stmtList, isUnion)
     var origName = p.tok.s
     markTypeIdent(p, nil)
-    var name = skipIdent(p, skType)
+    var name = skipIdent(p, skType, true)
     addTypeDef(result, structPragmas(p, name, origName), t, ast.emptyNode)
     parseTrailingDefinedTypes(p, result, name)
   elif p.tok.xkind == pxSymbol:
@@ -1152,7 +1167,7 @@ proc parseTypedefStruct(p: var Parser, result, stmtList: PNode, isUnion: bool) =
         # --> abc is a better type name than tagABC!
         markTypeIdent(p, nil)
         var origName = p.tok.s
-        var name = skipIdent(p, skType)
+        var name = skipIdent(p, skType, true)
         addTypeDef(result, structPragmas(p, name, origName), t, ast.emptyNode)
         parseTrailingDefinedTypes(p, result, name)
       else:
@@ -1223,101 +1238,23 @@ proc parseTypedefEnum(p: var Parser, result, constSection: PNode) =
   else:
     expectIdent(p)
 
-proc findGenericParam(g: PNode, name: string): bool =
-  for a in g:
-    if a.len > 0 and a[0].kind == nkIdent and a[0].ident.s == name:
-      return true
-
-proc parseGenericArgs(p: var Parser, genericParams: PNode,
-                      gArgsL, gArgsR: var PNode) =
-  getTok(p)
-  if p.tok.xkind == pxLt and isTemplateAngleBracket(p):
-    inc p.inAngleBracket
-    getTok(p)
-    while true:
-      let a = if p.tok.xkind == pxSymbol: typeDesc(p)
-              else: assignmentExpression(p)
-      if not a.isNil: gArgsR.add(a)
-      if a.kind == nkIdent and findGenericParam(genericParams, a.ident.s) and
-         not findGenericParam(gArgsL, a.ident.s):
-            gArgsL.add(a)
-      if p.tok.xkind != pxComma: break
-      getTok(p)
-    dec p.inAngleBracket
-    eat(p, pxAngleRi)
-
-      # expectIdent(p)
-      # let name = mangleName(p.tok.s, p, skType)
-      # let id = newNodeP(nkIdentDefs, p)
-      # id.addSon(newIdentNodeP(name, p), ast.emptyNode, ast.emptyNode)
-      # gArgsR.addSon(id)
-      # if findGenericParam(genericParams, p.tok.s):
-      #   let id = newNodeP(nkIdentDefs, p)
-      #   id.addSon(newIdentNodeP(name, p), ast.emptyNode, ast.emptyNode)
-      #   gArgsL.addSon(id)
-      # getTok(p)
-      # if p.tok.xkind == pxGt:
-      #   getTok(p)
-      #   break
-      # eat(p, pxComma)
-
-  # inc p.inAngleBracket
-  # while true:
-  #     let a = if p.tok.xkind == pxSymbol: typeDesc(p)
-  #             else: assignmentExpression(p)
-  #     if not a.isNil: result.add(a)
-  #     if p.tok.xkind != pxComma: break
-  #     getTok(p)
-  #   dec p.inAngleBracket
-  #   eat(p, pxAngleRi)
-  #   result = optScope(p, result, skType)
+proc findGenericParam(g: PNode, n: PNode): bool =
+  if n.kind == nkIdent:
+    for a in g:
+      if a.len > 0 and a[0].kind == nkIdent and a[0].ident.s == n.ident.s:
+        return true
 
 proc parseTypename(p: var Parser, result: var PNode, genericParams: PNode) =
   getTok(p) #skip "typename"
   let t = typeAtom(p)
-  echo "type = ", t
   var gpl = newNodeP(nkGenericParams, p)
   if t.kind == nkBracketExpr:
-    echo "hello"
     for i in 1..<t.len:
-      echo i
-      if t[i].kind == nkIdent and findGenericParam(genericParams, t.sons[i].ident.s):
+      if t[i].kind == nkIdent and findGenericParam(genericParams, t.sons[i]):
         gpl.add(t.sons[i])
-        echo "added"
   if gpl.len < 1: gpl = ast.emptyNode
-  echo "gpl = ", gpl
-  echo "tok = ", p.tok.s
-  let lname = skipIdentExport(p, skType)
-  echo "lname = ", lname
+  let lname = skipIdentExport(p, skType, true)
   addTypeDef(result, lname, t, gpl)
-  echo "tok2 = ", p.tok.s
-  echo "tok2 kind = ", p.tok.xkind
-
-proc parseTypename_less_old(p: var Parser, result: var PNode, genericParams: PNode) =
-  var gpl = newNodeP(nkGenericParams, p)
-  var gpr = newNodeP(nkBracketExpr, p)
-  gpr.addSon(ast.emptyNode) # will hold type indentifier
-  var rname = ""
-  while true:
-    getTok(p)
-    expectIdent(p)
-    rname &= mangleName(p.tok.s, p, skType)
-    parseGenericArgs(p, genericParams, gpl, gpr)
-    if p.tok.xkind != pxScope:
-      break
-  expectIdent(p)
-  if gpr.len > 1:
-    gpr.sons[0]= mangledIdent(rname, p, skType)
-  else:
-    gpr = mangledIdent(rname, p, skType)
-  if gpl.len < 1:
-    gpl = ast.emptyNode
-  let lname = exportSym(p, mangledIdent(p.currentClass.ident.s & p.tok.s, p, skType), p.tok.s)
-  var typd = newNodeP(nkTypeDef, p)
-  typd.addSon(lname, gpl, gpr)
-  result.addSon(typd)
-  getTok(p) # ; 
-
 
 proc parseTypeDef(p: var Parser, genericParams: PNode = ast.emptyNode): PNode =
   result = newNodeP(nkStmtList, p)
@@ -1344,7 +1281,7 @@ proc parseTypeDef(p: var Parser, genericParams: PNode = ast.emptyNode): PNode =
       parseTypename(p, typeSection, genericParams)
     else:
       var t = typeAtom(p)
-      otherTypeDef(p, typeSection, t)
+      otherTypeDef(p, typeSection, t, genericParams)
     eat(p, pxSemicolon)
     dec(p.inTypeDef)
 
@@ -1572,7 +1509,7 @@ proc enumSpecifier(p: var Parser): PNode =
     var i = 0
     var hasUnknown = false
     while true:
-      var name = skipIdentExport(p, skEnumField)
+      var name = skipIdentExport(p, skEnumField, true)
       var val: PNode
       if p.tok.xkind == pxAsgn:
         getTok(p, name)

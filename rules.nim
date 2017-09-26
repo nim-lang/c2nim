@@ -60,8 +60,6 @@ proc nep1(s: string, k: TSymKind): string =
     inc i
 
 proc mangleRules(s: string, p: Parser; kind: TSymKind): string =
-  if kind == skType and p.currentCalss.kind == nkIdent:
-    s = p.currentClass.ident.s & s
   block mangle:
     for pattern, frmt in items(p.options.mangleRules):
       if s.match(pattern):
