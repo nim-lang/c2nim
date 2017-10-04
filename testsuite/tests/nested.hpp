@@ -46,6 +46,8 @@ public:
     T1 val1;
     T2 val2;
   };
+
+  void method(NestedClass & n);
 };
 
 template <typename T, int I>
