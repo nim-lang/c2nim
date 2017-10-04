@@ -71,6 +71,8 @@ type
     hasDeadCodeElimPragma: bool
     currentClass: PNode   # type that needs to be added as 'this' parameter
     currentClassOrig: string # original class name
+    classHierarchy: seq[string] # used for nested types
+    classHierarchyGP: seq[PNode]
     currentNamespace: string
     inAngleBracket: int
     lastConstType: PNode # another hack to be able to translate 'const Foo& foo'
@@ -87,6 +89,9 @@ proc addTypeDef(section, name, t, genericParams: PNode)
 proc parseStruct(p: var Parser, stmtList: PNode, isUnion: bool): PNode
 proc parseStructBody(p: var Parser, stmtList: PNode, isUnion: bool,
                      kind: TNodeKind = nkRecList): PNode
+proc parseClass(p: var Parser; isStruct: bool;
+                stmtList, genericParams: PNode): PNode
+proc inheritedGenericParams(p: Parser) : PNode
 
 proc newParserOptions*(): PParserOptions =
   new(result)
@@ -153,6 +158,8 @@ proc openParser*(p: var Parser, filename: string,
   p.backtrack = @[]
   p.currentNamespace = ""
   p.currentClassOrig = ""
+  p.classHierarchy = @[]
+  p.classHierarchyGP = @[]
   new(p.tok)
 
 proc parMessage(p: Parser, msg: TMsgKind, arg = "") =
@@ -386,7 +393,7 @@ proc skipIdent(p: var Parser; kind: TSymKind, nest: bool = false): PNode =
   expectIdent(p)
   if nest and not p.currentClass.isNil and p.currentClass.kind == nkIdent:
     let name = p.currentClass.ident.s & p.tok.s
-    result = exportSym(p, mangledIdent(name, p, kind), p.tok.s)
+    result = mangledIdent(name, p, kind)
   else:
     result = mangledIdent(p.tok.s, p, kind)
   getTok(p, result)
@@ -500,6 +507,10 @@ proc isTemplateAngleBracket(p: var Parser): bool =
     getTok(p, nil)
   backtrackContext(p)
 
+proc hasValue(t: StringTableRef, s: string): bool =
+  for v in t.values:
+    if v == s: return true
+
 proc optScope(p: var Parser, n: PNode; kind: TSymKind): PNode =
   result = n
   if pfCpp in p.options.flags:
@@ -512,15 +523,15 @@ proc optScope(p: var Parser, n: PNode; kind: TSymKind): PNode =
         getTok(p, result)
         expectIdent(p)
         if n.kind == nkIdent:
-          if p.options.classes.hasKey(n.ident.s):
+          if p.options.classes.hasValue(n.ident.s):
             result = mangledIdent(n.ident.s & p.tok.s, p, kind)
           else:
             result = mangledIdent(p.tok.s, p, kind)
         elif n.kind == nkBracketExpr:
-          if p.options.classes.hasKey(n[0].ident.s):
-            n.sons[0] = mangledIdent(n[0].ident.s & p.tok.s, p, kind)
+          if p.options.classes.hasValue(n[0].ident.s):
+            result.sons[0] = mangledIdent(n[0].ident.s & p.tok.s, p, kind)
           else:
-            n.sons[0] = mangledIdent(p.tok.s, p, kind)
+            result.sons[0] = mangledIdent(p.tok.s, p, kind)
       getTok(p, result)
 
 proc optAngle(p: var Parser, n: PNode): PNode =
@@ -530,7 +541,7 @@ proc optAngle(p: var Parser, n: PNode): PNode =
       result = n
     else:
       result = newNodeP(nkBracketExpr, p)
-    result.add(n)
+      result.add(n.copyTree)
     inc p.inAngleBracket
     while true:
       let a = if p.tok.xkind == pxSymbol: typeDesc(p)
@@ -713,6 +724,27 @@ proc parseField(p: var Parser, kind: TNodeKind): PNode =
     else: result = mangledIdent(p.tok.s, p, skField)
     getTok(p, result)
 
+proc cppImportName(p: Parser, origName: string) : string =
+  template addGenerics(idx: int) =
+    var cgp = p.classHierarchyGP[idx]
+    if cgp.kind == nkGenericParams:
+      result &= "<"
+      for i in 0..<cgp.len-1:
+        result &= "'" & $c & ","
+        inc c
+      result &= "'" & $c & ">"
+      inc c
+  if p.classHierarchy.len > 0:
+    var c = 0
+    result = p.currentNamespace & p.classHierarchy[0]
+    addGenerics(0)
+    for i in 1..<p.classHierarchy.len:
+      result &= "::" & p.classHierarchy[i]
+      addGenerics(i)
+    result &= "::" & origName
+  else:
+    result = p.currentNamespace & origName
+
 proc structPragmas(p: Parser, name: PNode, origName: string): PNode =
   assert name.kind == nkIdent
   result = newNodeP(nkPragmaExpr, p)
@@ -720,8 +752,9 @@ proc structPragmas(p: Parser, name: PNode, origName: string): PNode =
   var pragmas = newNodeP(nkPragma, p)
   #addSon(pragmas, newIdentNodeP("pure", p), newIdentNodeP("final", p))
   if p.options.useHeader:
+    let iname = cppImportName(p, origName)
     addSon(pragmas,
-      newIdentStrLitPair(p.options.importcLit, p.currentNamespace & origName, p),
+      newIdentStrLitPair(p.options.importcLit, iname, p),
       getHeaderPair(p))
   if p.options.inheritable.hasKey(origName):
     addSon(pragmas, newIdentNodeP("inheritable", p))
@@ -852,13 +885,15 @@ proc enumPragmas(p: Parser, name: PNode; origName: string): PNode =
   if p.options.inheritable.hasKey(origName):
     addSon(pragmas, newIdentNodeP("pure", p))
   if pfCpp in p.options.flags and p.options.useHeader:
-    let importName =
-          if p.currentClassOrig.len > 0:
-            p.currentNamespace & p.currentClassOrig & "::" & origName
-          else:
-            p.currentNamespace & origName
-    addSon(pragmas, newIdentStrLitPair("importcpp", importName, p))
-    addSon(pragmas, getHeaderPair(p))
+    var hasGeneric = false
+    for a in p.classHierarchyGP:
+      if a.kind != nkEmpty:
+        hasGeneric = true
+        break
+    if not hasGeneric:
+      let importName = cppImportName(p, origName)
+      addSon(pragmas, newIdentStrLitPair("importcpp", importName, p))
+      addSon(pragmas, getHeaderPair(p))
   if pragmas.len > 0:
     addSon(result, pragmas)
   else:
@@ -1010,9 +1045,9 @@ proc addTypeDef(section, name, t, genericParams: PNode) =
 
 proc findGenericParam(g: PNode, n: PNode): bool
 
-proc otherTypeDef(p: var Parser, section, typ: PNode,
-                  genericParams: PNode = ast.emptyNode) =
+proc otherTypeDef(p: var Parser, section, typ: PNode) =
   var gp = ast.emptyNode
+  let genericParams = inheritedGenericParams(p)
   if findGenericParam(genericParams, typ):
     gp = newNodeP(nkGenericParams, p)
     gp.add(typ)
@@ -1145,14 +1180,43 @@ proc enumFields(p: var Parser, constList: PNode): PNode =
       constList.addSon(constant)
 
 
-proc parseTypedefStruct(p: var Parser, result, stmtList: PNode, isUnion: bool) =
+proc parseTypedefStruct(p: var Parser, result, stmtList: PNode,
+                        isUnion, isStruct: bool) =
+  template parseStruct(res, name: PNode, origName: string,
+                        stmtList, gp: PNode) =
+    p.currentClass = name
+    p.currentClassOrig = origName
+    p.classHierarchy.add(origName)
+    p.classHierarchyGP.add(gp)
+    res = if isUnion or isStruct:
+              parseStruct(p, stmtList, isUnion)
+            else:
+              parseClass(p, false, stmtList, ast.emptyNode) # TO-DO: remove emptyNode
+    p.currentClass = oldClass
+    p.currentClassOrig = oldClassOrig
+    discard p.classHierarchy.pop()
+    discard p.classHierarchyGP.pop()
+
+  let genericParams = inheritedGenericParams(p)
   getTok(p, result)
   if p.tok.xkind == pxCurlyLe:
-    var t = parseStruct(p, stmtList, isUnion)
+    saveContext(p)
+    var tstmtList = newNodeP(nkStmtList, p)
+    if isUnion or isStruct:
+      discard parseStruct(p, tstmtList, isUnion)
+    else:
+      discard parseClass(p, false,  tstmtList, ast.emptyNode) # TO-DO: remove emptyNode
     var origName = p.tok.s
     markTypeIdent(p, nil)
     var name = skipIdent(p, skType, true)
-    addTypeDef(result, structPragmas(p, name, origName), t, ast.emptyNode)
+    backtrackContext(p)
+    let oldClass = p.currentClass
+    let oldClassOrig = p.currentClassOrig
+    var t: PNode
+    parseStruct(t, name, origName, stmtList, ast.emptyNode)
+    getTok(p)
+    addTypeDef(result, structPragmas(p, name, origName), t, genericParams)
+    p.options.classes[origName] = name.ident.s
     parseTrailingDefinedTypes(p, result, name)
   elif p.tok.xkind == pxSymbol:
     # name to be defined or type "struct a", we don't know yet:
@@ -1161,18 +1225,41 @@ proc parseTypedefStruct(p: var Parser, result, stmtList: PNode, isUnion: bool) =
     var nameOrType = skipIdent(p, skVar)
     case p.tok.xkind
     of pxCurlyLe:
-      var t = parseStruct(p, stmtList, isUnion)
+      saveContext(p)
+      var oldClass = p.currentClass
+      var oldClassOrig = p.currentClassOrig
+      let name =if not p.currentClass.isNil and p.currentClass.kind == nkIdent:
+                  p.currentClass.ident.s & origName
+                else:
+                  origName
+      var t: PNode
+      var tstmtList = newNodeP(nkStmtList, p)
+      parseStruct(t, mangledIdent(name, p, skType),
+        origName, tstmtList, ast.emptyNode)
+
       if p.tok.xkind == pxSymbol:
         # typedef struct tagABC {} abc, *pabc;
         # --> abc is a better type name than tagABC!
         markTypeIdent(p, nil)
         var origName = p.tok.s
         var name = skipIdent(p, skType, true)
-        addTypeDef(result, structPragmas(p, name, origName), t, ast.emptyNode)
+
+        backtrackContext(p)
+        oldClass = p.currentClass
+        oldClassOrig = p.currentClassOrig
+        var t: PNode
+        parseStruct(t, name, origName, stmtList, ast.emptyNode)
+        getTok(p)
+
+        addTypeDef(result, structPragmas(p, name, origName), t, genericParams)
+        p.options.classes[origName] = name.ident.s
         parseTrailingDefinedTypes(p, result, name)
       else:
+        for a in tstmtList:
+          stmtList.add(a)
         addTypeDef(result, structPragmas(p, nameOrType, origName), t,
-                   ast.emptyNode)
+                   genericParams)
+        p.options.classes[origName] = nameOrType.ident.s
     of pxSymbol:
       # typedef struct a a?
       if mangleName(p.tok.s, p, skType) == nameOrType.ident.s:
@@ -1191,6 +1278,7 @@ proc parseTypedefStruct(p: var Parser, result, stmtList: PNode, isUnion: bool) =
     expectIdent(p)
 
 proc parseTypedefEnum(p: var Parser, result, constSection: PNode) =
+  let genericParams = inheritedGenericParams(p)
   getTok(p, result)
   if p.tok.xkind == pxCurlyLe:
     getTok(p, result)
@@ -1198,15 +1286,15 @@ proc parseTypedefEnum(p: var Parser, result, constSection: PNode) =
     eat(p, pxCurlyRi, t)
     var origName = p.tok.s
     markTypeIdent(p, nil)
-    var name = skipIdent(p, skType)
+    var name = skipIdent(p, skType, true)
     addTypeDef(result, enumPragmas(p, exportSym(p, name, origName), origName),
-               t, ast.emptyNode)
+               t, genericParams)
     parseTrailingDefinedTypes(p, result, name)
   elif p.tok.xkind == pxSymbol:
     # name to be defined or type "enum a", we don't know yet:
     markTypeIdent(p, nil)
     var origName = p.tok.s
-    var nameOrType = skipIdent(p, skType)
+    var nameOrType = skipIdent(p, skType, true)
     case p.tok.xkind
     of pxCurlyLe:
       getTok(p, result)
@@ -1217,14 +1305,14 @@ proc parseTypedefEnum(p: var Parser, result, constSection: PNode) =
         # --> abc is a better type name than tagABC!
         markTypeIdent(p, nil)
         var origName = p.tok.s
-        var name = skipIdent(p, skType)
+        var name = skipIdent(p, skType, true)
         addTypeDef(result, enumPragmas(p, exportSym(p, name, origName), origName),
-                   t, ast.emptyNode)
+                   t, genericParams)
         parseTrailingDefinedTypes(p, result, name)
       else:
         addTypeDef(result,
                    enumPragmas(p, exportSym(p, nameOrType, origName), origName),
-                   t, ast.emptyNode)
+                   t, genericParams)
     of pxSymbol:
       # typedef enum a a?
       if mangleName(p.tok.s, p, skType) == nameOrType.ident.s:
@@ -1244,19 +1332,34 @@ proc findGenericParam(g: PNode, n: PNode): bool =
       if a.len > 0 and a[0].kind == nkIdent and a[0].ident.s == n.ident.s:
         return true
 
-proc parseTypename(p: var Parser, result: var PNode, genericParams: PNode) =
+proc inheritedGenericParams(p: Parser) : PNode =
+  if p.classHierarchyGP.len > 0:
+    result = newNodeP(nkGenericParams, p)
+    for a in p.classHierarchyGP:
+      if a.kind != nkGenericParams: continue
+      for b in a:
+        result.add(b)
+    if result.len < 1:
+      result = ast.emptyNode
+  else:
+    result = ast.emptyNode
+
+proc parseTypename(p: var Parser, result: var PNode) =
   getTok(p) #skip "typename"
   let t = typeAtom(p)
-  var gpl = newNodeP(nkGenericParams, p)
-  if t.kind == nkBracketExpr:
-    for i in 1..<t.len:
-      if t[i].kind == nkIdent and findGenericParam(genericParams, t.sons[i]):
-        gpl.add(t.sons[i])
-  if gpl.len < 1: gpl = ast.emptyNode
+  let genericParams = inheritedGenericParams(p)
+  var gpl = ast.emptyNode
+  if genericParams.kind != nkEmpty:
+    gpl = newNodeP(nkGenericParams, p)
+    if t.kind == nkBracketExpr:
+      for i in 1..<t.len:
+        if t[i].kind == nkIdent and findGenericParam(genericParams, t.sons[i]):
+          gpl.add(t.sons[i])
+    if gpl.len < 1: gpl = ast.emptyNode
   let lname = skipIdentExport(p, skType, true)
   addTypeDef(result, lname, t, gpl)
 
-proc parseTypeDef(p: var Parser, genericParams: PNode = ast.emptyNode): PNode =
+proc parseTypeDef(p: var Parser): PNode =
   result = newNodeP(nkStmtList, p)
   var typeSection = newNodeP(nkTypeSection, p)
   var afterStatements = newNodeP(nkStmtList, p)
@@ -1265,23 +1368,25 @@ proc parseTypeDef(p: var Parser, genericParams: PNode = ast.emptyNode): PNode =
     inc(p.inTypeDef)
     expectIdent(p)
     case p.tok.s
-    of "struct": parseTypedefStruct(p, typeSection, result, isUnion=false)
-    of "union": parseTypedefStruct(p, typeSection, result, isUnion=true)
+    of "struct":
+      parseTypedefStruct(p, typeSection, result, isUnion=false, isStruct=true)
+    of "union":
+      parseTypedefStruct(p, typeSection, result, isUnion=true, isStruct=false)
     of "enum":
       var constSection = newNodeP(nkConstSection, p)
       parseTypedefEnum(p, typeSection, constSection)
       addSon(afterStatements, constSection)
     of "class":
       if pfCpp in p.options.flags:
-        parseTypedefStruct(p, typeSection, result, isUnion=false)
+        parseTypedefStruct(p, typeSection, result, isUnion=false, isStruct=false)
       else:
         var t = typeAtom(p)
         otherTypeDef(p, typeSection, t)
     of "typename":
-      parseTypename(p, typeSection, genericParams)
+      parseTypename(p, typeSection)
     else:
       var t = typeAtom(p)
-      otherTypeDef(p, typeSection, t, genericParams)
+      otherTypeDef(p, typeSection, t)
     eat(p, pxSemicolon)
     dec(p.inTypeDef)
 
@@ -1300,7 +1405,7 @@ proc skipDeclarationSpecifiers(p: var Parser) =
     else: break
 
 proc skipThrowSpecifier(p: var Parser) =
-  if p.tok.xkind == pxSymbol and p.tok.s == "throw": 
+  if p.tok.xkind == pxSymbol and p.tok.s == "throw":
     getTok(p)
     var pms = newNodeP(nkFormalParams, p)
     var pgms = newNodeP(nkPragma, p)
@@ -2348,9 +2453,9 @@ proc parseMethod(p: var Parser, origName: string, rettyp, pragmas: PNode,
   if sonsLen(result.sons[pragmasPos]) == 0:
     result.sons[pragmasPos] = ast.emptyNode
 
-
 proc parseStandaloneClass(p: var Parser, isStruct: bool;
-                          genericParams: PNode): PNode
+                          genericParams: PNode,
+                          tmplParams: PNode = ast.emptyNode): PNode
 
 proc followedByParLe(p: var Parser): bool =
   saveContext(p)
@@ -2368,7 +2473,7 @@ proc parseTemplate(p: var Parser): PNode =
       if p.tok.xkind != pxAngleRi:
         while true:
           if p.tok.xkind == pxSymbol and
-              (p.tok.s == "class" or p.tok.s == "typename"): 
+              (p.tok.s == "class" or p.tok.s == "typename"):
                 getTok(p)
                 var identDefs = newNodeP(nkIdentDefs, p)
                 identDefs.addSon(skipIdent(p, skType), ast.emptyNode, ast.emptyNode)
@@ -2447,10 +2552,10 @@ proc parseClass(p: var Parser; isStruct: bool;
       let x = enumSpecifier(p)
       if not private or pfKeepBodies in p.options.flags: stmtList.add(x)
     elif p.tok.xkind == pxSymbol and p.tok.s == "typedef":
-      let x = parseTypeDef(p, genericParams)
+      let x = parseTypeDef(p)
       if not private or pfKeepBodies in p.options.flags: stmtList.add(x)
     elif p.tok.xkind == pxSymbol and(p.tok.s == "struct" or p.tok.s == "class"):
-      let x = parseStandaloneClass(p, isStruct=p.tok.s == "struct", gp)
+      let x = parseStandaloneClass(p, isStruct=p.tok.s == "struct", gp, tmpl)
       if not private or pfKeepBodies in p.options.flags: stmtList.add(x)
     elif p.tok.xkind == pxSymbol and p.tok.s == "union":
       let x = parseStandaloneStruct(p, isUnion=true, gp)
@@ -2547,7 +2652,8 @@ proc parseClass(p: var Parser; isStruct: bool;
   eat(p, pxCurlyRi, result)
 
 proc parseStandaloneClass(p: var Parser, isStruct: bool;
-                          genericParams: PNode): PNode =
+                          genericParams: PNode,
+                          tmplParams: PNode = ast.emptyNode): PNode =
   result = newNodeP(nkStmtList, p)
   saveContext(p)
   getTok(p, result) # skip "class" or "struct"
@@ -2558,30 +2664,41 @@ proc parseStandaloneClass(p: var Parser, isStruct: bool;
     markTypeIdent(p, nil)
     p.currentClassOrig = p.tok.s
     getTok(p, result)
-    p.currentClass = mangledIdent(p.currentClassOrig, p, skType)
+    let name =  if not oldClass.isNil:
+                  oldClass.ident.s & p.currentClassOrig
+                else:
+                  p.currentClassOrig
+    p.currentClass = mangledIdent(name, p, skType)
+    p.classHierarchy.add(p.currentClassOrig)
+    p.classHierarchyGP.add(tmplParams)
   else:
     p.currentClass = nil
+    p.classHierarchy.add("")
+    p.classHierarchyGP.add(ast.emptyNode)
   if p.tok.xkind in {pxCurlyLe, pxSemiColon, pxColon}:
     if p.currentClass != nil:
-      p.options.classes[p.currentClassOrig] = "true"
+      p.options.classes[p.currentClassOrig] = p.currentClass.ident.s
 
       var typeSection = newNodeP(nkTypeSection, p)
       addSon(result, typeSection)
 
       var name = p.currentClass #mangledIdent(p.currentClassOrig, p, skType)
       var t = parseClass(p, isStruct, result, genericParams)
+      discard p.classHierarchy.pop()
+      discard p.classHierarchyGP.pop()
       if t.isNil:
         result = newNodeP(nkDiscardStmt, p)
         result.add(newStrNodeP(nkStrLit, "forward decl of " & p.currentClassOrig, p))
         p.currentClass = oldClass
         p.currentClassOrig = oldClassOrig
-        p.options.classes[p.currentClassOrig] = "true"
         return result
       addTypeDef(typeSection, structPragmas(p, name, p.currentClassOrig), t,
                  genericParams)
       parseTrailingDefinedIdents(p, result, name)
     else:
       var t = parseTuple(p, result, isUnion=false)
+      discard p.classHierarchy.pop()
+      discard p.classHierarchyGP.pop()
       parseTrailingDefinedIdents(p, result, t)
   else:
     backtrackContext(p)
@@ -2601,8 +2718,8 @@ proc fullTemplate(p: var Parser): PNode =
   expectIdent(p)
   case p.tok.s
   of "union": result = parseStandaloneStruct(p, isUnion=true, tmpl)
-  of "struct": result = parseStandaloneClass(p, isStruct=true, tmpl)
-  of "class": result = parseStandaloneClass(p, isStruct=false, tmpl)
+  of "struct": result = parseStandaloneClass(p, isStruct=true, tmpl, tmpl)
+  of "class": result = parseStandaloneClass(p, isStruct=false, tmpl, tmpl)
   else: result = declaration(p, tmpl)
 
 proc statement(p: var Parser): PNode =
