@@ -1256,7 +1256,7 @@ proc skipDeclarationSpecifiers(p: var Parser) =
     else: break
 
 proc skipThrowSpecifier(p: var Parser) =
-  if p.tok.xkind == pxSymbol and p.tok.s == "throw": 
+  if p.tok.xkind == pxSymbol and p.tok.s == "throw":
     getTok(p)
     var pms = newNodeP(nkFormalParams, p)
     var pgms = newNodeP(nkPragma, p)
@@ -2324,13 +2324,14 @@ proc parseTemplate(p: var Parser): PNode =
       if p.tok.xkind != pxAngleRi:
         while true:
           if p.tok.xkind == pxSymbol and
-              (p.tok.s == "class" or p.tok.s == "typename"): 
+              (p.tok.s == "class" or p.tok.s == "typename"):
                 getTok(p)
                 var identDefs = newNodeP(nkIdentDefs, p)
                 identDefs.addSon(skipIdent(p, skType), ast.emptyNode, ast.emptyNode)
                 result.add identDefs
-          if p.tok.xkind == pxSymbol and isIntType(p.tok.s) and
-              p.tok.s != "double" and p.tok.s != "float":
+          if p.tok.xkind == pxSymbol and (isIntType(p.tok.s) or
+              p.tok.s == "bool") and p.tok.s != "double" and
+              p.tok.s != "float":
                 var staticTy = newNodeP(nkStaticTy, p)
                 staticTy.add(typeDesc(p))
                 var identDefs = newNodeP(nkIdentDefs, p)
