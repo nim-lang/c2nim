@@ -9,7 +9,7 @@ type
   FooBasTypeArray*[T] = array[3, T]
   FooVector*[T] = vector[T]
   FooIterator*[T] = vectoriterator[T]
-  FooDeepEnum* {.size: sizeof(cint).}[T] = enum
+  FooDeepEnum* {.size: sizeof(cint).} = enum
     ENUM1, ENUM2
 
 
@@ -18,7 +18,7 @@ const
   FooENUM4* = 1
 
 type
-  FooNestedClassVeryDeepEnum* {.size: sizeof(cint).}[T] = enum
+  FooNestedClassVeryDeepEnum* {.size: sizeof(cint).} = enum
     ENUM1, ENUM2
 
 
@@ -38,7 +38,7 @@ type
     val1* {.importc: "val1".}: T1
     val2* {.importc: "val2".}: T2
 
-  FooOtherNestedClassVeryDeepEnum* {.size: sizeof(cint).}[T; T1; T2] = enum
+  FooOtherNestedClassVeryDeepEnum* {.size: sizeof(cint).} = enum
     ENUM1, ENUM2
 
 

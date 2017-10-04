@@ -1288,7 +1288,7 @@ proc parseTypedefEnum(p: var Parser, result, constSection: PNode) =
     markTypeIdent(p, nil)
     var name = skipIdent(p, skType, true)
     addTypeDef(result, enumPragmas(p, exportSym(p, name, origName), origName),
-               t, genericParams)
+               t, ast.emptyNode)
     parseTrailingDefinedTypes(p, result, name)
   elif p.tok.xkind == pxSymbol:
     # name to be defined or type "enum a", we don't know yet:
@@ -1307,12 +1307,12 @@ proc parseTypedefEnum(p: var Parser, result, constSection: PNode) =
         var origName = p.tok.s
         var name = skipIdent(p, skType, true)
         addTypeDef(result, enumPragmas(p, exportSym(p, name, origName), origName),
-                   t, genericParams)
+                   t, ast.emptyNode)
         parseTrailingDefinedTypes(p, result, name)
       else:
         addTypeDef(result,
                    enumPragmas(p, exportSym(p, nameOrType, origName), origName),
-                   t, genericParams)
+                   t, ast.emptyNode)
     of pxSymbol:
       # typedef enum a a?
       if mangleName(p.tok.s, p, skType) == nameOrType.ident.s:
