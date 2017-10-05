@@ -20,8 +20,10 @@ public:
   } DeepEnum;
 
   enum {
-    ENUM3, ENUM4
+    MIN_DIM=5, MAX_DIM=10
   };
+
+  int SomeArray[MAX_DIM];
 
   typedef struct {
     int i, j;

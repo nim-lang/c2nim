@@ -1278,7 +1278,6 @@ proc parseTypedefStruct(p: var Parser, result, stmtList: PNode,
     expectIdent(p)
 
 proc parseTypedefEnum(p: var Parser, result, constSection: PNode) =
-  let genericParams = inheritedGenericParams(p)
   getTok(p, result)
   if p.tok.xkind == pxCurlyLe:
     getTok(p, result)
@@ -1614,6 +1613,8 @@ proc enumSpecifier(p: var Parser): PNode =
     var i = 0
     var hasUnknown = false
     while true:
+      expectIdent(p)
+      var origName = p.tok.s
       var name = skipIdentExport(p, skEnumField, true)
       var val: PNode
       if p.tok.xkind == pxAsgn:
@@ -1631,6 +1632,7 @@ proc enumSpecifier(p: var Parser): PNode =
         val = newIntNodeP(nkIntLit, i, p)
         inc(i)
       var c = createConst(name, ast.emptyNode, val, p)
+      p.options.toMangle[origName] = name.ident.s
       addSon(result, c)
       if p.tok.xkind != pxComma: break
       getTok(p, c)
