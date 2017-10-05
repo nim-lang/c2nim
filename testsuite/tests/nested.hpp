@@ -5,6 +5,10 @@ using namespace std;
 template <typename T>
 class vector;
 
+#ifdef C2NIM
+#mangle NestedClass FooNestedClass
+#endif
+
 template <typename T>
 class Foo {
 public:
