@@ -1632,7 +1632,7 @@ proc enumSpecifier(p: var Parser): PNode =
         val = newIntNodeP(nkIntLit, i, p)
         inc(i)
       var c = createConst(name, ast.emptyNode, val, p)
-      p.options.toMangle[origName] = name.ident.s
+      p.options.toMangle[origName] = name[1].ident.s
       addSon(result, c)
       if p.tok.xkind != pxComma: break
       getTok(p, c)

@@ -23,7 +23,7 @@ public:
     MIN_DIM=5, MAX_DIM=10
   };
 
-  int SomeArray[MAX_DIM];
+  int someArray[MAX_DIM];
 
   typedef struct {
     int i, j;

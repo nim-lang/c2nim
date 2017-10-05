@@ -2,7 +2,8 @@ nil
 discard "forward decl of vector"
 type
   Foo* {.importcpp: "Foo", header: "nested.hpp", bycopy.}[T] = object
-  
+    someArray* {.importc: "someArray".}: array[FooMAX_DIM, cint]
+
   FooInt* = cint
   FooBaseType*[T] = T
   FooBaseTypePtr*[T] = ptr T
@@ -14,8 +15,8 @@ type
 
 
 const
-  FooENUM3* = 0
-  FooENUM4* = 1
+  FooMIN_DIM* = 5
+  FooMAX_DIM* = 10
 
 type
   FooNestedClassVeryDeepEnum* {.size: sizeof(cint).} = enum
