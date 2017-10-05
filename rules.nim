@@ -81,7 +81,8 @@ proc mangleRules(s: string, p: Parser; kind: TSymKind): string =
 
 proc mangleName(s: string, p: Parser; kind: TSymKind): string =
   if p.options.toMangle.hasKey(s): result = p.options.toMangle[s]
-  elif kind == skType and p.options.classes.hasKey(s):
+  elif kind == skType and p.options.classes.hasKey(s) and
+         not p.currentClass.isNil:
     result = p.options.classes[s]
   else: result = mangleRules(s, p, kind)
 
