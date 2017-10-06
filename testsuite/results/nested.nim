@@ -43,7 +43,8 @@ type
     ENUM1, ENUM2
 
 
-proc `method`*[T](this: var Foo[T]; n: var FooNestedClass) {.importcpp: "method",
+proc `method`*[T](this: var Foo[T]; n: var FooNestedClass; b: ptr FooNestedStruct;
+                 c: ptr FooOtherNestedClass[string, string]) {.importcpp: "method",
     header: "nested.hpp".}
 type
   Bar* {.importcpp: "Bar", header: "nested.hpp", bycopy.}[T; I: static[cint]] = object

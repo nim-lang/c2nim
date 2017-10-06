@@ -5,10 +5,6 @@ using namespace std;
 template <typename T>
 class vector;
 
-#ifdef C2NIM
-#mangle NestedClass FooNestedClass
-#endif
-
 template <typename T>
 class Foo {
 public:
@@ -53,7 +49,7 @@ public:
     T2 val2;
   };
 
-  void method(NestedClass & n);
+  void method(NestedClass & n, NestedStruct* b, OtherNestedClass<string, string> * c);
 };
 
 template <typename T, int I>
