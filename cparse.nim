@@ -744,7 +744,8 @@ proc cppImportName(p: Parser, origName: string) : string =
     for i in 1..<p.classHierarchy.len:
       result &= "::" & p.classHierarchy[i]
       addGenerics(i)
-    result &= "::" & origName
+    if origName != "":
+      result &= "::" & origName
   else:
     result = p.currentNamespace & origName
 
@@ -1194,10 +1195,10 @@ proc parseTypedefStruct(p: var Parser, result, stmtList: PNode,
     deepCopy(oldToMangle, p.options.toMangle)
     p.classHierarchy.add(origName)
     p.classHierarchyGP.add(gp)
-    res = if isUnion or isStruct:
+    res = if isUnion or (isStruct and not (pfCpp in p.options.flags)):
               parseStruct(p, stmtList, isUnion)
             else:
-              parseClass(p, false, stmtList, ast.emptyNode) # TO-DO: remove emptyNode
+              parseClass(p, isStruct, stmtList, genericParams)
     p.currentClass = oldClass
     p.currentClassOrig = oldClassOrig
     p.options.toMangle = oldToMangle
@@ -1213,10 +1214,10 @@ proc parseTypedefStruct(p: var Parser, result, stmtList: PNode,
   if p.tok.xkind == pxCurlyLe:
     saveContext(p)
     var tstmtList = newNodeP(nkStmtList, p)
-    if isUnion or isStruct:
+    if isUnion or (isStruct and not (pfCpp in p.options.flags)):
       discard parseStruct(p, tstmtList, isUnion)
     else:
-      discard parseClass(p, false,  tstmtList, ast.emptyNode) # TO-DO: remove emptyNode
+      discard parseClass(p, isStruct,  tstmtList, genericParams)
     var origName = p.tok.s
     markTypeIdent(p, nil)
     var name = skipIdent(p, skType, true)
@@ -2319,8 +2320,12 @@ proc parseConstructor(p: var Parser, pragmas: PNode, isDestructor: bool;
                else: mangledIdent(origName, p, skType).applyGenericParams(
                   genericParamsThis)
 
-  let oname = if isDestructor: p.options.destructor & origName
-              else: p.options.constructor & origName
+  let nname = if not p.currentClass.isNil and p.currentClass.kind == nkIdent:
+                p.currentClass.ident.s
+              else:
+                origName
+  let oname = if isDestructor: p.options.destructor & nname
+              else: p.options.constructor & nname
   var name = mangledIdent(oname, p, skProc)
   var params = newNodeP(nkFormalParams, p)
   discard addReturnType(params, rettyp)
@@ -2363,10 +2368,11 @@ proc parseConstructor(p: var Parser, pragmas: PNode, isDestructor: bool;
   else:
     parMessage(p, errTokenExpected, ";")
   if result.sons[bodyPos].kind == nkEmpty:
+    let iname = cppImportName(p, "")
     if isDestructor:
-      doImportCpp("#.~" & origName & "()", pragmas, p)
+      doImportCpp("#.~" & iname & "()", pragmas, p)
     else:
-      doImportCpp(p.currentNamespace & origName & "(@)", pragmas, p)
+      doImportCpp(iname & "(@)", pragmas, p)
   elif isDestructor:
     addSon(pragmas, newIdentNodeP("destructor", p))
   if sonsLen(result.sons[pragmasPos]) == 0:

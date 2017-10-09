@@ -15,6 +15,9 @@ public:
   typedef typename std::vector<T> Vector;
   typedef typename std::vector<T>::iterator Iterator;
 
+  Foo();
+  ~Foo();
+
   typedef enum {
     ENUM1, ENUM2
   } DeepEnum;
@@ -26,6 +29,7 @@ public:
   int someArray[MAX_DIM];
 
   typedef struct {
+    void methodeNestedStruct();
     int i, j;
   } NestedStruct;
 
@@ -35,6 +39,8 @@ public:
     typedef enum {
       ENUM1, ENUM2
     } VeryDeepEnum;
+
+    void methodeNestedClass();
 
     int i, j;
   } NestedClass;
@@ -47,6 +53,10 @@ public:
     } VeryDeepEnum;
     T1 val1;
     T2 val2;
+    OtherNestedClass();
+    ~OtherNestedClass();
+    OtherNestedClass(int i);
+    void methodeNestedClass();
   };
 
   void method(NestedClass & n, NestedStruct* b, OtherNestedClass<string, string> * c);
@@ -67,6 +77,7 @@ public:
         class NestedClass2 {
         public:
                 T1 val;
+                NestedClass2();
         };
 };
 
