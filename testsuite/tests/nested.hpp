@@ -37,7 +37,7 @@ public:
   typedef class irrelevantTag {
   public:
     typedef enum {
-      ENUM1, ENUM2
+      ENUM3, ENUM4
     } VeryDeepEnum;
 
     void methodeNestedClass();
@@ -49,7 +49,7 @@ public:
   class OtherNestedClass {
   public:
     typedef enum {
-      ENUM1, ENUM2
+      ENUM5, ENUM6
     } VeryDeepEnum;
     T1 val1;
     T2 val2;
@@ -85,6 +85,6 @@ public:
 class NoTemplate {
 public:
         typedef enum {
-                ENUM1, ENUM2
+                ENUM7, ENUM8
         } DeepEnum;
 };

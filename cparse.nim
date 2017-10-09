@@ -727,9 +727,9 @@ proc parseField(p: var Parser, kind: TNodeKind): PNode =
     else: result = mangledIdent(p.tok.s, p, skField)
     getTok(p, result)
 
-proc cppImportName(p: Parser, origName: string) : string =
-  template addGenerics(idx: int) =
-    var cgp = p.classHierarchyGP[idx]
+proc cppImportName(p: Parser, origName: string,
+                    genericParams: PNode = nil): string =
+  template addGenerics(cgp: PNode) =
     if cgp.kind == nkGenericParams:
       result &= "<"
       for i in 0..<cgp.len-1:
@@ -740,23 +740,26 @@ proc cppImportName(p: Parser, origName: string) : string =
   if p.classHierarchy.len > 0:
     var c = 0
     result = p.currentNamespace & p.classHierarchy[0]
-    addGenerics(0)
+    addGenerics(p.classHierarchyGP[0])
     for i in 1..<p.classHierarchy.len:
       result &= "::" & p.classHierarchy[i]
-      addGenerics(i)
+      addGenerics(p.classHierarchyGP[i])
     if origName != "":
       result &= "::" & origName
+    if not genericParams.isNil:
+      addGenerics(genericParams)
   else:
     result = p.currentNamespace & origName
 
-proc structPragmas(p: Parser, name: PNode, origName: string): PNode =
+proc structPragmas(p: Parser, name: PNode, origName: string,
+                    genericParams: PNode = nil): PNode =
   assert name.kind == nkIdent
   result = newNodeP(nkPragmaExpr, p)
   addSon(result, exportSym(p, name, origName))
   var pragmas = newNodeP(nkPragma, p)
   #addSon(pragmas, newIdentNodeP("pure", p), newIdentNodeP("final", p))
   if p.options.useHeader:
-    let iname = cppImportName(p, origName)
+    let iname = cppImportName(p, origName, genericParams)
     addSon(pragmas,
       newIdentStrLitPair(p.options.importcLit, iname, p),
       getHeaderPair(p))
@@ -2708,7 +2711,7 @@ proc parseStandaloneClass(p: var Parser, isStruct: bool;
         p.currentClassOrig = oldClassOrig
         p.options.toMangle = oldToMangle
         return result
-      addTypeDef(typeSection, structPragmas(p, name, p.currentClassOrig), t,
+      addTypeDef(typeSection, structPragmas(p, name, p.currentClassOrig, tmplParams), t,
                  genericParams)
       parseTrailingDefinedIdents(p, result, name)
     else:
