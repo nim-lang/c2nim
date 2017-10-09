@@ -2302,7 +2302,11 @@ proc applyGenericParams(t, gp: PNode): PNode =
   else:
     result = newNodeI(nkBracketExpr, t.info)
     result.add t
-    for x in gp: result.add x
+    for x in gp:
+      if x.len > 1 and x[1].kind == nkStaticTy:
+        result.add x[0]
+      else:
+        result.add x
 
 proc createThis(p: var Parser; genericParams: PNode): PNode =
   result = newNodeP(nkIdentDefs, p)
