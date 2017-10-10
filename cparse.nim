@@ -728,17 +728,19 @@ proc parseField(p: var Parser, kind: TNodeKind): PNode =
     getTok(p, result)
 
 proc cppImportName(p: Parser, origName: string,
-                    genericParams: PNode = nil): string =
+                    genericParams: PNode = nil,
+                    baseType: bool = false): string =
+  let ast = if baseType: "*" else: ""
+  var c = 0
   template addGenerics(cgp: PNode) =
     if cgp.kind == nkGenericParams:
       result &= "<"
       for i in 0..<cgp.len-1:
-        result &= "'" & $c & ","
+        result &= "'" & ast & $c & ","
         inc c
-      result &= "'" & $c & ">"
+      result &= "'" & ast & $c & ">"
       inc c
   if p.classHierarchy.len > 0:
-    var c = 0
     result = p.currentNamespace & p.classHierarchy[0]
     addGenerics(p.classHierarchyGP[0])
     for i in 1..<p.classHierarchy.len:
@@ -746,10 +748,10 @@ proc cppImportName(p: Parser, origName: string,
       addGenerics(p.classHierarchyGP[i])
     if origName != "":
       result &= "::" & origName
-    if not genericParams.isNil:
-      addGenerics(genericParams)
   else:
     result = p.currentNamespace & origName
+  if not genericParams.isNil:
+    addGenerics(genericParams)
 
 proc structPragmas(p: Parser, name: PNode, origName: string,
                     genericParams: PNode = nil): PNode =
@@ -2375,10 +2377,10 @@ proc parseConstructor(p: var Parser, pragmas: PNode, isDestructor: bool;
   else:
     parMessage(p, errTokenExpected, ";")
   if result.sons[bodyPos].kind == nkEmpty:
-    let iname = cppImportName(p, "")
     if isDestructor:
-      doImportCpp("#.~" & iname & "()", pragmas, p)
+      doImportCpp("#.~" & origName & "()", pragmas, p)
     else:
+      let iname = cppImportName(p, "", nil, true)
       doImportCpp(iname & "(@)", pragmas, p)
   elif isDestructor:
     addSon(pragmas, newIdentNodeP("destructor", p))
