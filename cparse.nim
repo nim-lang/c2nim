@@ -2495,8 +2495,9 @@ proc parseTemplate(p: var Parser): PNode =
                 var identDefs = newNodeP(nkIdentDefs, p)
                 identDefs.addSon(skipIdent(p, skType), ast.emptyNode, ast.emptyNode)
                 result.add identDefs
-          if p.tok.xkind == pxSymbol and isIntType(p.tok.s) and
-              p.tok.s != "double" and p.tok.s != "float":
+          if p.tok.xkind == pxSymbol and (isIntType(p.tok.s) or
+              p.tok.s == "bool") and p.tok.s != "double" and
+              p.tok.s != "float":
                 var staticTy = newNodeP(nkStaticTy, p)
                 staticTy.add(typeDesc(p))
                 var identDefs = newNodeP(nkIdentDefs, p)
