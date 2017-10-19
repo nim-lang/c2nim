@@ -154,7 +154,6 @@ proc newPoint*(): ptr point =
     dec(j)
   while true: discard
   var x: ptr mytype = y * z
-
   if p[][] == ' ':
     dec(p)
   elif p[][] == '\x09':
@@ -163,12 +162,9 @@ proc newPoint*(): ptr point =
     p = 45 + cast[ptr mytype](45)
     p = 45 + (cast[ptr mytype](45))
     p = 45 + (cast[mytype](45))
-
-
     ##  BUG: This does not parse:
     ##  p = 45 + (mytype)45;
   while x >= 6 and x <= 20: dec(x)
-
   case p[]
   of 'A'..'Z', 'a'..'z':
     inc(p)
@@ -334,8 +330,6 @@ type
 
 proc RGB_to_HWB*(RGB: RGBType; HWB: ptr HWBType): ptr HWBType {.cdecl.} =
   var myArray: array[20, ptr HWBType]
-
-
   ## 
   ##  RGB are each on [0, 1]. W and B are returned on [0, 1] and H is  
   ##  returned on [0, 6]. Exception: H is returned UNDEFINED if W == 1 - B.  
@@ -349,7 +343,6 @@ proc RGB_to_HWB*(RGB: RGBType; HWB: ptr HWBType): ptr HWBType {.cdecl.} =
     b: cfloat
     f: cfloat
   var i: cint
-
   w = MIN3(R, G, B)
   v = MAX3(R, G, B)
   b = b and 1 - v
@@ -371,14 +364,11 @@ proc clip_1d*(x0: ptr cint; y0: ptr cint; x1: ptr cint; y1: ptr cint; mindim: ci
     ##  adjust x0 to be on the left boundary (ie to be zero), and y0 to match
     dec(y0[], m * (x0[] - mindim))
     x0[] = mindim
-
     ##  now, perhaps, adjust the far end of the line as well
     if x1[] > maxdim:
       inc(y1[], m * (maxdim - x1[]))
       x1[] = maxdim
-
     return 1
-
   if x0[] > maxdim:
     ##  start of line is right of window - complement of above
     if x1[] > maxdim:
@@ -386,19 +376,14 @@ proc clip_1d*(x0: ptr cint; y0: ptr cint; x1: ptr cint; y1: ptr cint; mindim: ci
     m = (y1[] - y0[]) div (double)(x1[] - x0[])
     ##  calculate the slope of the line
     inc(y0[], m * (maxdim - x0[]))
-
     ##  adjust so point is on the right
     ##  boundary
     x0[] = maxdim
-
     ##  now, perhaps, adjust the end of the line
     if x1[] < mindim:
       dec(y1[], m * (x1[] - mindim))
       x1[] = mindim
-
     return 1
-
-
   if x1[] > maxdim:
     ##  other end is outside to the right
     m = (y1[] - y0[]) div (double)(x1[] - x0[])
@@ -406,7 +391,6 @@ proc clip_1d*(x0: ptr cint; y0: ptr cint; x1: ptr cint; y1: ptr cint; mindim: ci
     inc(y1[], m * (maxdim - x1[]))
     x1[] = maxdim
     return 1
-
   if x1[] < mindim:
     ##  other end is outside to the left
     m = (y1[] - y0[]) div (double)(x1[] - x0[])
@@ -414,8 +398,6 @@ proc clip_1d*(x0: ptr cint; y0: ptr cint; x1: ptr cint; y1: ptr cint; mindim: ci
     dec(y1[], m * (x1[] - mindim))
     x1[] = mindim
     return 1
-
-
   return 1
 
 ##  end of line clipping code
@@ -436,7 +418,6 @@ proc gdImageBrushApply*(im: gdImagePtr; x: cint; y: cint) {.cdecl.} =
     srcy: cint
   if not im.brush:
     return
-
   hy = gdImageSY(im.brush) div 2
   y1 = y - hy
   y2 = y1 + gdImageSY(im.brush)
@@ -453,14 +434,11 @@ proc gdImageBrushApply*(im: gdImagePtr; x: cint; y: cint) {.cdecl.} =
         while (lx < x2):
           var p: cint
           p = gdImageGetTrueColorPixel(im.brush, srcx, srcy)
-
           ##  2.0.9, Thomas Winzig: apply simple full transparency
           if p != gdImageGetTransparent(im.brush):
             gdImageSetPixel(im, lx, ly, p)
-
           inc(srcx)
           inc(lx)
-
         inc(srcy)
         inc(ly)
     else:
@@ -476,14 +454,11 @@ proc gdImageBrushApply*(im: gdImagePtr; x: cint; y: cint) {.cdecl.} =
             tc: cint
           p = gdImageGetPixel(im.brush, srcx, srcy)
           tc = gdImageGetTrueColorPixel(im.brush, srcx, srcy)
-
           ##  2.0.9, Thomas Winzig: apply simple full transparency
           if p != gdImageGetTransparent(im.brush):
             gdImageSetPixel(im, lx, ly, tc)
-
           inc(srcx)
           inc(lx)
-
         inc(srcy)
         inc(ly)
   else:
@@ -494,7 +469,6 @@ proc gdImageBrushApply*(im: gdImagePtr; x: cint; y: cint) {.cdecl.} =
       while (lx < x2):
         var p: cint
         p = gdImageGetPixel(im.brush, srcx, srcy)
-
         ##  Allow for non-square brushes!
         if p != gdImageGetTransparent(im.brush):
           ##  Truecolor brush. Very slow
@@ -505,11 +479,8 @@ proc gdImageBrushApply*(im: gdImagePtr; x: cint; y: cint) {.cdecl.} =
                 gdTrueColorGetBlue(p), gdTrueColorGetAlpha(p)))
           else:
             gdImageSetPixel(im, lx, ly, im.brushColorMap[p])
-
-
         inc(srcx)
         inc(lx)
-
       inc(srcy)
       inc(ly)
 
@@ -522,10 +493,8 @@ proc gdImageSetPixel*(im: gdImagePtr; x: cint; y: cint; color: cint) {.cdecl.} =
       return
     else:
       p = im.style[inc(im.stylePos)]
-
     if p != (gdTransparent):
       gdImageSetPixel(im, x, y, p)
-
     im.stylePos = im.stylePos mod im.styleLength
   of gdStyledBrushed:
     if not im.style:
@@ -534,7 +503,6 @@ proc gdImageSetPixel*(im: gdImagePtr; x: cint; y: cint; color: cint) {.cdecl.} =
     p = im.style[inc(im.stylePos)]
     if (p != gdTransparent) and (p != 0):
       gdImageSetPixel(im, x, y, gdBrushed)
-
     im.stylePos = im.stylePos mod im.styleLength
   of gdBrushed:
     gdImageBrushApply(im, x, y)
