@@ -84,19 +84,21 @@ proc main(infiles: seq[string], outfile: var string,
       if not isC2nimFile(infile):
         if outfile.len == 0: outfile = changeFileExt(infile, "nim")
         for n in m: tree.add(n)
-    renderModule(tree, outfile)
+    renderModule(tree, outfile, outfile)
   else:
     for infile in infiles:
       let m = parse(infile, options, dllexport)
       if not isC2nimFile(infile):
         if outfile.len > 0:
-          renderModule(m, outfile)
+          renderModule(m, outfile, outfile)
           outfile = ""
         else:
-          renderModule(m, changeFileExt(infile, "nim"))
+          let outfile = changeFileExt(infile, "nim")
+          renderModule(m, outfile, outfile)
   if dllexport != nil:
     let (path, name, _) = infiles[0].splitFile
-    renderModule(dllexport, path / name & "_dllimpl" & ".nim")
+    let outfile = path / name & "_dllimpl" & ".nim"
+    renderModule(dllexport, outfile, outfile)
   rawMessage(hintSuccessX, [$gLinesCompiled, $(getTime() - start),
                             formatSize(getTotalMem()), ""])
 
