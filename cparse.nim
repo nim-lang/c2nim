@@ -1649,7 +1649,7 @@ proc enumSpecifier(p: var Parser): PNode =
   of pxSymbol:
     var origName = p.tok.s
     markTypeIdent(p, nil)
-    result = skipIdent(p, skType)
+    result = skipIdent(p, skType, true)
     case p.tok.xkind
     of pxCurlyLe:
       closeContext(p)
