@@ -13,7 +13,7 @@ import
   clex, cparse, postprocessor
 
 const
-  Version = "0.9.13" # keep in sync with Nimble version. D'oh!
+  Version = "0.9.14" # keep in sync with Nimble version. D'oh!
   Usage = """
 c2nim - C to Nim source converter
   (c) 2016 Andreas Rumpf
@@ -73,6 +73,14 @@ proc parse(infile: string, options: PParserOptions; dllExport: var PNode): PNode
 
 proc isC2nimFile(s: string): bool = splitFile(s).ext.toLowerAscii == ".c2nim"
 
+var dummy: PNode
+
+when not compiles(renderModule(dummy, "")):
+  # newer versions of 'renderModule' take 2 parameters. We workaround this
+  # problem here:
+  proc renderModule(tree: PNode; filename: string) =
+    renderModule(tree, filename, filename)
+
 proc main(infiles: seq[string], outfile: var string,
           options: PParserOptions, concat: bool) =
   var start = getTime()
@@ -84,21 +92,21 @@ proc main(infiles: seq[string], outfile: var string,
       if not isC2nimFile(infile):
         if outfile.len == 0: outfile = changeFileExt(infile, "nim")
         for n in m: tree.add(n)
-    renderModule(tree, outfile, outfile)
+    renderModule(tree, outfile)
   else:
     for infile in infiles:
       let m = parse(infile, options, dllexport)
       if not isC2nimFile(infile):
         if outfile.len > 0:
-          renderModule(m, outfile, outfile)
+          renderModule(m, outfile)
           outfile = ""
         else:
           let outfile = changeFileExt(infile, "nim")
-          renderModule(m, outfile, outfile)
+          renderModule(m, outfile)
   if dllexport != nil:
     let (path, name, _) = infiles[0].splitFile
     let outfile = path / name & "_dllimpl" & ".nim"
-    renderModule(dllexport, outfile, outfile)
+    renderModule(dllexport, outfile)
   rawMessage(hintSuccessX, [$gLinesCompiled, $(getTime() - start),
                             formatSize(getTotalMem()), ""])
 
