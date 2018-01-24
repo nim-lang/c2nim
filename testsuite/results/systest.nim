@@ -156,7 +156,7 @@ proc newPoint*(): ptr point =
   var x: ptr mytype = y * z
   if p[][] == ' ':
     dec(p)
-  elif p[][] == '\x09':
+  elif p[][] == '\t':
     inc(p, 3)
   else:
     p = 45 + cast[ptr mytype](45)
@@ -225,7 +225,7 @@ proc IupConvertXYToPos*(ih: PIhandle; x: cint; y: cint): cint {.cdecl,
     importc: "IupConvertXYToPos", dynlib: iupdll.}
 when defined(DEBUG):
   template OUT*(x: untyped): untyped =
-    printf("%s\x0A", x)
+    printf("%s\L", x)
 
 else:
   template OUT*(x: untyped): void =
@@ -244,7 +244,7 @@ var x* {.importc: "x", dynlib: iupdll.}: ptr cint
 const
   abc* = 34
   xyz* = 42
-  wuseldusel* = "my string\x0Aconstant"
+  wuseldusel* = "my string\Lconstant"
 
 var x* {.importc: "x", dynlib: iupdll.}: cstring
 
