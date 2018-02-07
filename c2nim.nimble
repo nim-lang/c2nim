@@ -6,8 +6,7 @@ skipDirs      = @["doc"]
 
 bin = @["c2nim"]
 
-# Actually requires nim commit 07fe1aa655dc75eec1a4cf4c697615b5642e8a7c or later
-requires "nim > 0.17.2", "compiler > 0.17.2"
+requires "nim >= 0.16.0", "compiler#604a15c0aaf6d3df2"
 
 task tests, "runs c2nim tests":
   exec "nim c c2nim.nim"
