@@ -726,7 +726,7 @@ proc sdbmHash(s: string): FilenameHash =
 
 proc hashPosition(p: Parser): string =
   let lineInfo = parLineInfo(p)
-  let fileInfo = fileInfos[lineInfo.fileIndex]
+  let fileInfo = fileInfos[lineInfo.fileIndex.int32]
   result = $sdbmHash(fileInfo.shortName & "_" & $lineInfo.line & "_" &
      $lineInfo.col)
 
