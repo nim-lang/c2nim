@@ -104,7 +104,7 @@ type
     next*: ref Token         # for C we need arbitrary look-ahead :-(
 
   Lexer* = object of TBaseLexer
-    fileIdx*: FileIndex
+    fileIdx*: int32
     inDirective, debugMode*: bool
 
 proc getTok*(L: var Lexer, tok: var Token)

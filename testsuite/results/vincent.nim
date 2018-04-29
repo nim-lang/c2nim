@@ -32,4 +32,4 @@ proc main*(): cint =
     printf("1")
   else:
     printf("2")
-  return '\x00'
+  return '\0'
