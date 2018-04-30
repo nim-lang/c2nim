@@ -55,7 +55,7 @@ var fn*: proc ()
 
 var fn*: proc (): pointer
 
-var fn*: proc (a2: pointer): pointer
+var fn*: proc (a1: pointer): pointer
 
 ## 
 ##  Very ugly real world code ahead:
@@ -275,50 +275,50 @@ var c2nimBranch* {.importc: "c2nimBranch", dynlib: iupdll.}: cint
 
 when defined(Windows):
   var WindowsTrue* {.importc: "WindowsTrue", dynlib: iupdll.}: cint
-proc spawn*(a2: ptr pid_t; a3: cstring; a4: ptr spawn_file_actions_t;
-           a5: ptr spawnattr_t; a6: ptr cstring; a7: ptr cstring): cint {.cdecl,
+proc spawn*(a1: ptr pid_t; a2: cstring; a3: ptr spawn_file_actions_t;
+           a4: ptr spawnattr_t; a5: ptr cstring; a6: ptr cstring): cint {.cdecl,
     importc: "posix_spawn", dynlib: iupdll.}
-proc spawn_file_actions_addclose*(a2: ptr spawn_file_actions_t; a3: cint): cint {.
+proc spawn_file_actions_addclose*(a1: ptr spawn_file_actions_t; a2: cint): cint {.
     cdecl, importc: "posix_spawn_file_actions_addclose", dynlib: iupdll.}
-proc spawn_file_actions_adddup2*(a2: ptr spawn_file_actions_t; a3: cint; a4: cint): cint {.
+proc spawn_file_actions_adddup2*(a1: ptr spawn_file_actions_t; a2: cint; a3: cint): cint {.
     cdecl, importc: "posix_spawn_file_actions_adddup2", dynlib: iupdll.}
-proc spawn_file_actions_addopen*(a2: ptr spawn_file_actions_t; a3: cint; a4: cstring;
-                                a5: cint; a6: mode_t): cint {.cdecl,
+proc spawn_file_actions_addopen*(a1: ptr spawn_file_actions_t; a2: cint; a3: cstring;
+                                a4: cint; a5: mode_t): cint {.cdecl,
     importc: "posix_spawn_file_actions_addopen", dynlib: iupdll.}
-proc spawn_file_actions_destroy*(a2: ptr spawn_file_actions_t): cint {.cdecl,
+proc spawn_file_actions_destroy*(a1: ptr spawn_file_actions_t): cint {.cdecl,
     importc: "posix_spawn_file_actions_destroy", dynlib: iupdll.}
-proc spawn_file_actions_init*(a2: ptr spawn_file_actions_t): cint {.cdecl,
+proc spawn_file_actions_init*(a1: ptr spawn_file_actions_t): cint {.cdecl,
     importc: "posix_spawn_file_actions_init", dynlib: iupdll.}
-proc spawnattr_destroy*(a2: ptr spawnattr_t): cint {.cdecl,
+proc spawnattr_destroy*(a1: ptr spawnattr_t): cint {.cdecl,
     importc: "posix_spawnattr_destroy", dynlib: iupdll.}
-proc spawnattr_getsigdefault*(a2: ptr spawnattr_t; a3: ptr sigset_t): cint {.cdecl,
+proc spawnattr_getsigdefault*(a1: ptr spawnattr_t; a2: ptr sigset_t): cint {.cdecl,
     importc: "posix_spawnattr_getsigdefault", dynlib: iupdll.}
-proc spawnattr_getflags*(a2: ptr spawnattr_t; a3: ptr cshort): cint {.cdecl,
+proc spawnattr_getflags*(a1: ptr spawnattr_t; a2: ptr cshort): cint {.cdecl,
     importc: "posix_spawnattr_getflags", dynlib: iupdll.}
-proc spawnattr_getpgroup*(a2: ptr spawnattr_t; a3: ptr pid_t): cint {.cdecl,
+proc spawnattr_getpgroup*(a1: ptr spawnattr_t; a2: ptr pid_t): cint {.cdecl,
     importc: "posix_spawnattr_getpgroup", dynlib: iupdll.}
-proc spawnattr_getschedparam*(a2: ptr spawnattr_t; a3: ptr sched_param): cint {.cdecl,
+proc spawnattr_getschedparam*(a1: ptr spawnattr_t; a2: ptr sched_param): cint {.cdecl,
     importc: "posix_spawnattr_getschedparam", dynlib: iupdll.}
-proc spawnattr_getschedpolicy*(a2: ptr spawnattr_t; a3: ptr cint): cint {.cdecl,
+proc spawnattr_getschedpolicy*(a1: ptr spawnattr_t; a2: ptr cint): cint {.cdecl,
     importc: "posix_spawnattr_getschedpolicy", dynlib: iupdll.}
-proc spawnattr_getsigmask*(a2: ptr spawnattr_t; a3: ptr sigset_t): cint {.cdecl,
+proc spawnattr_getsigmask*(a1: ptr spawnattr_t; a2: ptr sigset_t): cint {.cdecl,
     importc: "posix_spawnattr_getsigmask", dynlib: iupdll.}
-proc spawnattr_init*(a2: ptr spawnattr_t): cint {.cdecl,
+proc spawnattr_init*(a1: ptr spawnattr_t): cint {.cdecl,
     importc: "posix_spawnattr_init", dynlib: iupdll.}
-proc spawnattr_setsigdefault*(a2: ptr spawnattr_t; a3: ptr sigset_t): cint {.cdecl,
+proc spawnattr_setsigdefault*(a1: ptr spawnattr_t; a2: ptr sigset_t): cint {.cdecl,
     importc: "posix_spawnattr_setsigdefault", dynlib: iupdll.}
-proc spawnattr_setflags*(a2: ptr spawnattr_t; a3: cshort): cint {.cdecl,
+proc spawnattr_setflags*(a1: ptr spawnattr_t; a2: cshort): cint {.cdecl,
     importc: "posix_spawnattr_setflags", dynlib: iupdll.}
-proc spawnattr_setpgroup*(a2: ptr spawnattr_t; a3: pid_t): cint {.cdecl,
+proc spawnattr_setpgroup*(a1: ptr spawnattr_t; a2: pid_t): cint {.cdecl,
     importc: "posix_spawnattr_setpgroup", dynlib: iupdll.}
-proc spawnattr_setschedparam*(a2: ptr spawnattr_t; a3: ptr sched_param): cint {.cdecl,
+proc spawnattr_setschedparam*(a1: ptr spawnattr_t; a2: ptr sched_param): cint {.cdecl,
     importc: "posix_spawnattr_setschedparam", dynlib: iupdll.}
-proc spawnattr_setschedpolicy*(a2: ptr spawnattr_t; a3: cint): cint {.cdecl,
+proc spawnattr_setschedpolicy*(a1: ptr spawnattr_t; a2: cint): cint {.cdecl,
     importc: "posix_spawnattr_setschedpolicy", dynlib: iupdll.}
-proc spawnattr_setsigmask*(a2: ptr spawnattr_t; a3: ptr sigset_t): cint {.cdecl,
+proc spawnattr_setsigmask*(a1: ptr spawnattr_t; a2: ptr sigset_t): cint {.cdecl,
     importc: "posix_spawnattr_setsigmask", dynlib: iupdll.}
-proc spawnp*(a2: ptr pid_t; a3: cstring; a4: ptr spawn_file_actions_t;
-            a5: ptr spawnattr_t; a6: ptr cstring; a7: ptr cstring): cint {.cdecl,
+proc spawnp*(a1: ptr pid_t; a2: cstring; a3: ptr spawn_file_actions_t;
+            a4: ptr spawnattr_t; a5: ptr cstring; a6: ptr cstring): cint {.cdecl,
     importc: "posix_spawnp", dynlib: iupdll.}
 type
   RGBType* {.bycopy.} = object
