@@ -14,7 +14,10 @@
 
 import
   compiler/options, compiler/msgs, strutils, compiler/platform,
-  compiler/nimlexbase, compiler/llstream
+  compiler/nimlexbase, compiler/llstream, compiler/nversion
+
+when declared(NimCompilerApiVersion):
+  import compiler / configuration
 
 const
   MaxLineLength* = 80         # lines longer than this lead to a warning
@@ -104,7 +107,7 @@ type
     next*: ref Token         # for C we need arbitrary look-ahead :-(
 
   Lexer* = object of TBaseLexer
-    fileIdx*: int32
+    fileIdx*: (when declared(FileIndex): FileIndex else: int32)
     inDirective, debugMode*: bool
 
 proc getTok*(L: var Lexer, tok: var Token)
@@ -122,9 +125,15 @@ proc fillToken(L: var Token) =
   L.fNumber = 0.0
   L.base = base10
 
+when declared(NimCompilerApiVersion):
+  var gConfig* = newConfigRef() # XXX make this part of the lexer
+
 proc openLexer*(lex: var Lexer, filename: string, inputstream: PLLStream) =
   openBaseLexer(lex, inputstream)
-  lex.fileIdx = filename.fileInfoIdx
+  when declared(NimCompilerApiVersion):
+    lex.fileIdx = fileInfoIdx(gConfig, filename)
+  else:
+    lex.fileIdx = filename.fileInfoIdx
 
 proc closeLexer*(lex: var Lexer) =
   inc(gLinesCompiled, lex.lineNumber)
@@ -138,12 +147,18 @@ proc getLineInfo*(L: Lexer): TLineInfo =
 
 proc lexMessage*(L: Lexer, msg: TMsgKind, arg = "") =
   if L.debugMode: writeStackTrace()
-  msgs.globalError(getLineInfo(L), msg, arg)
+  when declared(NimCompilerApiVersion):
+    msgs.globalError(gConfig, getLineInfo(L), msg, arg)
+  else:
+    msgs.globalError(getLineInfo(L), msg, arg)
 
 proc lexMessagePos(L: var Lexer, msg: TMsgKind, pos: int, arg = "") =
   var info = newLineInfo(L.fileIdx, L.linenumber, pos - L.lineStart)
   if L.debugMode: writeStackTrace()
-  msgs.globalError(info, msg, arg)
+  when declared(NimCompilerApiVersion):
+    msgs.globalError(gConfig, info, msg, arg)
+  else:
+    msgs.globalError(info, msg, arg)
 
 proc tokKindToStr*(k: Tokkind): string =
   case k
@@ -260,7 +275,10 @@ proc getNumber2(L: var Lexer, tok: var Token) =
       # ignore type suffix:
       inc(pos)
     of '2'..'9', '.':
-      lexMessage(L, errInvalidNumber)
+      when declared(errInvalidNumber):
+        lexMessage(L, errInvalidNumber)
+      else:
+        lexMessage(L, errGenerated, "invalid number")
       inc(pos)
     of '_':
       inc(pos)
@@ -285,7 +303,10 @@ proc getNumber8(L: var Lexer, tok: var Token) =
       # ignore type suffix:
       inc(pos)
     of '8'..'9', '.':
-      lexMessage(L, errInvalidNumber)
+      when declared(errInvalidNumber):
+        lexMessage(L, errInvalidNumber)
+      else:
+        lexMessage(L, errGenerated, "invalid number")
       inc(pos)
     of '_':
       inc(pos)
@@ -362,9 +383,9 @@ proc getNumber(L: var Lexer, tok: var Token) =
       else:
         tok.xkind = pxIntLit
   except ValueError:
-    lexMessage(L, errInvalidNumber, tok.s)
+    lexMessage(L, errGenerated, "invalid number: " & tok.s)
   except OverflowError:
-    lexMessage(L, errNumberOutOfRange, tok.s)
+    lexMessage(L, errGenerated, "number out of range: " & tok.s)
   # ignore type suffix:
   while L.buf[L.bufpos] in {'A'..'Z', 'a'..'z'}: inc(L.bufpos)
 
@@ -429,7 +450,7 @@ proc escape(L: var Lexer, tok: var Token, allowEmpty=false) =
         break
     add(tok.s, chr(xi))
   elif not allowEmpty:
-    lexMessage(L, errInvalidCharacterConstant)
+    lexMessage(L, errGenerated, "invalid character constant")
 
 proc getCharLit(L: var Lexer, tok: var Token) =
   inc(L.bufpos) # skip '
@@ -441,7 +462,7 @@ proc getCharLit(L: var Lexer, tok: var Token) =
   if L.buf[L.bufpos] == '\'':
     inc(L.bufpos)
   else:
-    lexMessage(L, errMissingFinalQuote)
+    lexMessage(L, errGenerated, "missing closing single quote")
   tok.xkind = pxCharLit
 
 proc getString(L: var Lexer, tok: var Token) =
@@ -462,7 +483,7 @@ proc getString(L: var Lexer, tok: var Token) =
     of nimlexbase.EndOfFile:
       var line2 = L.linenumber
       L.lineNumber = line
-      lexMessagePos(L, errClosingQuoteExpected, L.lineStart)
+      lexMessagePos(L, errGenerated, L.lineStart, "closing \" expected, but end of file reached")
       L.lineNumber = line2
       break
     of '\\':
@@ -548,7 +569,7 @@ proc scanStarComment(L: var Lexer, tok: var Token) =
       else:
         add(tok.s, '*')
     of nimlexbase.EndOfFile:
-      lexMessage(L, errTokenExpected, "*/")
+      lexMessage(L, errGenerated, "expected closing '*/'")
     else:
       add(tok.s, buf[pos])
       inc(pos)
@@ -577,7 +598,7 @@ proc scanVerbatim(L: var Lexer, tok: var Token; isCurlyDot: bool) =
         break
       add(tok.s, "\n")
     of nimlexbase.EndOfFile:
-      lexMessage(L, errTokenExpected, "@#")
+      lexMessage(L, errGenerated, "expected closing '@#'")
     of '.':
       if isCurlyDot and buf[pos+1] == '}':
         inc pos, 2
@@ -848,5 +869,5 @@ proc getTok(L: var Lexer, tok: var Token) =
     else:
       tok.s = $c
       tok.xkind = pxInvalid
-      lexMessage(L, errInvalidToken, c & " (\\" & $(ord(c)) & ')')
+      lexMessage(L, errGenerated, "invalid token " & c & " (\\" & $(ord(c)) & ')')
       inc(L.bufpos)

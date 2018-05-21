@@ -20,14 +20,14 @@ proc pp(n: var PNode, stmtList: PNode = nil, idx: int = -1) =
       m.add n
       n = m
   of nkInfix, nkPrefix, nkPostfix:
-    for i in 1.. < n.safeLen: pp(n.sons[i], stmtList, idx)
+    for i in 1 ..< n.safeLen: pp(n.sons[i], stmtList, idx)
   of nkAccQuoted: discard
 
   of nkStmtList:
-    for i in 0.. < n.safeLen: pp(n.sons[i], n, i)
+    for i in 0 ..< n.safeLen: pp(n.sons[i], n, i)
   of nkRecList:
     var consts: seq[int] = @[]
-    for i in 0.. < n.safeLen:
+    for i in 0 ..< n.safeLen:
       pp(n.sons[i], stmtList, idx)
       if n.sons[i].kind == nkConstSection:
         consts.insert(i)
@@ -37,7 +37,7 @@ proc pp(n: var PNode, stmtList: PNode = nil, idx: int = -1) =
       insert(stmtList.sons, c, idx)
 
   else:
-    for i in 0.. < n.safeLen: pp(n.sons[i], stmtList, idx)
+    for i in 0 ..< n.safeLen: pp(n.sons[i], stmtList, idx)
 
 proc postprocess*(n: PNode): PNode =
   result = n
