@@ -10,7 +10,10 @@
 import
   strutils, os, times, parseopt, compiler/llstream, compiler/ast,
   compiler/renderer, compiler/options, compiler/msgs,
-  clex, cparse, postprocessor
+  clex, cparse, postprocessor, compiler/nversion
+
+when declared(NimCompilerApiVersion):
+  import compiler / configuration
 
 const
   Version = "0.9.13" # keep in sync with Nimble version. D'oh!
@@ -56,7 +59,11 @@ proc isCppFile(s: string): bool =
 
 proc parse(infile: string, options: PParserOptions; dllExport: var PNode): PNode =
   var stream = llStreamOpen(infile, fmRead)
-  if stream == nil: rawMessage(errCannotOpenFile, infile)
+  if stream == nil:
+    when declared(NimCompilerApiVersion):
+      rawMessage(gConfig, errGenerated, "cannot open file: " & infile)
+    else:
+      rawMessage(errGenerated, "cannot open file: " & infile)
   let isCpp = pfCpp notin options.flags and isCppFile(infile)
   var p: Parser
   if isCpp: options.flags.incl pfCpp
@@ -100,8 +107,12 @@ proc main(infiles: seq[string], outfile: var string,
     let (path, name, _) = infiles[0].splitFile
     let outfile = path / name & "_dllimpl" & ".nim"
     renderModule(dllexport, outfile, outfile)
-  rawMessage(hintSuccessX, [$gLinesCompiled, $(getTime() - start),
-                            formatSize(getTotalMem()), ""])
+  when declared(NimCompilerApiVersion):
+    rawMessage(gConfig, hintSuccessX, [$gLinesCompiled, $(getTime() - start),
+                              formatSize(getTotalMem()), ""])
+  else:
+    rawMessage(hintSuccessX, [$gLinesCompiled, $(getTime() - start),
+                              formatSize(getTotalMem()), ""])
 
 var
   infiles = newSeq[string](0)

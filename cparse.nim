@@ -18,7 +18,10 @@
 import
   os, compiler/llstream, compiler/renderer, clex, compiler/idents, strutils,
   pegs, compiler/ast, compiler/astalgo, compiler/msgs,
-  compiler/options, strtabs, hashes, algorithm
+  compiler/options, strtabs, hashes, algorithm, compiler/nversion
+
+when declared(NimCompilerApiVersion):
+  import compiler / configuration
 
 import pegs except Token, Tokkind
 
@@ -197,7 +200,7 @@ proc findMacro(p: Parser): int =
 
 proc rawEat(p: var Parser, xkind: Tokkind) =
   if p.tok.xkind == xkind: rawGetTok(p)
-  else: parMessage(p, errTokenExpected, tokKindToStr(xkind))
+  else: parMessage(p, errGenerated, "token expected: " & tokKindToStr(xkind))
 
 proc parseMacroArguments(p: var Parser): seq[seq[ref Token]] =
   result = @[]
@@ -244,7 +247,7 @@ proc expandMacro(p: var Parser, m: Macro) =
     if m.params > 0:
       arguments = parseMacroArguments(p)
       if arguments.len != m.params:
-        parMessage(p, errWrongNumberOfArguments)
+        parMessage(p, errGenerated, "wrong number of arguments")
     rawEat(p, pxParRi)
   # insert into the token list:
   if m.body.len > 0:
@@ -318,19 +321,19 @@ proc getTok(p: var Parser, n: PNode) =
 
 proc expectIdent(p: Parser) =
   if p.tok.xkind != pxSymbol:
-    parMessage(p, errIdentifierExpected, debugTok(p.lex, p.tok[]))
+    parMessage(p, errGenerated, "identifier expected, but got: " & debugTok(p.lex, p.tok[]))
 
 proc eat(p: var Parser, xkind: Tokkind, n: PNode) =
   if p.tok.xkind == xkind: getTok(p, n)
-  else: parMessage(p, errTokenExpected, tokKindToStr(xkind))
+  else: parMessage(p, errGenerated, "token expected: " & tokKindToStr(xkind))
 
 proc eat(p: var Parser, xkind: Tokkind) =
   if p.tok.xkind == xkind: getTok(p)
-  else: parMessage(p, errTokenExpected, tokKindToStr(xkind))
+  else: parMessage(p, errGenerated, "token expected: " & tokKindToStr(xkind))
 
 proc eat(p: var Parser, tok: string, n: PNode) =
   if p.tok.s == tok: getTok(p, n)
-  else: parMessage(p, errTokenExpected, tok)
+  else: parMessage(p, errGenerated, "token expected: " & tok)
 
 proc opt(p: var Parser, xkind: Tokkind, n: PNode) =
   if p.tok.xkind == xkind: getTok(p, n)
@@ -730,8 +733,8 @@ proc sdbmHash(s: string): FilenameHash =
 
 proc hashPosition(p: Parser): string =
   let lineInfo = parLineInfo(p)
-  let fileInfo = fileInfos[lineInfo.fileIndex]
-  result = $sdbmHash(fileInfo.shortName & "_" & $lineInfo.line & "_" &
+  let fileInfo = toFilename(lineInfo.fileIndex)
+  result = $sdbmHash(fileInfo & "_" & $lineInfo.line & "_" &
      $lineInfo.col)
 
 proc parseInnerStruct(p: var Parser, stmtList: PNode,
@@ -972,7 +975,7 @@ proc parseFunctionPointerDecl(p: var Parser, rettyp: PNode): PNode =
     addSon(pragmas, newIdentNodeP("memberfuncptr", p))
 
   if p.tok.xkind == pxStar: getTok(p, params)
-  #else: parMessage(p, errTokenExpected, "*")
+  #else: parMessage(p, errGenerated, "expected '*'")
   if p.inTypeDef > 0: markTypeIdent(p, nil)
   var name = skipIdentExport(p, if p.inTypeDef > 0: skType else: skVar)
   eat(p, pxParRi, name)
@@ -1428,7 +1431,7 @@ proc declaration(p: var Parser; genericParams: PNode = ast.emptyNode): PNode =
       else:
         addSon(result, compoundStatement(p))
     else:
-      parMessage(p, errTokenExpected, ";")
+      parMessage(p, errGenerated, "expected ';'")
     if sonsLen(result.sons[pragmasPos]) == 0:
       result.sons[pragmasPos] = ast.emptyNode
   of pxScope:
@@ -1524,7 +1527,7 @@ proc enumSpecifier(p: var Parser): PNode =
       result = declaration(p)
   else:
     closeContext(p)
-    parMessage(p, errTokenExpected, "{")
+    parMessage(p, errGenerated, "expected '{'")
     result = ast.emptyNode
 
 # Expressions
@@ -1872,7 +1875,7 @@ proc expressionStatement(p: var Parser): PNode =
     let semicolonRequired = p.tok.xkind != pxVerbatim
     result = expression(p)
     if p.tok.xkind == pxSemicolon: getTok(p)
-    elif semicolonRequired: parMessage(p, errTokenExpected, ";")
+    elif semicolonRequired: parMessage(p, errGenerated, "expected ';'")
   assert result != nil
 
 proc parseIf(p: var Parser): PNode =
@@ -2216,9 +2219,9 @@ proc parseConstructor(p: var Parser, pragmas: PNode, isDestructor: bool;
       eat(p, pxSymbol)
       eat(p, pxSemicolon)
     else:
-      parMessage(p, errTokenExpected, "default")
+      parMessage(p, errGenerated, "expected 'default'")
   else:
-    parMessage(p, errTokenExpected, ";")
+    parMessage(p, errGenerated, "expected ';'")
   if result.sons[bodyPos].kind == nkEmpty:
     if isDestructor:
       doImportCpp("#.~" & origName & "()", pragmas, p)
@@ -2278,7 +2281,7 @@ proc parseMethod(p: var Parser, origName: string, rettyp, pragmas: PNode,
     eat(p, pxIntLit)
     eat(p, pxSemicolon)
   else:
-    parMessage(p, errTokenExpected, ";")
+    parMessage(p, errGenerated, "expected ';'")
   if result.sons[bodyPos].kind == nkEmpty:
     if isOperator:
       case origName
@@ -2627,7 +2630,7 @@ proc statement(p: var Parser): PNode =
         p.currentNamespace &= p.tok.s & "::"
         getTok(p)
         if p.tok.xkind != pxCurlyLe:
-          parMessage(p, errTokenExpected, tokKindToStr(pxCurlyLe))
+          parMessage(p, errGenerated, "expected " & tokKindToStr(pxCurlyLe))
         result = compoundStatement(p, newScope=false)
         p.currentNamespace = oldNamespace
       else:
