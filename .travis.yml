@@ -2,6 +2,12 @@ sudo: false
 
 language: c
 os: linux
+
+cache:
+  directories:
+    - "$HOME/.nimble"
+    - "$HOME/.choosenim"
+
 env:
   - CHOOSENIM_CHOOSE_VERSION="devel"
   - CHOOSENIM_CHOOSE_VERSION="stable"
@@ -18,5 +24,5 @@ before_script:
   - set -e
 
 script:
-  - nimble build -y
+  - nimble install -y
   - nim c -r testsuite/tester.nim
