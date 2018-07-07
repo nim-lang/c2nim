@@ -12,9 +12,9 @@
 # it more flexible.
 
 
-import
-  compiler/options, compiler/msgs, strutils, compiler/platform,
-  compiler/nimlexbase, compiler/llstream, compiler/nversion
+import strutils
+import compiler / [options, msgs, platform, nimlexbase, llstream, nversion,
+  idents]
 
 when declared(NimCompilerApiVersion):
   import compiler / configuration
@@ -110,11 +110,6 @@ type
     fileIdx*: (when declared(FileIndex): FileIndex else: int32)
     inDirective, debugMode*: bool
 
-proc getTok*(L: var Lexer, tok: var Token)
-proc printTok*(tok: Token)
-proc `$`*(tok: Token): string
-# implementation
-
 var
   gLinesCompiled*: int
 
@@ -127,6 +122,7 @@ proc fillToken(L: var Token) =
 
 when declared(NimCompilerApiVersion):
   var gConfig* = newConfigRef() # XXX make this part of the lexer
+  var identCache* = newIdentCache()
 
 proc openLexer*(lex: var Lexer, filename: string, inputstream: PLLStream) =
   openBaseLexer(lex, inputstream)
@@ -230,7 +226,7 @@ proc tokKindToStr*(k: Tokkind): string =
   of pxAngleRi: result = "> [end of template]"
   of pxVerbatim: result = "#@ verbatim Nim code @#"
 
-proc `$`(tok: Token): string =
+proc `$`*(tok: Token): string =
   case tok.xkind
   of pxSymbol, pxInvalid, pxStarComment, pxLineComment, pxStrLit: result = tok.s
   of pxIntLit, pxInt64Lit: result = $tok.iNumber
@@ -241,7 +237,7 @@ proc debugTok*(L: Lexer; tok: Token): string =
   result = $tok
   if L.debugMode: result.add(" (" & $tok.xkind & ")")
 
-proc printTok(tok: Token) =
+proc printTok*(tok: Token) =
   writeLine(stdout, $tok)
 
 proc matchUnderscoreChars(L: var Lexer, tok: var Token, chars: set[char]) =
@@ -655,7 +651,7 @@ proc getDirective(L: var Lexer, tok: var Token) =
   else: tok.xkind = pxDirective
   L.inDirective = true
 
-proc getTok(L: var Lexer, tok: var Token) =
+proc getTok*(L: var Lexer, tok: var Token) =
   tok.xkind = pxInvalid
   fillToken(tok)
   skip(L, tok)

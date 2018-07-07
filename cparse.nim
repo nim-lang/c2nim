@@ -23,6 +23,9 @@ import
 when declared(NimCompilerApiVersion):
   import compiler / configuration
 
+  proc getIdent(s: string): PIdent = getIdent(identCache, s)
+  template emptyNode: untyped = newNode(nkEmpty)
+
 import pegs except Token, Tokkind
 
 type
@@ -622,14 +625,14 @@ proc newProcPragmas(p: Parser): PNode =
 
 proc addPragmas(father, pragmas: PNode) =
   if sonsLen(pragmas) > 0: addSon(father, pragmas)
-  else: addSon(father, ast.emptyNode)
+  else: addSon(father, emptyNode)
 
 proc addReturnType(params, rettyp: PNode): bool =
-  if rettyp == nil: addSon(params, ast.emptyNode)
+  if rettyp == nil: addSon(params, emptyNode)
   elif rettyp.kind != nkNilLit:
     addSon(params, rettyp)
     result = true
-  else: addSon(params, ast.emptyNode)
+  else: addSon(params, emptyNode)
 
 proc addDiscardable(origName: string; pragmas: PNode; p: Parser) =
   for prefix in p.options.discardablePrefixes:
@@ -733,7 +736,7 @@ proc sdbmHash(s: string): FilenameHash =
 
 proc hashPosition(p: Parser): string =
   let lineInfo = parLineInfo(p)
-  let fileInfo = toFilename(lineInfo.fileIndex)
+  let fileInfo = toFilename(gConfig, lineInfo.fileIndex)
   result = $sdbmHash(fileInfo & "_" & $lineInfo.line & "_" &
      $lineInfo.col)
 
@@ -750,11 +753,11 @@ proc parseInnerStruct(p: var Parser, stmtList: PNode,
     structName = name & "_" & p.hashPosition
   let typeSection = newNodeP(nkTypeSection, p)
   let newStruct = newNodeP(nkObjectTy, p)
-  var pragmas = ast.emptyNode
+  var pragmas = emptyNode
   if isUnion:
     pragmas = newNodeP(nkPragma, p)
     addSon(pragmas, newIdentNodeP("union", p))
-  addSon(newStruct, pragmas, ast.emptyNode) # no inheritance
+  addSon(newStruct, pragmas, emptyNode) # no inheritance
   result = newNodeP(nkIdent, p)
   result.ident = getIdent(structName)
   let struct = parseStructBody(p, stmtList, isUnion)
@@ -762,7 +765,7 @@ proc parseInnerStruct(p: var Parser, stmtList: PNode,
   defName.ident = getIdent(structName)
   addSon(newStruct, struct)
   addTypeDef(typeSection, structPragmas(p, defName, "no_name"), newStruct,
-             ast.emptyNode)
+             emptyNode)
   addSon(stmtList, typeSection)
 
 proc parseStructBody(p: var Parser, stmtList: PNode, isUnion: bool,
@@ -794,7 +797,7 @@ proc parseStructBody(p: var Parser, stmtList: PNode, isUnion: bool,
           var t = pointer(p, baseTyp)
           let i = fieldIdent("ano_" & p.hashPosition, p)
           t = parseTypeSuffix(p, t)
-          addSon(def, i, t, ast.emptyNode)
+          addSon(def, i, t, emptyNode)
           addSon(result, def)
           getTok(p, nil)
           continue
@@ -823,7 +826,7 @@ proc parseStructBody(p: var Parser, stmtList: PNode, isUnion: bool,
         addSon(pragmaExpr, i)
         addSon(pragmaExpr, pragma)
         i = pragmaExpr
-      addSon(def, i, t, ast.emptyNode)
+      addSon(def, i, t, emptyNode)
       addSon(result, def)
       if p.tok.xkind != pxComma: break
       getTok(p, def)
@@ -878,11 +881,11 @@ proc parseInheritance(p: var Parser; result: PNode) =
 
 proc parseStruct(p: var Parser, stmtList: PNode, isUnion: bool): PNode =
   result = newNodeP(nkObjectTy, p)
-  var pragmas = ast.emptyNode
+  var pragmas = emptyNode
   if isUnion:
     pragmas = newNodeP(nkPragma, p)
     addSon(pragmas, newIdentNodeP("union", p))
-  addSon(result, pragmas, ast.emptyNode) # no inheritance
+  addSon(result, pragmas, emptyNode) # no inheritance
   parseInheritance(p, result)
   if p.tok.xkind == pxCurlyLe:
     addSon(result, parseStructBody(p, stmtList, isUnion))
@@ -925,12 +928,12 @@ proc parseParam(p: var Parser, params: PNode) =
     # for the wxWidgets wrapper we need to transform 'auto x = foo' into
     # 'x = foo' cause 'x: auto = foo' is not really supported by Nim yet...
     if typ.kind == nkIdent and typ.ident.s == "auto":
-      x.sons[^1] = ast.emptyNode
+      x.sons[^1] = emptyNode
     # we support default parameters for C++:
     getTok(p, x)
     addSon(x, assignmentExpression(p))
   else:
-    addSon(x, ast.emptyNode)
+    addSon(x, emptyNode)
   addSon(params, x)
 
 proc parseFormalParams(p: var Parser, params, pragmas: PNode) =
@@ -986,11 +989,11 @@ proc parseFunctionPointerDecl(p: var Parser, rettyp: PNode): PNode =
   if p.inTypeDef == 0:
     result = newNodeP(nkVarSection, p)
     var def = newNodeP(nkIdentDefs, p)
-    addSon(def, name, procType, ast.emptyNode)
+    addSon(def, name, procType, emptyNode)
     addSon(result, def)
   else:
     result = newNodeP(nkTypeDef, p)
-    addSon(result, name, ast.emptyNode, procType)
+    addSon(result, name, emptyNode, procType)
   assert result != nil
 
 proc addTypeDef(section, name, t, genericParams: PNode) =
@@ -1013,7 +1016,7 @@ proc otherTypeDef(p: var Parser, section, typ: PNode) =
     markTypeIdent(p, t)
     name = skipIdentExport(p, skType)
   t = parseTypeSuffix(p, t)
-  addTypeDef(section, name, t, ast.emptyNode)
+  addTypeDef(section, name, t, emptyNode)
 
 proc parseTrailingDefinedTypes(p: var Parser, section, typ: PNode) =
   while p.tok.xkind == pxComma:
@@ -1022,7 +1025,7 @@ proc parseTrailingDefinedTypes(p: var Parser, section, typ: PNode) =
     markTypeIdent(p, newTyp)
     var newName = skipIdentExport(p, skType)
     newTyp = parseTypeSuffix(p, newTyp)
-    addTypeDef(section, newName, newTyp, ast.emptyNode)
+    addTypeDef(section, newName, newTyp, emptyNode)
 
 proc createConst(name, typ, val: PNode, p: Parser): PNode =
   result = newNodeP(nkConstDef, p)
@@ -1055,7 +1058,7 @@ proc getEnumIdent(n: PNode): PNode =
 proc enumFields(p: var Parser, constList: PNode): PNode =
   type EnumFieldKind = enum isNormal, isNumber, isAlias
   result = newNodeP(nkEnumTy, p)
-  addSon(result, ast.emptyNode) # enum does not inherit from anything
+  addSon(result, emptyNode) # enum does not inherit from anything
   var i: BiggestInt = 0
   var field: tuple[id: BiggestInt, kind: EnumFieldKind, node, value: PNode]
   var fields = newSeq[type(field)]()
@@ -1111,7 +1114,7 @@ proc enumFields(p: var Parser, constList: PNode): PNode =
           else: parMessage(p, errGenerated, outofOrder)
         of nkIdent: currentIdent = f.node
         else: parMessage(p, errGenerated, outofOrder)
-        var constant = createConst(currentIdent, ast.emptyNode, lastIdent, p)
+        var constant = createConst(currentIdent, emptyNode, lastIdent, p)
         constList.addSon(constant)
       else:
         addSon(result, f.node)
@@ -1124,7 +1127,7 @@ proc enumFields(p: var Parser, constList: PNode): PNode =
         of nkIdent: lastIdent = f.node
         else: parMessage(p, errGenerated, outofOrder)
     of isAlias:
-      var constant = createConst(f.node.getEnumIdent, ast.emptyNode, f.value, p)
+      var constant = createConst(f.node.getEnumIdent, emptyNode, f.value, p)
       constList.addSon(constant)
 
 
@@ -1135,7 +1138,7 @@ proc parseTypedefStruct(p: var Parser, result, stmtList: PNode, isUnion: bool) =
     var origName = p.tok.s
     markTypeIdent(p, nil)
     var name = skipIdent(p, skType)
-    addTypeDef(result, structPragmas(p, name, origName), t, ast.emptyNode)
+    addTypeDef(result, structPragmas(p, name, origName), t, emptyNode)
     parseTrailingDefinedTypes(p, result, name)
   elif p.tok.xkind == pxSymbol:
     # name to be defined or type "struct a", we don't know yet:
@@ -1151,11 +1154,11 @@ proc parseTypedefStruct(p: var Parser, result, stmtList: PNode, isUnion: bool) =
         markTypeIdent(p, nil)
         var origName = p.tok.s
         var name = skipIdent(p, skType)
-        addTypeDef(result, structPragmas(p, name, origName), t, ast.emptyNode)
+        addTypeDef(result, structPragmas(p, name, origName), t, emptyNode)
         parseTrailingDefinedTypes(p, result, name)
       else:
         addTypeDef(result, structPragmas(p, nameOrType, origName), t,
-                   ast.emptyNode)
+                   emptyNode)
     of pxSymbol:
       # typedef struct a a?
       if mangleName(p.tok.s, p, skType) == nameOrType.ident.s:
@@ -1183,7 +1186,7 @@ proc parseTypedefEnum(p: var Parser, result, constSection: PNode) =
     markTypeIdent(p, nil)
     var name = skipIdent(p, skType)
     addTypeDef(result, enumPragmas(p, exportSym(p, name, origName), origName),
-               t, ast.emptyNode)
+               t, emptyNode)
     parseTrailingDefinedTypes(p, result, name)
   elif p.tok.xkind == pxSymbol:
     # name to be defined or type "enum a", we don't know yet:
@@ -1202,12 +1205,12 @@ proc parseTypedefEnum(p: var Parser, result, constSection: PNode) =
         var origName = p.tok.s
         var name = skipIdent(p, skType)
         addTypeDef(result, enumPragmas(p, exportSym(p, name, origName), origName),
-                   t, ast.emptyNode)
+                   t, emptyNode)
         parseTrailingDefinedTypes(p, result, name)
       else:
         addTypeDef(result,
                    enumPragmas(p, exportSym(p, nameOrType, origName), origName),
-                   t, ast.emptyNode)
+                   t, emptyNode)
     of pxSymbol:
       # typedef enum a a?
       if mangleName(p.tok.s, p, skType) == nameOrType.ident.s:
@@ -1285,11 +1288,11 @@ proc addInitializer(p: var Parser, def: PNode) =
     getTok(p, def)
     let initVal = parseInitializer(p)
     if p.options.dynlibSym.len > 0 or p.options.useHeader:
-      addSon(def, ast.emptyNode)
+      addSon(def, emptyNode)
     else:
       addSon(def, initVal)
   else:
-    addSon(def, ast.emptyNode)
+    addSon(def, emptyNode)
 
 proc parseVarDecl(p: var Parser, baseTyp, typ: PNode,
                   origName: string): PNode =
@@ -1359,7 +1362,7 @@ proc parseMethod(p: var Parser, origName: string, rettyp, pragmas: PNode,
                  isStatic, isOperator, hasPointlessPar: bool;
                  genericParams, genericParamsThis: PNode): PNode
 
-proc declaration(p: var Parser; genericParams: PNode = ast.emptyNode): PNode =
+proc declaration(p: var Parser; genericParams: PNode = emptyNode): PNode =
   result = newNodeP(nkProcDef, p)
   var pragmas = newNodeP(nkPragma, p)
 
@@ -1386,11 +1389,11 @@ proc declaration(p: var Parser; genericParams: PNode = ast.emptyNode): PNode =
     origName = ""
     var isConverter = parseOperator(p, origName)
     result = parseMethod(p, origName, rettyp, pragmas, true, true,
-                         false, ast.emptyNode, ast.emptyNode)
+                         false, emptyNode, emptyNode)
     if isConverter: result.kind = nkConverterDef
     # don't add trivial operators that Nim ends up using anyway:
     if origName in ["=", "!=", ">", ">="]:
-      result = ast.emptyNode
+      result = emptyNode
     return
   else:
     getTok(p) # skip identifier
@@ -1412,13 +1415,13 @@ proc declaration(p: var Parser; genericParams: PNode = ast.emptyNode): PNode =
     elif pfStdcall in p.options.flags:
       addSon(pragmas, newIdentNodeP("stdcall", p))
     # no pattern, no exceptions:
-    addSon(result, exportSym(p, name, origName), ast.emptyNode, genericParams)
-    addSon(result, params, pragmas, ast.emptyNode) # no exceptions
+    addSon(result, exportSym(p, name, origName), emptyNode, genericParams)
+    addSon(result, params, pragmas, emptyNode) # no exceptions
     skipThrowSpecifier(p)
     case p.tok.xkind
     of pxSemicolon:
       getTok(p)
-      addSon(result, ast.emptyNode) # no body
+      addSon(result, emptyNode) # no body
       if p.scopeCounter == 0:
         if pfCpp in p.options.flags:
           doImportCpp(p.currentNamespace & origName & "(@)", pragmas, p)
@@ -1427,13 +1430,13 @@ proc declaration(p: var Parser; genericParams: PNode = ast.emptyNode): PNode =
     of pxCurlyLe:
       if {pfCpp, pfKeepBodies} * p.options.flags == {pfCpp}:
         discard compoundStatement(p)
-        addSon(result, ast.emptyNode) # no body
+        addSon(result, emptyNode) # no body
       else:
         addSon(result, compoundStatement(p))
     else:
       parMessage(p, errGenerated, "expected ';'")
     if sonsLen(result.sons[pragmasPos]) == 0:
-      result.sons[pragmasPos] = ast.emptyNode
+      result.sons[pragmasPos] = emptyNode
   of pxScope:
     # outlined C++ method:
     getTok(p)
@@ -1451,7 +1454,7 @@ proc declaration(p: var Parser; genericParams: PNode = ast.emptyNode): PNode =
       p.currentClass = mangledIdent(p.currentClassOrig, p, skType)
 
     result = parseMethod(p, origFnName, rettyp, pragmas,
-                         isStatic, false, false, ast.emptyNode, ast.emptyNode)
+                         isStatic, false, false, emptyNode, emptyNode)
     if not isStatic:
       p.currentClass = oldClass
       p.currentClassOrig = oldClassOrig
@@ -1488,7 +1491,7 @@ proc enumSpecifier(p: var Parser): PNode =
             name.renderTree)
         val = newIntNodeP(nkIntLit, i, p)
         inc(i)
-      var c = createConst(name, ast.emptyNode, val, p)
+      var c = createConst(name, emptyNode, val, p)
       addSon(result, c)
       if p.tok.xkind != pxComma: break
       getTok(p, c)
@@ -1512,7 +1515,7 @@ proc enumSpecifier(p: var Parser): PNode =
       var constSection = newNodeP(nkConstSection, p)
       var e = enumFields(p, constSection)
       addSon(t, enumPragmas(p, exportSym(p, name, origName), origName),
-             ast.emptyNode, e)
+             emptyNode, e)
       addSon(tSection, t)
       addSon(result, tSection)
       addSon(result, constSection)
@@ -1528,7 +1531,7 @@ proc enumSpecifier(p: var Parser): PNode =
   else:
     closeContext(p)
     parMessage(p, errGenerated, "expected '{'")
-    result = ast.emptyNode
+    result = emptyNode
 
 # Expressions
 
@@ -1870,7 +1873,7 @@ proc expressionStatement(p: var Parser): PNode =
   # do not skip the comment after a semicolon to make a new nkCommentStmt
   if p.tok.xkind == pxSemicolon:
     getTok(p)
-    result = ast.emptyNode
+    result = emptyNode
   else:
     let semicolonRequired = p.tok.xkind != pxVerbatim
     result = expression(p)
@@ -1942,7 +1945,7 @@ proc parseDoWhile(p: var Parser): PNode =
   addSon(notExp, cleanedExp)
 
   var brkStm = newNodeP(nkBreakStmt, p)
-  addSon(brkStm, ast.emptyNode)
+  addSon(brkStm, emptyNode)
 
   var ifStm = newNodeP(nkIfStmt, p)
   var ifBranch = newNodeP(nkElifBranch, p)
@@ -2051,7 +2054,7 @@ proc parseFor(p: var Parser, result: PNode) =
   var condition = expressionStatement(p)
   if condition.kind == nkEmpty: condition = newIdentNodeP("true", p)
   addSon(w, condition)
-  var step = if p.tok.xkind != pxParRi: expression(p) else: ast.emptyNode
+  var step = if p.tok.xkind != pxParRi: expression(p) else: emptyNode
   eat(p, pxParRi, step)
   var loopBody = nestedStatement(p)
   if step.kind != nkEmpty:
@@ -2147,7 +2150,7 @@ proc compoundStatement(p: var Parser; newScope=true): PNode =
   if sonsLen(result) == 0:
     # translate ``{}`` to Nim's ``discard`` statement
     result = newNodeP(nkDiscardStmt, p)
-    result.add(ast.emptyNode)
+    result.add(emptyNode)
   if newScope: dec(p.scopeCounter)
   eat(p, pxCurlyRi)
 
@@ -2167,7 +2170,7 @@ proc createThis(p: var Parser; genericParams: PNode): PNode =
   result = newNodeP(nkIdentDefs, p)
   var t = newNodeP(nkVarTy, p)
   t.add(p.currentClass.applyGenericParams(genericParams))
-  addSon(result, newIdentNodeP("this", p), t, ast.emptyNode)
+  addSon(result, newIdentNodeP("this", p), t, emptyNode)
 
 proc parseConstructor(p: var Parser, pragmas: PNode, isDestructor: bool;
                       genericParams, genericParamsThis: PNode): PNode =
@@ -2202,9 +2205,9 @@ proc parseConstructor(p: var Parser, pragmas: PNode, isDestructor: bool;
       discard expression(p)
       if p.tok.xkind != pxComma: break
   # no pattern, no exceptions:
-  addSon(result, exportSym(p, name, origName), ast.emptyNode, genericParams)
-  addSon(result, params, pragmas, ast.emptyNode) # no exceptions
-  addSon(result, ast.emptyNode) # no body
+  addSon(result, exportSym(p, name, origName), emptyNode, genericParams)
+  addSon(result, params, pragmas, emptyNode) # no exceptions
+  addSon(result, emptyNode) # no body
   skipThrowSpecifier(p)
   case p.tok.xkind
   of pxSemicolon: getTok(p)
@@ -2230,7 +2233,7 @@ proc parseConstructor(p: var Parser, pragmas: PNode, isDestructor: bool;
   elif isDestructor:
     addSon(pragmas, newIdentNodeP("destructor", p))
   if sonsLen(result.sons[pragmasPos]) == 0:
-    result.sons[pragmasPos] = ast.emptyNode
+    result.sons[pragmasPos] = emptyNode
 
 proc parseMethod(p: var Parser, origName: string, rettyp, pragmas: PNode,
                  isStatic, isOperator, hasPointlessPar: bool;
@@ -2265,9 +2268,9 @@ proc parseMethod(p: var Parser, origName: string, rettyp, pragmas: PNode,
     methodName = newNodeP(nkAccQuoted, p)
     methodName.add x
   addSon(result, exportSym(p, methodName, origName),
-         ast.emptyNode, genericParams)
-  addSon(result, params, pragmas, ast.emptyNode) # no exceptions
-  addSon(result, ast.emptyNode) # no body
+         emptyNode, genericParams)
+  addSon(result, params, pragmas, emptyNode) # no exceptions
+  addSon(result, emptyNode) # no body
   skipThrowSpecifier(p)
   case p.tok.xkind
   of pxSemicolon: getTok(p)
@@ -2288,7 +2291,7 @@ proc parseMethod(p: var Parser, origName: string, rettyp, pragmas: PNode,
       of "+=", "-=", "*=", "/=", "<<=", ">>=", "|=", "&=",
           "||=", "~=", "%=", "^=":
         # we remove the pointless return type used for chaining:
-        params.sons[0] = ast.emptyNode
+        params.sons[0] = emptyNode
         doImportCpp("(# " & origName & " #)", pragmas, p)
       of "==", "<=", "<", ">=", ">", "&", "&&", "|", "||", "%", "/", "^",
          "!=", "<<", ">>", "->", "->*":
@@ -2313,7 +2316,7 @@ proc parseMethod(p: var Parser, origName: string, rettyp, pragmas: PNode,
     else:
       doImportCpp(origName, pragmas, p)
   if sonsLen(result.sons[pragmasPos]) == 0:
-    result.sons[pragmasPos] = ast.emptyNode
+    result.sons[pragmasPos] = emptyNode
 
 
 proc parseStandaloneClass(p: var Parser, isStruct: bool;
@@ -2326,7 +2329,7 @@ proc followedByParLe(p: var Parser): bool =
   backtrackContext(p)
 
 proc parseTemplate(p: var Parser): PNode =
-  result = ast.emptyNode
+  result = emptyNode
   if p.tok.xkind == pxSymbol and p.tok.s == "template":
     getTok(p)
     if p.tok.xkind == pxLt and isTemplateAngleBracket(p):
@@ -2338,7 +2341,7 @@ proc parseTemplate(p: var Parser): PNode =
               (p.tok.s == "class" or p.tok.s == "typename"):
                 getTok(p)
                 var identDefs = newNodeP(nkIdentDefs, p)
-                identDefs.addSon(skipIdent(p, skType), ast.emptyNode, ast.emptyNode)
+                identDefs.addSon(skipIdent(p, skType), emptyNode, emptyNode)
                 result.add identDefs
           if p.tok.xkind == pxSymbol and (isIntType(p.tok.s) or
               p.tok.s == "bool") and p.tok.s != "double" and
@@ -2346,7 +2349,7 @@ proc parseTemplate(p: var Parser): PNode =
                 var staticTy = newNodeP(nkStaticTy, p)
                 staticTy.add(typeDesc(p))
                 var identDefs = newNodeP(nkIdentDefs, p)
-                identDefs.addSon(skipIdent(p, skType), staticTy, ast.emptyNode)
+                identDefs.addSon(skipIdent(p, skType), staticTy, emptyNode)
                 result.add identDefs
           if p.tok.xkind != pxComma: break
           getTok(p)
@@ -2369,7 +2372,7 @@ proc getConverterCppType(p: var Parser): string =
 proc parseClass(p: var Parser; isStruct: bool;
                 stmtList, genericParams: PNode): PNode =
   result = newNodeP(nkObjectTy, p)
-  addSon(result, ast.emptyNode, ast.emptyNode) # no pragmas, no inheritance
+  addSon(result, emptyNode, emptyNode) # no pragmas, no inheritance
 
   var recList = newNodeP(nkRecList, p)
   addSon(result, recList)
@@ -2497,7 +2500,7 @@ proc parseClass(p: var Parser; isStruct: bool;
           else:
             if hasPointlessPar: eat(p, pxParRi)
             t = parseTypeSuffix(p, t)
-            var value = ast.emptyNode
+            var value = emptyNode
             if p.tok.xkind == pxAsgn:
               getTok(p, def)
               value = assignmentExpression(p)
@@ -2595,31 +2598,31 @@ proc statement(p: var Parser): PNode =
       result = newNodeP(nkContinueStmt, p)
       getTok(p)
       eat(p, pxSemicolon)
-      addSon(result, ast.emptyNode)
+      addSon(result, emptyNode)
     of "break":
       result = newNodeP(nkBreakStmt, p)
       getTok(p)
       eat(p, pxSemicolon)
-      addSon(result, ast.emptyNode)
+      addSon(result, emptyNode)
     of "return":
       result = newNodeP(nkReturnStmt, p)
       getTok(p)
       if p.tok.xkind == pxSemicolon:
-        addSon(result, ast.emptyNode)
+        addSon(result, emptyNode)
       else:
         addSon(result, unwrap(expression(p)))
       eat(p, pxSemicolon)
     of "enum": result = enumSpecifier(p)
     of "typedef": result = parseTypeDef(p)
-    of "union": result = parseStandaloneStruct(p, isUnion=true, ast.emptyNode)
+    of "union": result = parseStandaloneStruct(p, isUnion=true, emptyNode)
     of "struct":
       if pfCpp in p.options.flags:
-        result = parseStandaloneClass(p, isStruct=true, ast.emptyNode)
+        result = parseStandaloneClass(p, isStruct=true, emptyNode)
       else:
-        result = parseStandaloneStruct(p, isUnion=false, ast.emptyNode)
+        result = parseStandaloneStruct(p, isUnion=false, emptyNode)
     of "class":
       if pfCpp in p.options.flags:
-        result = parseStandaloneClass(p, isStruct=false, ast.emptyNode)
+        result = parseStandaloneClass(p, isStruct=false, emptyNode)
       else:
         result = declarationOrStatement(p)
     of "namespace":
