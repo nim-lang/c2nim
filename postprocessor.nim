@@ -12,6 +12,10 @@
 
 import compiler/ast, compiler/renderer, compiler/idents
 
+from clex import identCache
+
+template emptyNode: untyped = newNode(nkEmpty)
+
 proc pp(n: var PNode, stmtList: PNode = nil, idx: int = -1) =
   case n.kind
   of nkIdent:
@@ -44,7 +48,7 @@ proc postprocess*(n: PNode): PNode =
   pp(result)
 
 proc newIdentNode(s: string; n: PNode): PNode =
-  result = ast.newIdentNode(getIdent(s), n.info)
+  result = ast.newIdentNode(getIdent(identCache, s), n.info)
 
 proc createDllProc(n: PNode; prefix: string): PNode =
   const oprMappings = {"&": "Band", "&&": "Land", "&=": "Bandeq",
@@ -91,14 +95,14 @@ proc createDllProc(n: PNode; prefix: string): PNode =
   addSon(result, newTree(nkPostFix, newIdentNode("*", n),
                     newIdentNode(dest, n)))
   # no pattern:
-  addSon(result, ast.emptyNode)
+  addSon(result, emptyNode)
   # no generics:
-  addSon(result, ast.emptyNode)
+  addSon(result, emptyNode)
   addSon(result, params)
   # pragmas
   addSon(result, newTree(nkPragma, newIdentNode("dllinterf", n)))
   # empty exception tracking:
-  addSon(result, ast.emptyNode)
+  addSon(result, emptyNode)
   # body:
   addSon(result, newTree(nkStmtList, call))
 
