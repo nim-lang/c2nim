@@ -8,7 +8,7 @@ skipExt = @["nim"]
 
 bin = @["c2nim"]
 
-requires "nim >= 0.16.0", "compiler#604a15c0aaf6d3df2"
+requires "nim >= 0.18.0", "compiler#53ce58f050247"
 
 task test, "runs c2nim tests":
   exec "nimble build"
