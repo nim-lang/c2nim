@@ -103,7 +103,7 @@ proc main(infiles: seq[string], outfile: var string,
         else:
           let outfile = changeFileExt(infile, "nim")
           renderModule(m, outfile, outfile)
-  if dllexport != nil and infiles.len > 0:
+  if dllexport != nil:
     let (path, name, _) = infiles[0].splitFile
     let outfile = path / name & "_dllimpl" & ".nim"
     renderModule(dllexport, outfile, outfile)
