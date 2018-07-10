@@ -63,6 +63,7 @@ type
     discardablePrefixes: seq[string]
     constructor, destructor, importcLit: string
     exportPrefix*: string
+    paramPrefix*: string
 
   PParserOptions* = ref ParserOptions
 
@@ -115,6 +116,7 @@ proc newParserOptions*(): PParserOptions =
   result.destructor = "destroy"
   result.importcLit = "importc"
   result.exportPrefix = ""
+  result.paramPrefix = "a"
 
 proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   result = true
@@ -128,6 +130,8 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "stdcall": incl(parserOptions.flags, pfStdCall)
   of "prefix": parserOptions.prefixes.add(val)
   of "suffix": parserOptions.suffixes.add(val)
+  of "paramprefix":
+    if val.len > 0: parserOptions.paramPrefix = val
   of "assumedef": parserOptions.assumeDef.add(val)
   of "assumendef": parserOptions.assumenDef.add(val)
   of "skipinclude": incl(parserOptions.flags, pfSkipInclude)
@@ -916,8 +920,8 @@ proc parseParam(p: var Parser, params: PNode) =
   var name: PNode
   typ = declarator(p, typ, addr name)
   if name == nil:
-    var idx = sonsLen(params)+1
-    name = newIdentNodeP("a" & $idx, p)
+    var idx = sonsLen(params)
+    name = newIdentNodeP(p.options.paramPrefix & $idx, p)
   var x = newNodeP(nkIdentDefs, p)
   addSon(x, name, typ)
   if p.tok.xkind == pxAsgn:

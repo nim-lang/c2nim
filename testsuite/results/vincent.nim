@@ -4,7 +4,7 @@ proc id2*(): cint =
 
 proc id*(f: proc ()): cint =
   f()
-  (cast[proc (a2: cint)](f))(10)
+  (cast[proc (a1: cint)](f))(10)
   return 10
   return 20 + 1
   return cast[ptr cint](id)

@@ -36,6 +36,7 @@ Options:
                          (multiple --prefix options are supported)
   --suffix:SUFFIX        strip suffix for the generated Nim identifiers
                          (multiple --suffix options are supported)
+  --paramprefix:PREFIX   add prefix to parameter name of the generated Nim proc
   --assumedef:IDENT      skips #ifndef sections for the given C identifier
                          (multiple --assumedef options are supported)
   --assumendef:IDENT     skips #ifdef sections for the given C identifier
