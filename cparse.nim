@@ -371,7 +371,7 @@ proc newIdentNodeP(ident: PIdent, p: Parser): PNode =
   result.ident = ident
 
 proc newIdentNodeP(ident: string, p: Parser): PNode =
-  assert(not ident.len == 0)
+  assert(not (ident.len == 0))
   result = newIdentNodeP(getIdent(ident), p)
 
 proc newIdentPair(a, b: string, p: Parser): PNode =
