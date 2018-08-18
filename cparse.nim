@@ -306,7 +306,7 @@ proc parLineInfo(p: Parser): TLineInfo =
 proc skipComAux(p: var Parser, n: PNode) =
   if n != nil and n.kind != nkEmpty:
     if pfSkipComments notin p.options.flags:
-      if n.comment == nil: n.comment = p.tok.s
+      if n.comment.len == 0: n.comment = p.tok.s
       else: add(n.comment, "\n" & p.tok.s)
   else:
     parMessage(p, warnCommentXIgnored, p.tok.s)
@@ -371,7 +371,7 @@ proc newIdentNodeP(ident: PIdent, p: Parser): PNode =
   result.ident = ident
 
 proc newIdentNodeP(ident: string, p: Parser): PNode =
-  assert(not ident.isNil)
+  assert(not ident.len == 0)
   result = newIdentNodeP(getIdent(ident), p)
 
 proc newIdentPair(a, b: string, p: Parser): PNode =
@@ -2492,7 +2492,7 @@ proc parseClass(p: var Parser; isStruct: bool;
             origName = p.tok.s
 
           var i = parseField(p, nkRecList)
-          if not origName.isNil and p.tok.xkind == pxParLe:
+          if origName.len > 0 and p.tok.xkind == pxParLe:
             let meth = parseMethod(p, origName, t, pragmas, isStatic, false,
                                    hasPointlessPar, gp, genericParams)
             if not private or pfKeepBodies in p.options.flags:
