@@ -27,7 +27,8 @@ proc main*(): cint =
   while true:
     printf("howdy")
     dec(i)
-    if not 0: break
+    if not 0:
+      break
   if 1:
     printf("1")
   else:

@@ -152,7 +152,8 @@ proc newPoint*(): ptr point =
   while true:
     nil
     dec(j)
-  while true: discard
+  while true:
+    discard
   var x: ptr mytype = y * z
   if p[][] == ' ':
     dec(p)
@@ -164,7 +165,8 @@ proc newPoint*(): ptr point =
     p = 45 + (cast[mytype](45))
     ##  BUG: This does not parse:
     ##  p = 45 + (mytype)45;
-  while x >= 6 and x <= 20: dec(x)
+  while x >= 6 and x <= 20:
+    dec(x)
   case p[]
   of 'A'..'Z', 'a'..'z':
     inc(p)
@@ -195,9 +197,10 @@ const
 
 template MULTILINE*(x, y: untyped): void =
   while true:
-  inc(y)
-  inc(x)
-  if not 0: break
+    inc(y)
+    inc(x)
+    if not 0:
+      break
 
 {.deadCodeElim: on.}
 when defined(windows):
@@ -346,7 +349,8 @@ proc RGB_to_HWB*(RGB: RGBType; HWB: ptr HWBType): ptr HWBType {.cdecl.} =
   w = MIN3(R, G, B)
   v = MAX3(R, G, B)
   b = b and 1 - v
-  if v == w: RETURN_HWB(HWB_UNDEFINED, w, b)
+  if v == w:
+    RETURN_HWB(HWB_UNDEFINED, w, b)
   f = if (R == w): G - B else: (if (G == w): B - R else: R - G)
   i = if (R == w): 3 else: (if (G == w): 5 else: 1)
   RETURN_HWB(i - f div (v - w), w, b)
