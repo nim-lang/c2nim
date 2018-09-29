@@ -8,8 +8,13 @@ skipExt = @["nim"]
 
 bin = @["c2nim"]
 
-requires "nim >= 0.18.0", "compiler#53ce58f050247"
+requires "nim >= 0.18.1", "compiler >= 0.18.1"
+
+import strutils
 
 task test, "runs c2nim tests":
   exec "nimble build"
   exec "nim c --run testsuite/tester.nim"
+
+task docs, "build c2nim's docs":
+  exec "nim rst2html --putenv:c2nimversion=$1 doc/c2nim.rst" % version
