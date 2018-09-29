@@ -13,7 +13,7 @@ import
   clex, cparse, postprocessor, compiler/nversion
 
 when declared(NimCompilerApiVersion):
-  import compiler / configuration
+  import compiler / [lineinfos, pathutils]
 
 const
   Version = "0.9.13" # keep in sync with Nimble version. D'oh!
@@ -58,7 +58,7 @@ proc isCppFile(s: string): bool =
   splitFile(s).ext.toLowerAscii in [".cpp", ".cxx", ".hpp"]
 
 proc parse(infile: string, options: PParserOptions; dllExport: var PNode): PNode =
-  var stream = llStreamOpen(infile, fmRead)
+  var stream = llStreamOpen(AbsoluteFile infile, fmRead)
   if stream == nil:
     when declared(NimCompilerApiVersion):
       rawMessage(gConfig, errGenerated, "cannot open file: " & infile)

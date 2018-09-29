@@ -17,7 +17,7 @@ import compiler / [options, msgs, platform, nimlexbase, llstream, nversion,
   idents]
 
 when declared(NimCompilerApiVersion):
-  import compiler / configuration
+  import compiler / [lineinfos, pathutils]
 
 const
   MaxLineLength* = 80         # lines longer than this lead to a warning
@@ -127,7 +127,7 @@ when declared(NimCompilerApiVersion):
 proc openLexer*(lex: var Lexer, filename: string, inputstream: PLLStream) =
   openBaseLexer(lex, inputstream)
   when declared(NimCompilerApiVersion):
-    lex.fileIdx = fileInfoIdx(gConfig, filename)
+    lex.fileIdx = fileInfoIdx(gConfig, AbsoluteFile filename)
   else:
     lex.fileIdx = filename.fileInfoIdx
 

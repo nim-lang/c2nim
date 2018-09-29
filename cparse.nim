@@ -21,7 +21,7 @@ import
   compiler/options, strtabs, hashes, algorithm, compiler/nversion
 
 when declared(NimCompilerApiVersion):
-  import compiler / configuration
+  import compiler / lineinfos
 
   proc getIdent(s: string): PIdent = getIdent(identCache, s)
   template emptyNode: untyped = newNode(nkEmpty)
