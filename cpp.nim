@@ -392,7 +392,7 @@ proc parsePegLit(p: var Parser): Peg =
   try:
     result = parsePeg(
       pattern = if p.tok.xkind == pxStrLit: p.tok.s else: escapePeg(p.tok.s),
-      filename = toFilename(gConfig, p.lex.fileIdx),
+      filename = toFilename(p.lex.fileIdx),
       line = p.lex.linenumber,
       col = col)
     getTok(p)

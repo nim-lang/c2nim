@@ -16,7 +16,7 @@ when declared(NimCompilerApiVersion):
   import compiler / [lineinfos, pathutils]
 
 const
-  Version = "0.9.13" # keep in sync with Nimble version. D'oh!
+  Version = "0.9.14" # keep in sync with Nimble version. D'oh!
   Usage = """
 c2nim - C to Nim source converter
   (c) 2016 Andreas Rumpf
@@ -56,6 +56,9 @@ Options:
 
 proc isCppFile(s: string): bool =
   splitFile(s).ext.toLowerAscii in [".cpp", ".cxx", ".hpp"]
+
+when not declared(NimCompilerApiVersion):
+  type AbsoluteFile = string
 
 proc parse(infile: string, options: PParserOptions; dllExport: var PNode): PNode =
   var stream = llStreamOpen(AbsoluteFile infile, fmRead)

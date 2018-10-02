@@ -124,6 +124,8 @@ when declared(NimCompilerApiVersion):
   var gConfig* = newConfigRef() # XXX make this part of the lexer
   var identCache* = newIdentCache()
 
+  template toFilename*(idx: FileIndex): string = toFilename(gConfig, idx)
+
 proc openLexer*(lex: var Lexer, filename: string, inputstream: PLLStream) =
   openBaseLexer(lex, inputstream)
   when declared(NimCompilerApiVersion):

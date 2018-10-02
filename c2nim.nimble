@@ -1,4 +1,4 @@
-version       = "0.9.13"
+version       = "0.9.14"
 author        = "Andreas Rumpf"
 description   = "c2nim is a tool to translate Ansi C code to Nim."
 license       = "MIT"
@@ -8,7 +8,7 @@ skipExt = @["nim"]
 
 bin = @["c2nim"]
 
-requires "nim >= 0.18.1", "compiler >= 0.18.1"
+requires "nim >= 0.18.0", "compiler >= 0.18.0"
 
 import strutils
 

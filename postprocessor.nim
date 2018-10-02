@@ -12,7 +12,7 @@
 
 import compiler/ast, compiler/renderer, compiler/idents
 
-from clex import identCache
+import clex
 
 template emptyNode: untyped = newNode(nkEmpty)
 
@@ -48,7 +48,10 @@ proc postprocess*(n: PNode): PNode =
   pp(result)
 
 proc newIdentNode(s: string; n: PNode): PNode =
-  result = ast.newIdentNode(getIdent(identCache, s), n.info)
+  when declared(identCache):
+    result = ast.newIdentNode(getIdent(identCache, s), n.info)
+  else:
+    result = ast.newIdentNode(getIdent(s), n.info)
 
 proc createDllProc(n: PNode; prefix: string): PNode =
   const oprMappings = {"&": "Band", "&&": "Land", "&=": "Bandeq",
