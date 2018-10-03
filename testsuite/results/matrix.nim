@@ -17,7 +17,7 @@ import
 ## ! codefiles="matrix.cpp"
 ##  A simple 3x3 matrix. This may be replaced by a more general matrix
 ##  class some day.
-## 
+##
 ##  Note: this is intended to be used in wxDC at some point to replace
 ##  the current system of scaling/translation. It is not yet used.
 
@@ -115,11 +115,11 @@ proc GetRotation*(this: var wxTransformMatrix): cdouble {.importcpp: "GetRotatio
     header: "wxmatrix.h".}
 proc SetRotation*(this: var wxTransformMatrix; rotation: cdouble) {.
     importcpp: "SetRotation", header: "wxmatrix.h".}
-## 
+##
 ## Chris Breeze reported, that
 ## some functions of wxTransformMatrix cannot work because it is not
 ## known if he matrix has been inverted. Be careful when using it.
-## 
+##
 ##  Transform X value from logical to device
 ##  warning: this function can only be used for this purpose
 ##  because no rotation is involved when mapping logical to device coordinates

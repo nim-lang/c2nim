@@ -14,11 +14,12 @@ var
 proc test(t, cmd: string) =
   if execShellCmd(cmd % t) != 0: quit("FAILURE")
   let nimFile = splitFile(t).name & ".nim"
-  if strip(readFile(dir & "tests" / nimFile).replace("\C\L", "\L")) !=
-     strip(readFile(dir & "results" / nimFile).replace("\C\L", "\L")):
+  if readFile(dir & "tests" / nimFile) != readFile(dir & "results" / nimFile):
     echo "FAILURE: files differ: ", nimFile
     discard execShellCmd("diff -uNdr " & dir & "results" / nimFile & " " & dir & "tests" / nimFile)
     failures += 1
+    when false:
+      copyFile(dir & "tests" / nimFile, dir & "results" / nimFile)
   else:
     echo "SUCCESS: files identical: ", nimFile
 

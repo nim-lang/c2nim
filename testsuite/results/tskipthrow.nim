@@ -1,6 +1,6 @@
 type
   foo* {.bycopy.} = object
-  
+
 
 proc constructfoo*(): foo {.constructor.}
 proc destroyfoo*(this: var foo)
