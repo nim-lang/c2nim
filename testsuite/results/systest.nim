@@ -1,7 +1,7 @@
 ##  This file has been written by Blablub.
-## 
+##
 ##  Another comment line.
-## 
+##
 
 template interrupts*(): untyped =
   sei()
@@ -44,7 +44,7 @@ var myPrivateVar__: cint
 
 type
   ParserStruct {.bycopy.} = object
-  
+
   ElementDeclHandler* = proc (userData: pointer; name: ptr Char; model: ptr Content) {.
       cdecl.}
 
@@ -55,11 +55,11 @@ var fn*: proc ()
 
 var fn*: proc (): pointer
 
-var fn*: proc (a2: pointer): pointer
+var fn*: proc (a1: pointer): pointer
 
-## 
+##
 ##  Very ugly real world code ahead:
-## 
+##
 
 type
   cjpeg_source_ptr* = ptr cjpeg_source_struct
@@ -152,7 +152,8 @@ proc newPoint*(): ptr point =
   while true:
     nil
     dec(j)
-  while true: discard
+  while true:
+    discard
   var x: ptr mytype = y * z
   if p[][] == ' ':
     dec(p)
@@ -164,7 +165,8 @@ proc newPoint*(): ptr point =
     p = 45 + (cast[mytype](45))
     ##  BUG: This does not parse:
     ##  p = 45 + (mytype)45;
-  while x >= 6 and x <= 20: dec(x)
+  while x >= 6 and x <= 20:
+    dec(x)
   case p[]
   of 'A'..'Z', 'a'..'z':
     inc(p)
@@ -195,9 +197,10 @@ const
 
 template MULTILINE*(x, y: untyped): void =
   while true:
-  inc(y)
-  inc(x)
-  if not 0: break
+    inc(y)
+    inc(x)
+    if not 0:
+      break
 
 {.deadCodeElim: on.}
 when defined(windows):
@@ -225,7 +228,7 @@ proc IupConvertXYToPos*(ih: PIhandle; x: cint; y: cint): cint {.cdecl,
     importc: "IupConvertXYToPos", dynlib: iupdll.}
 when defined(DEBUG):
   template OUT*(x: untyped): untyped =
-    printf("%s\L", x)
+    printf("%s\n", x)
 
 else:
   template OUT*(x: untyped): void =
@@ -244,7 +247,7 @@ var x* {.importc: "x", dynlib: iupdll.}: ptr cint
 const
   abc* = 34
   xyz* = 42
-  wuseldusel* = "my string\Lconstant"
+  wuseldusel* = "my string\nconstant"
 
 var x* {.importc: "x", dynlib: iupdll.}: cstring
 
@@ -271,50 +274,50 @@ var c2nimBranch* {.importc: "c2nimBranch", dynlib: iupdll.}: cint
 
 when defined(Windows):
   var WindowsTrue* {.importc: "WindowsTrue", dynlib: iupdll.}: cint
-proc spawn*(a2: ptr pid_t; a3: cstring; a4: ptr spawn_file_actions_t;
-           a5: ptr spawnattr_t; a6: ptr cstring; a7: ptr cstring): cint {.cdecl,
+proc spawn*(a1: ptr pid_t; a2: cstring; a3: ptr spawn_file_actions_t;
+           a4: ptr spawnattr_t; a5: ptr cstring; a6: ptr cstring): cint {.cdecl,
     importc: "posix_spawn", dynlib: iupdll.}
-proc spawn_file_actions_addclose*(a2: ptr spawn_file_actions_t; a3: cint): cint {.
+proc spawn_file_actions_addclose*(a1: ptr spawn_file_actions_t; a2: cint): cint {.
     cdecl, importc: "posix_spawn_file_actions_addclose", dynlib: iupdll.}
-proc spawn_file_actions_adddup2*(a2: ptr spawn_file_actions_t; a3: cint; a4: cint): cint {.
+proc spawn_file_actions_adddup2*(a1: ptr spawn_file_actions_t; a2: cint; a3: cint): cint {.
     cdecl, importc: "posix_spawn_file_actions_adddup2", dynlib: iupdll.}
-proc spawn_file_actions_addopen*(a2: ptr spawn_file_actions_t; a3: cint; a4: cstring;
-                                a5: cint; a6: mode_t): cint {.cdecl,
+proc spawn_file_actions_addopen*(a1: ptr spawn_file_actions_t; a2: cint; a3: cstring;
+                                a4: cint; a5: mode_t): cint {.cdecl,
     importc: "posix_spawn_file_actions_addopen", dynlib: iupdll.}
-proc spawn_file_actions_destroy*(a2: ptr spawn_file_actions_t): cint {.cdecl,
+proc spawn_file_actions_destroy*(a1: ptr spawn_file_actions_t): cint {.cdecl,
     importc: "posix_spawn_file_actions_destroy", dynlib: iupdll.}
-proc spawn_file_actions_init*(a2: ptr spawn_file_actions_t): cint {.cdecl,
+proc spawn_file_actions_init*(a1: ptr spawn_file_actions_t): cint {.cdecl,
     importc: "posix_spawn_file_actions_init", dynlib: iupdll.}
-proc spawnattr_destroy*(a2: ptr spawnattr_t): cint {.cdecl,
+proc spawnattr_destroy*(a1: ptr spawnattr_t): cint {.cdecl,
     importc: "posix_spawnattr_destroy", dynlib: iupdll.}
-proc spawnattr_getsigdefault*(a2: ptr spawnattr_t; a3: ptr sigset_t): cint {.cdecl,
+proc spawnattr_getsigdefault*(a1: ptr spawnattr_t; a2: ptr sigset_t): cint {.cdecl,
     importc: "posix_spawnattr_getsigdefault", dynlib: iupdll.}
-proc spawnattr_getflags*(a2: ptr spawnattr_t; a3: ptr cshort): cint {.cdecl,
+proc spawnattr_getflags*(a1: ptr spawnattr_t; a2: ptr cshort): cint {.cdecl,
     importc: "posix_spawnattr_getflags", dynlib: iupdll.}
-proc spawnattr_getpgroup*(a2: ptr spawnattr_t; a3: ptr pid_t): cint {.cdecl,
+proc spawnattr_getpgroup*(a1: ptr spawnattr_t; a2: ptr pid_t): cint {.cdecl,
     importc: "posix_spawnattr_getpgroup", dynlib: iupdll.}
-proc spawnattr_getschedparam*(a2: ptr spawnattr_t; a3: ptr sched_param): cint {.cdecl,
+proc spawnattr_getschedparam*(a1: ptr spawnattr_t; a2: ptr sched_param): cint {.cdecl,
     importc: "posix_spawnattr_getschedparam", dynlib: iupdll.}
-proc spawnattr_getschedpolicy*(a2: ptr spawnattr_t; a3: ptr cint): cint {.cdecl,
+proc spawnattr_getschedpolicy*(a1: ptr spawnattr_t; a2: ptr cint): cint {.cdecl,
     importc: "posix_spawnattr_getschedpolicy", dynlib: iupdll.}
-proc spawnattr_getsigmask*(a2: ptr spawnattr_t; a3: ptr sigset_t): cint {.cdecl,
+proc spawnattr_getsigmask*(a1: ptr spawnattr_t; a2: ptr sigset_t): cint {.cdecl,
     importc: "posix_spawnattr_getsigmask", dynlib: iupdll.}
-proc spawnattr_init*(a2: ptr spawnattr_t): cint {.cdecl,
+proc spawnattr_init*(a1: ptr spawnattr_t): cint {.cdecl,
     importc: "posix_spawnattr_init", dynlib: iupdll.}
-proc spawnattr_setsigdefault*(a2: ptr spawnattr_t; a3: ptr sigset_t): cint {.cdecl,
+proc spawnattr_setsigdefault*(a1: ptr spawnattr_t; a2: ptr sigset_t): cint {.cdecl,
     importc: "posix_spawnattr_setsigdefault", dynlib: iupdll.}
-proc spawnattr_setflags*(a2: ptr spawnattr_t; a3: cshort): cint {.cdecl,
+proc spawnattr_setflags*(a1: ptr spawnattr_t; a2: cshort): cint {.cdecl,
     importc: "posix_spawnattr_setflags", dynlib: iupdll.}
-proc spawnattr_setpgroup*(a2: ptr spawnattr_t; a3: pid_t): cint {.cdecl,
+proc spawnattr_setpgroup*(a1: ptr spawnattr_t; a2: pid_t): cint {.cdecl,
     importc: "posix_spawnattr_setpgroup", dynlib: iupdll.}
-proc spawnattr_setschedparam*(a2: ptr spawnattr_t; a3: ptr sched_param): cint {.cdecl,
+proc spawnattr_setschedparam*(a1: ptr spawnattr_t; a2: ptr sched_param): cint {.cdecl,
     importc: "posix_spawnattr_setschedparam", dynlib: iupdll.}
-proc spawnattr_setschedpolicy*(a2: ptr spawnattr_t; a3: cint): cint {.cdecl,
+proc spawnattr_setschedpolicy*(a1: ptr spawnattr_t; a2: cint): cint {.cdecl,
     importc: "posix_spawnattr_setschedpolicy", dynlib: iupdll.}
-proc spawnattr_setsigmask*(a2: ptr spawnattr_t; a3: ptr sigset_t): cint {.cdecl,
+proc spawnattr_setsigmask*(a1: ptr spawnattr_t; a2: ptr sigset_t): cint {.cdecl,
     importc: "posix_spawnattr_setsigmask", dynlib: iupdll.}
-proc spawnp*(a2: ptr pid_t; a3: cstring; a4: ptr spawn_file_actions_t;
-            a5: ptr spawnattr_t; a6: ptr cstring; a7: ptr cstring): cint {.cdecl,
+proc spawnp*(a1: ptr pid_t; a2: cstring; a3: ptr spawn_file_actions_t;
+            a4: ptr spawnattr_t; a5: ptr cstring; a6: ptr cstring): cint {.cdecl,
     importc: "posix_spawnp", dynlib: iupdll.}
 type
   RGBType* {.bycopy.} = object
@@ -330,10 +333,10 @@ type
 
 proc RGB_to_HWB*(RGB: RGBType; HWB: ptr HWBType): ptr HWBType {.cdecl.} =
   var myArray: array[20, ptr HWBType]
-  ## 
-  ##  RGB are each on [0, 1]. W and B are returned on [0, 1] and H is  
-  ##  returned on [0, 6]. Exception: H is returned UNDEFINED if W == 1 - B.  
-  ## 
+  ##
+  ##  RGB are each on [0, 1]. W and B are returned on [0, 1] and H is
+  ##  returned on [0, 6]. Exception: H is returned UNDEFINED if W == 1 - B.
+  ##
   var
     R: cfloat
     G: cfloat
@@ -346,7 +349,8 @@ proc RGB_to_HWB*(RGB: RGBType; HWB: ptr HWBType): ptr HWBType {.cdecl.} =
   w = MIN3(R, G, B)
   v = MAX3(R, G, B)
   b = b and 1 - v
-  if v == w: RETURN_HWB(HWB_UNDEFINED, w, b)
+  if v == w:
+    RETURN_HWB(HWB_UNDEFINED, w, b)
   f = if (R == w): G - B else: (if (G == w): B - R else: R - G)
   i = if (R == w): 3 else: (if (G == w): 5 else: 1)
   RETURN_HWB(i - f div (v - w), w, b)

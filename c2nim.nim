@@ -10,7 +10,10 @@
 import
   strutils, os, times, parseopt, compiler/llstream, compiler/ast,
   compiler/renderer, compiler/options, compiler/msgs,
-  clex, cparse, postprocessor
+  clex, cparse, postprocessor, compiler/nversion
+
+when declared(NimCompilerApiVersion):
+  import compiler / [lineinfos, pathutils]
 
 const
   Version = "0.9.14" # keep in sync with Nimble version. D'oh!
@@ -33,6 +36,7 @@ Options:
                          (multiple --prefix options are supported)
   --suffix:SUFFIX        strip suffix for the generated Nim identifiers
                          (multiple --suffix options are supported)
+  --paramprefix:PREFIX   add prefix to parameter name of the generated Nim proc
   --assumedef:IDENT      skips #ifndef sections for the given C identifier
                          (multiple --assumedef options are supported)
   --assumendef:IDENT     skips #ifdef sections for the given C identifier
@@ -53,9 +57,16 @@ Options:
 proc isCppFile(s: string): bool =
   splitFile(s).ext.toLowerAscii in [".cpp", ".cxx", ".hpp"]
 
+when not declared(NimCompilerApiVersion):
+  type AbsoluteFile = string
+
 proc parse(infile: string, options: PParserOptions; dllExport: var PNode): PNode =
-  var stream = llStreamOpen(infile, fmRead)
-  if stream == nil: rawMessage(errCannotOpenFile, infile)
+  var stream = llStreamOpen(AbsoluteFile infile, fmRead)
+  if stream == nil:
+    when declared(NimCompilerApiVersion):
+      rawMessage(gConfig, errGenerated, "cannot open file: " & infile)
+    else:
+      rawMessage(errGenerated, "cannot open file: " & infile)
   let isCpp = pfCpp notin options.flags and isCppFile(infile)
   var p: Parser
   if isCpp: options.flags.incl pfCpp
@@ -106,9 +117,13 @@ proc main(infiles: seq[string], outfile: var string,
   if dllexport != nil:
     let (path, name, _) = infiles[0].splitFile
     let outfile = path / name & "_dllimpl" & ".nim"
-    renderModule(dllexport, outfile)
-  rawMessage(hintSuccessX, [$gLinesCompiled, $(getTime() - start),
-                            formatSize(getTotalMem()), ""])
+    renderModule(dllexport, outfile, outfile)
+  when declared(NimCompilerApiVersion):
+    rawMessage(gConfig, hintSuccessX, [$gLinesCompiled, $(getTime() - start),
+                              formatSize(getTotalMem()), ""])
+  else:
+    rawMessage(hintSuccessX, [$gLinesCompiled, $(getTime() - start),
+                              formatSize(getTotalMem()), ""])
 
 var
   infiles = newSeq[string](0)

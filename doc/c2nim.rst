@@ -3,7 +3,7 @@
 =======================
 
 :Author: Andreas Rumpf
-:Version: |nimversion|
+:Version: |c2nimversion|
 
 .. contents::
 
