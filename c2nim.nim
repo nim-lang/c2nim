@@ -92,6 +92,36 @@ when not compiles(renderModule(dummy, "")):
   proc renderModule(tree: PNode; filename: string) =
     renderModule(tree, filename, filename)
 
+proc myRenderModule(tree: PNode; filename: string) =
+  # also ensure we produced no trailing whitespace:
+  let tmpFile = filename & ".tmp"
+  renderModule(tree, tmpFile)
+
+  let b = readFile(tmpFile)
+  removeFile(tmpFile)
+  let L = b.len
+  var i = 0
+  let f = open(filename, fmWrite)
+  while i < L:
+    let ch = b[i]
+    if ch > ' ':
+      f.write(ch)
+    elif ch == ' ':
+      let j = i
+      while b[i] == ' ': inc i
+      if b[i] == '\L':
+        f.write('\L')
+      else:
+        for ii in j..i-1:
+          f.write(' ')
+        dec i
+    elif ch == '\L':
+      f.write('\L')
+    else:
+      f.write(ch)
+    inc(i)
+  f.close
+
 proc main(infiles: seq[string], outfile: var string,
           options: PParserOptions, concat: bool) =
   var start = getTime()
@@ -103,21 +133,21 @@ proc main(infiles: seq[string], outfile: var string,
       if not isC2nimFile(infile):
         if outfile.len == 0: outfile = changeFileExt(infile, "nim")
         for n in m: tree.add(n)
-    renderModule(tree, outfile)
+    myRenderModule(tree, outfile)
   else:
     for infile in infiles:
       let m = parse(infile, options, dllexport)
       if not isC2nimFile(infile):
         if outfile.len > 0:
-          renderModule(m, outfile)
+          myRenderModule(m, outfile)
           outfile = ""
         else:
           let outfile = changeFileExt(infile, "nim")
-          renderModule(m, outfile)
+          myRenderModule(m, outfile)
   if dllexport != nil:
     let (path, name, _) = infiles[0].splitFile
     let outfile = path / name & "_dllimpl" & ".nim"
-    renderModule(dllexport, outfile, outfile)
+    myRenderModule(dllexport, outfile)
   when declared(NimCompilerApiVersion):
     rawMessage(gConfig, hintSuccessX, [$gLinesCompiled, $(getTime() - start),
                               formatSize(getTotalMem()), ""])
