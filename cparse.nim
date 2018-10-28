@@ -1248,7 +1248,7 @@ proc parseTypeDef(p: var Parser): PNode =
 proc skipDeclarationSpecifiers(p: var Parser) =
   while p.tok.xkind == pxSymbol:
     case p.tok.s
-    of "extern", "static", "auto", "register", "const", "volatile":
+    of "extern", "static", "auto", "register", "volatile":
       getTok(p, nil)
     of "mutable":
       if pfCpp in p.options.flags: getTok(p, nil)
@@ -1285,8 +1285,11 @@ proc addInitializer(p: var Parser, def: PNode) =
     addSon(def, emptyNode)
 
 proc parseVarDecl(p: var Parser, baseTyp, typ: PNode,
-                  origName: string): PNode =
-  result = newNodeP(nkVarSection, p)
+                  origName: string, isConst: bool): PNode =
+  if isConst:
+    result = newNodeP(nkConstSection, p)
+  else:
+    result = newNodeP(nkVarSection, p)
   var def = newNodeP(nkIdentDefs, p)
   addSon(def, varIdent(origName, p))
   addSon(def, parseTypeSuffix(p, typ))
@@ -1355,9 +1358,15 @@ proc parseMethod(p: var Parser, origName: string, rettyp, pragmas: PNode,
 proc declaration(p: var Parser; genericParams: PNode = emptyNode): PNode =
   result = newNodeP(nkProcDef, p)
   var pragmas = newNodeP(nkPragma, p)
-
+  var isConst = false
+  if p.tok.xkind == pxSymbol and p.tok.s == "const":
+    isConst = true
+    getTok(p, nil)
   skipDeclarationSpecifiers(p)
   parseCallConv(p, pragmas)
+  if p.tok.xkind == pxSymbol and p.tok.s == "const":
+    isConst = true
+    getTok(p, nil)
   skipDeclarationSpecifiers(p)
   expectIdent(p)
   var baseTyp = typeAtom(p)
@@ -1450,7 +1459,7 @@ proc declaration(p: var Parser; genericParams: PNode = emptyNode): PNode =
       p.currentClassOrig = oldClassOrig
 
   else:
-    result = parseVarDecl(p, baseTyp, rettyp, origName)
+    result = parseVarDecl(p, baseTyp, rettyp, origName, isConst)
   assert result != nil
 
 proc enumSpecifier(p: var Parser): PNode =
