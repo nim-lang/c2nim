@@ -1,5 +1,5 @@
 type
-  foo* {.importcpp: "foo", header: "opconverters.hpp", bycopy.} = object
+  foo* {.importcpp: "struct foo", header: "opconverters.hpp", bycopy.} = object
     val* {.importc: "val".}: cint
 
 
