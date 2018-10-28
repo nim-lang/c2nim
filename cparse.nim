@@ -1003,6 +1003,7 @@ proc otherTypeDef(p: var Parser, section, typ: PNode) =
     t = x[2]
   else:
     # typedef typ name;
+    if t.kind == nkNilLit: t = newIdentNodeP("void", p)
     markTypeIdent(p, t)
     name = skipIdentExport(p, skType)
   t = parseTypeSuffix(p, t)
