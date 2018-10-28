@@ -1420,7 +1420,8 @@ proc declaration(p: var Parser; genericParams: PNode = emptyNode): PNode =
     of pxCurlyLe:
       if {pfCpp, pfKeepBodies} * p.options.flags == {pfCpp}:
         discard compoundStatement(p)
-        addSon(result, emptyNode) # no body
+        addSon(result, newNodeP(nkDiscardStmt, p))
+        addSon(result.lastSon, emptyNode)
       else:
         addSon(result, compoundStatement(p))
     else:
