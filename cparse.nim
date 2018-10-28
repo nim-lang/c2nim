@@ -714,7 +714,7 @@ proc structPragmas(p: Parser, name: PNode, origName: string): PNode =
   #addSon(pragmas, newIdentNodeP("pure", p), newIdentNodeP("final", p))
   if p.options.useHeader:
     addSon(pragmas,
-      newIdentStrLitPair(p.options.importcLit, p.currentNamespace & origName, p),
+      newIdentStrLitPair(p.options.importcLit, "struct " & p.currentNamespace & origName, p),
       getHeaderPair(p))
   if p.options.inheritable.hasKey(origName):
     addSon(pragmas, newIdentNodeP("inheritable", p))
