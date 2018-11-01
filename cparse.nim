@@ -713,8 +713,9 @@ proc structPragmas(p: Parser, name: PNode, origName: string): PNode =
   var pragmas = newNodeP(nkPragma, p)
   #addSon(pragmas, newIdentNodeP("pure", p), newIdentNodeP("final", p))
   if p.options.useHeader:
+    var name = p.currentNamespace & origName
     addSon(pragmas,
-      newIdentStrLitPair(p.options.importcLit, p.currentNamespace & origName, p),
+      newIdentStrLitPair(p.options.importcLit, if pfCpp in p.options.flags: name else: "struct " & name, p),
       getHeaderPair(p))
   if p.options.inheritable.hasKey(origName):
     addSon(pragmas, newIdentNodeP("inheritable", p))
