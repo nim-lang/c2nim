@@ -31,8 +31,8 @@ import
 ##   It is used where possible to optimize calculations.
 
 type
-  wxTransformMatrix* {.importcpp: "struct wxTransformMatrix", header: "wxmatrix.h",
-                      bycopy.} = object of wxObject[string, string[ubyte]]
+  wxTransformMatrix* {.importcpp: "wxTransformMatrix", header: "wxmatrix.h", bycopy.} = object of wxObject[
+      string, string[ubyte]]
     m_matrix* {.importc: "m_matrix".}: array[3, array[3, cdouble]]
     m_isIdentity* {.importc: "m_isIdentity".}: bool
 
