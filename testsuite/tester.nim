@@ -16,7 +16,7 @@ proc test(t, cmd: string) =
   let nimFile = splitFile(t).name & ".nim"
   if readFile(dir & "tests" / nimFile) != readFile(dir & "results" / nimFile):
     echo "FAILURE: files differ: ", nimFile
-    discard execShellCmd("diff -uNdr " & dir & "results" / nimFile & " " & dir & "tests" / nimFile)
+    discard execShellCmd("diff -uNdw " & dir & "results" / nimFile & " " & dir & "tests" / nimFile)
     failures += 1
     when false:
       copyFile(dir & "tests" / nimFile, dir & "results" / nimFile)
