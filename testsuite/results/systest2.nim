@@ -1,10 +1,10 @@
 type
-  TGtkMyStruct* {.importc: "struct GTK_MyStruct", header: "iup.h", bycopy.} = object
+  TGtkMyStruct* {.importc: "GTK_MyStruct", header: "iup.h", bycopy.} = object
     a* {.importc: "a".}: mytype
     b* {.importc: "b".}: mytype
 
   PGtkMyStruct* = ptr TGtkMyStruct
-  TGtkMyStruct* {.importc: "struct GTK_MyStruct", header: "iup.h", bycopy.} = object
+  TGtkMyStruct* {.importc: "GTK_MyStruct", header: "iup.h", bycopy.} = object
     a* {.importc: "a".}: mytype
     b* {.importc: "b".}: mytype
 
