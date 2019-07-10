@@ -21,6 +21,7 @@ var
   failures = 0
   exit_early = false
   infiles = newSeq[string](0)
+  diff_tool = "diff -uNdr"
 
 for kind, key, val in getopt():
   case kind
@@ -31,6 +32,8 @@ for kind, key, val in getopt():
     of "help", "h":
       stdout.write(usage)
       exit_early = true
+    of "diff", "d":
+      diff_tool = val
   else:
     stdout.writeLine("[Error] unknown option: " & key)
 
@@ -42,7 +45,7 @@ proc test(t, cmd: string) =
   let nimFile = name & ".nim"
   if readFile(dir & "tests" / nimFile) != readFile(dir & "results" / nimFile):
     echo "FAILURE: files differ: ", nimFile
-    discard execShellCmd("diff -uNdr " & dir & "results" / nimFile & " " & dir & "tests" / nimFile)
+    discard execShellCmd(diff_tool & " " & dir & "results" / nimFile & " " & dir & "tests" / nimFile)
     failures += 1
     when false:
       copyFile(dir & "tests" / nimFile, dir & "results" / nimFile)
