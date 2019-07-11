@@ -1306,6 +1306,22 @@ proc parseVarDecl(p: var Parser, baseTyp, typ: PNode,
     addSon(def, parseTypeSuffix(p, t))
     addInitializer(p, def)
     addSon(result, def)
+
+  if p.options.useHeader and p.options.flags.contains(pfCpp):
+    var unmatched_braces = 0
+    while true: # skip c++11 list initializer
+      if p.tok.xkind == pxCurlyLe:
+        eat(p, pxCurlyLe)
+        inc unmatched_braces
+        continue
+      elif p.tok.xkind == pxCurlyRi:
+        eat(p, pxCurlyRi)
+        dec unmatched_braces
+        continue
+      if unmatched_braces == 0:
+        break
+      # consume initalizer list contents
+      getTok(p, nil)
   eat(p, pxSemicolon)
 
 proc parseOperator(p: var Parser, origName: var string): bool =
