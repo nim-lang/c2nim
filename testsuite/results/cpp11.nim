@@ -15,3 +15,5 @@ type
 
 proc constructConstexprConstructor*(i: cint = 1): ConstexprConstructor {.constructor,
     importcpp: "ConstexprConstructor(@)", header: "cpp11.hpp".}
+# list initialization, issue #163
+var list_init*{.importcpp: "list_init", header: "cpp11.hpp".}: int

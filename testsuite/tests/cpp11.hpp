@@ -12,3 +12,5 @@ class ConstexprConstructor {
   public:
   constexpr ConstexprConstructor(int i = 1) : id(i) {}
 };
+// list initialization, issue #163
+constexpr int list_init{123};
