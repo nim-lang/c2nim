@@ -98,7 +98,12 @@ proc getHeaderPair(p: Parser): PNode =
     newIdentStrLitPair("header", p.header, p)
 
 proc addImportToPragma(pragmas: PNode, ident: string, p: Parser) =
-  addSon(pragmas, newIdentStrLitPair(p.options.importcLit, ident, p))
+  if pfCpp in p.options.flags:
+    addSon(pragmas, newIdentStrLitPair(p.options.importcLit,
+      p.currentNamespace & ident, p)
+    )
+  else:
+    addSon(pragmas, newIdentStrLitPair(p.options.importcLit, ident, p))
   if p.options.dynlibSym.len > 0:
     addSon(pragmas, newIdentPair("dynlib", p.options.dynlibSym, p))
   else:
