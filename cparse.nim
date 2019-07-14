@@ -2479,6 +2479,15 @@ proc parseClass(p: var Parser; isStruct: bool;
           # don't add trivial operators that Nim ends up using anyway:
           if origName notin ["=", "!=", ">", ">="]:
             stmtList.add(meth)
+      elif p.tok.xkind == pxBracketLe and pfCpp in p.options.flags:
+        # c++11 attribute
+        eat(p, pxBracketLe)
+        eat(p, pxBracketLe)
+        # just ignore for now, could convert into pragma eg. deprecated
+        while p.tok.xkind != pxBracketRi:
+          getTok(p)
+        eat(p, pxBracketRi)
+        eat(p, pxBracketRi)
       else:
         # field declaration or method:
         if p.tok.xkind == pxSemicolon:
