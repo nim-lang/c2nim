@@ -13,7 +13,7 @@
 
 
 import strutils
-import compiler / [options, msgs, platform, nimlexbase, llstream, nversion,
+import compiler / [options, msgs, nimlexbase, llstream, nversion,
   idents]
 
 when declared(NimCompilerApiVersion):

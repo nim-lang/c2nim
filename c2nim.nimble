@@ -8,7 +8,7 @@ skipExt = @["nim"]
 
 bin = @["c2nim"]
 
-requires "nim >= 0.18.0", "compiler >= 0.18.0"
+requires "nim >= 0.18.0"
 
 import strutils
 

@@ -17,8 +17,8 @@
 
 import
   os, compiler/llstream, compiler/renderer, clex, compiler/idents, strutils,
-  pegs, compiler/ast, compiler/astalgo, compiler/msgs,
-  compiler/options, strtabs, hashes, algorithm, compiler/nversion
+  pegs, compiler/ast, compiler/msgs,
+  strtabs, hashes, algorithm, compiler/nversion
 
 when declared(NimCompilerApiVersion):
   import compiler / lineinfos
@@ -430,9 +430,9 @@ proc statement(p: var Parser): PNode
 proc declKeyword(p: Parser, s: string): bool =
   # returns true if it is a keyword that introduces a declaration
   case s
-  of  "extern", "static", "auto", "register", "const", "constexpr", "volatile", 
-      "restrict", "inline", "__inline", "__cdecl", "__stdcall", "__syscall", 
-      "__fastcall", "__safecall", "void", "struct", "union", "enum", "typedef", 
+  of  "extern", "static", "auto", "register", "const", "constexpr", "volatile",
+      "restrict", "inline", "__inline", "__cdecl", "__stdcall", "__syscall",
+      "__fastcall", "__safecall", "void", "struct", "union", "enum", "typedef",
       "size_t", "short", "int", "long", "float", "double", "signed", "unsigned",
       "char":
     result = true
@@ -459,8 +459,8 @@ proc isIntType(s: string): bool =
 
 proc skipConst(p: var Parser): bool {.discardable.} =
   while p.tok.xkind == pxSymbol and
-      (p.tok.s == "const" or p.tok.s == "constexpr" or p.tok.s == "volatile" or 
-       p.tok.s == "restrict" or (p.tok.s == "mutable" and 
+      (p.tok.s == "const" or p.tok.s == "constexpr" or p.tok.s == "volatile" or
+       p.tok.s == "restrict" or (p.tok.s == "mutable" and
         pfCpp in p.options.flags)):
     if p.tok.s == "const": result = true
     getTok(p, nil)
