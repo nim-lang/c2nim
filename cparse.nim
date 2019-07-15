@@ -430,10 +430,11 @@ proc statement(p: var Parser): PNode
 proc declKeyword(p: Parser, s: string): bool =
   # returns true if it is a keyword that introduces a declaration
   case s
-  of  "extern", "static", "auto", "register", "const", "volatile", "restrict",
-      "inline", "__inline", "__cdecl", "__stdcall", "__syscall", "__fastcall",
-      "__safecall", "void", "struct", "union", "enum", "typedef", "size_t",
-      "short", "int", "long", "float", "double", "signed", "unsigned", "char":
+  of  "extern", "static", "auto", "register", "const", "constexpr", "volatile", 
+      "restrict", "inline", "__inline", "__cdecl", "__stdcall", "__syscall", 
+      "__fastcall", "__safecall", "void", "struct", "union", "enum", "typedef", 
+      "size_t", "short", "int", "long", "float", "double", "signed", "unsigned",
+      "char":
     result = true
   of "class", "mutable":
     result = p.options.flags.contains(pfCpp)
@@ -458,8 +459,9 @@ proc isIntType(s: string): bool =
 
 proc skipConst(p: var Parser): bool {.discardable.} =
   while p.tok.xkind == pxSymbol and
-      (p.tok.s == "const" or p.tok.s == "volatile" or p.tok.s == "restrict" or
-       (p.tok.s == "mutable" and pfCpp in p.options.flags)):
+      (p.tok.s == "const" or p.tok.s == "constexpr" or p.tok.s == "volatile" or 
+       p.tok.s == "restrict" or (p.tok.s == "mutable" and 
+        pfCpp in p.options.flags)):
     if p.tok.s == "const": result = true
     getTok(p, nil)
 
@@ -1249,7 +1251,7 @@ proc parseTypeDef(p: var Parser): PNode =
 proc skipDeclarationSpecifiers(p: var Parser) =
   while p.tok.xkind == pxSymbol:
     case p.tok.s
-    of "extern", "static", "auto", "register", "const", "volatile":
+    of "extern", "static", "auto", "register", "const", "constexpr", "volatile":
       getTok(p, nil)
     of "mutable":
       if pfCpp in p.options.flags: getTok(p, nil)
@@ -1304,6 +1306,22 @@ proc parseVarDecl(p: var Parser, baseTyp, typ: PNode,
     addSon(def, parseTypeSuffix(p, t))
     addInitializer(p, def)
     addSon(result, def)
+
+  if p.options.useHeader and p.options.flags.contains(pfCpp):
+    var unmatched_braces = 0
+    while true: # skip c++11 list initializer
+      if p.tok.xkind == pxCurlyLe:
+        eat(p, pxCurlyLe)
+        inc unmatched_braces
+        continue
+      elif p.tok.xkind == pxCurlyRi:
+        eat(p, pxCurlyRi)
+        dec unmatched_braces
+        continue
+      if unmatched_braces == 0:
+        break
+      # consume initalizer list contents
+      getTok(p, nil)
   eat(p, pxSemicolon)
 
 proc parseOperator(p: var Parser, origName: var string): bool =
@@ -2430,6 +2448,10 @@ proc parseClass(p: var Parser; isStruct: bool;
       if p.tok.xkind == pxSymbol and p.tok.s == "static":
         getTok(p, stmtList)
         isStatic = true
+      # skip constexpr for now
+      if p.tok.xkind == pxSymbol and p.tok.s == "constexpr":
+        getTok(p, stmtList)
+
       parseCallConv(p, pragmas)
       if p.tok.xkind == pxSymbol and p.tok.s == p.currentClassOrig and
           followedByParLe(p):
