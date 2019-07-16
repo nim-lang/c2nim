@@ -9,7 +9,9 @@ cache:
     - "$HOME/.choosenim"
 
 env:
+  - CHOOSENIM_CHOOSE_VERSION="devel"
   - CHOOSENIM_CHOOSE_VERSION="0.20.0"
+  - CHOOSENIM_CHOOSE_VERSION="0.19.6"
 
 install:
   - |
