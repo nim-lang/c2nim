@@ -10,10 +10,13 @@
 import
   strutils, os, times, parseopt, compiler/llstream, compiler/ast,
   compiler/renderer, compiler/options, compiler/msgs,
-  clex, cparse, postprocessor
+  clex, cparse, postprocessor, compiler/nversion
+
+when declared(NimCompilerApiVersion):
+  import compiler / [lineinfos, pathutils]
 
 const
-  Version = "0.9.13" # keep in sync with Nimble version. D'oh!
+  Version = "0.9.14" # keep in sync with Nimble version. D'oh!
   Usage = """
 c2nim - C to Nim source converter
   (c) 2016 Andreas Rumpf
@@ -33,6 +36,7 @@ Options:
                          (multiple --prefix options are supported)
   --suffix:SUFFIX        strip suffix for the generated Nim identifiers
                          (multiple --suffix options are supported)
+  --paramprefix:PREFIX   add prefix to parameter name of the generated Nim proc
   --assumedef:IDENT      skips #ifndef sections for the given C identifier
                          (multiple --assumedef options are supported)
   --assumendef:IDENT     skips #ifdef sections for the given C identifier
@@ -53,9 +57,16 @@ Options:
 proc isCppFile(s: string): bool =
   splitFile(s).ext.toLowerAscii in [".cpp", ".cxx", ".hpp"]
 
+when not declared(NimCompilerApiVersion):
+  type AbsoluteFile = string
+
 proc parse(infile: string, options: PParserOptions; dllExport: var PNode): PNode =
-  var stream = llStreamOpen(infile, fmRead)
-  if stream == nil: rawMessage(errCannotOpenFile, infile)
+  var stream = llStreamOpen(AbsoluteFile infile, fmRead)
+  if stream == nil:
+    when declared(NimCompilerApiVersion):
+      rawMessage(gConfig, errGenerated, "cannot open file: " & infile)
+    else:
+      rawMessage(errGenerated, "cannot open file: " & infile)
   let isCpp = pfCpp notin options.flags and isCppFile(infile)
   var p: Parser
   if isCpp: options.flags.incl pfCpp
@@ -73,6 +84,44 @@ proc parse(infile: string, options: PParserOptions; dllExport: var PNode): PNode
 
 proc isC2nimFile(s: string): bool = splitFile(s).ext.toLowerAscii == ".c2nim"
 
+var dummy: PNode
+
+when not compiles(renderModule(dummy, "")):
+  # newer versions of 'renderModule' take 2 parameters. We workaround this
+  # problem here:
+  proc renderModule(tree: PNode; filename: string) =
+    renderModule(tree, filename, filename)
+
+proc myRenderModule(tree: PNode; filename: string) =
+  # also ensure we produced no trailing whitespace:
+  let tmpFile = filename & ".tmp"
+  renderModule(tree, tmpFile)
+
+  let b = readFile(tmpFile)
+  removeFile(tmpFile)
+  let L = b.len
+  var i = 0
+  let f = open(filename, fmWrite)
+  while i < L:
+    let ch = b[i]
+    if ch > ' ':
+      f.write(ch)
+    elif ch == ' ':
+      let j = i
+      while b[i] == ' ': inc i
+      if b[i] == '\L':
+        f.write('\L')
+      else:
+        for ii in j..i-1:
+          f.write(' ')
+        dec i
+    elif ch == '\L':
+      f.write('\L')
+    else:
+      f.write(ch)
+    inc(i)
+  f.close
+
 proc main(infiles: seq[string], outfile: var string,
           options: PParserOptions, concat: bool) =
   var start = getTime()
@@ -84,23 +133,27 @@ proc main(infiles: seq[string], outfile: var string,
       if not isC2nimFile(infile):
         if outfile.len == 0: outfile = changeFileExt(infile, "nim")
         for n in m: tree.add(n)
-    renderModule(tree, outfile, outfile)
+    myRenderModule(tree, outfile)
   else:
     for infile in infiles:
       let m = parse(infile, options, dllexport)
       if not isC2nimFile(infile):
         if outfile.len > 0:
-          renderModule(m, outfile, outfile)
+          myRenderModule(m, outfile)
           outfile = ""
         else:
           let outfile = changeFileExt(infile, "nim")
-          renderModule(m, outfile, outfile)
+          myRenderModule(m, outfile)
   if dllexport != nil:
     let (path, name, _) = infiles[0].splitFile
     let outfile = path / name & "_dllimpl" & ".nim"
-    renderModule(dllexport, outfile, outfile)
-  rawMessage(hintSuccessX, [$gLinesCompiled, $(getTime() - start),
-                            formatSize(getTotalMem()), ""])
+    myRenderModule(dllexport, outfile)
+  when declared(NimCompilerApiVersion):
+    rawMessage(gConfig, hintSuccessX, [$gLinesCompiled, $(getTime() - start),
+                              formatSize(getTotalMem()), ""])
+  else:
+    rawMessage(hintSuccessX, [$gLinesCompiled, $(getTime() - start),
+                              formatSize(getTotalMem()), ""])
 
 var
   infiles = newSeq[string](0)

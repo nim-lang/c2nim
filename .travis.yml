@@ -1,19 +1,28 @@
 sudo: false
+
 language: c
 os: linux
+
+cache:
+  directories:
+    - "$HOME/.nimble"
+    - "$HOME/.choosenim"
+
+env:
+  - CHOOSENIM_CHOOSE_VERSION="devel"
+  - CHOOSENIM_CHOOSE_VERSION="0.20.0"
+  - CHOOSENIM_CHOOSE_VERSION="0.19.6"
+
 install:
-  - git clone https://github.com/nim-lang/nim
-  - cd nim
-  - git clone --depth 1 https://github.com/nim-lang/csources.git
-  - cd csources
-  - sh build.sh
-  - cd ../
-  - bin/nim c koch
-  - ./koch boot -d:release
-  - cd ..
+  - |
+      curl https://nim-lang.org/choosenim/init.sh -sSf > init.sh
+      sh init.sh -y
+  - export PATH=$HOME/.nimble/bin:$PATH
+  - nimble refresh -y
+
 before_script:
   - set -e
-  - export PATH=$(pwd)/nim/bin:$(pwd):$PATH
+
 script:
-  - nim c --noNimblePath --path:nim c2nim.nim
+  - nimble install -y
   - nim c -r testsuite/tester.nim

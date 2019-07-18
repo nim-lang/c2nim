@@ -41,11 +41,11 @@ proc parseDefine(p: var Parser; hasParams: bool): PNode =
     # a macro with parameters:
     result = newNodeP(nkTemplateDef, p)
     addSon(result, skipIdentExport(p, skTemplate))
-    addSon(result, ast.emptyNode)
+    addSon(result, emptyNode)
     eat(p, pxParLe)
     var params = newNodeP(nkFormalParams, p)
     # return type; not known yet:
-    addSon(params, ast.emptyNode)
+    addSon(params, emptyNode)
     if p.tok.xkind != pxParRi:
       var identDefs = newNodeP(nkIdentDefs, p)
       while p.tok.xkind != pxParRi:
@@ -54,14 +54,14 @@ proc parseDefine(p: var Parser; hasParams: bool): PNode =
         if p.tok.xkind != pxComma: break
         getTok(p)
       addSon(identDefs, newIdentNodeP("untyped", p))
-      addSon(identDefs, ast.emptyNode)
+      addSon(identDefs, emptyNode)
       addSon(params, identDefs)
     eat(p, pxParRi)
 
-    addSon(result, ast.emptyNode) # no generic parameters
+    addSon(result, emptyNode) # no generic parameters
     addSon(result, params)
-    addSon(result, ast.emptyNode) # no pragmas
-    addSon(result, ast.emptyNode)
+    addSon(result, emptyNode) # no pragmas
+    addSon(result, emptyNode)
     var kind = parseDefineBody(p, result)
     params.sons[0] = newIdentNodeP(kind, p)
     eatNewLine(p, result)
@@ -71,7 +71,7 @@ proc parseDefine(p: var Parser; hasParams: bool): PNode =
     while true:
       var c = newNodeP(nkConstDef, p)
       addSon(c, skipIdentExport(p, skConst))
-      addSon(c, ast.emptyNode)
+      addSon(c, emptyNode)
       skipStarCom(p, c)
       if p.tok.xkind in {pxLineComment, pxNewLine, pxEof}:
         addSon(c, newIdentNodeP("true", p))
@@ -149,7 +149,7 @@ proc parseInclude(p: var Parser): PNode =
       skipLine(p)
   if sonsLen(result) == 0:
     # we only parsed includes that we chose to ignore:
-    result = ast.emptyNode
+    result = emptyNode
 
 proc definedExprAux(p: var Parser): PNode =
   result = newNodeP(nkCall, p)
@@ -238,7 +238,7 @@ proc parseIfdef(p: var Parser; sectionParser: SectionParser): PNode =
   expectIdent(p)
   if p.options.assumenDef.contains(p.tok.s):
     skipUntilEndif(p)
-    result = ast.emptyNode
+    result = emptyNode
   elif p.tok.s == c2nimSymbol:
     skipLine(p)
     result = parseStmtList(p, sectionParser)
@@ -260,12 +260,12 @@ proc isIncludeGuard(p: var Parser): bool =
     skipLine(p)
 
 proc parseIfndef(p: var Parser; sectionParser: SectionParser): PNode =
-  result = ast.emptyNode
+  result = emptyNode
   rawGetTok(p) # skip #ifndef
   expectIdent(p)
   if p.defines(p.tok.s):
     skipUntilEndif(p)
-    result = ast.emptyNode
+    result = emptyNode
   elif p.tok.s == c2nimSymbol:
     skipLine(p)
     case skipUntilElifElseEndif(p)
@@ -377,7 +377,7 @@ proc parseIfDir(p: var Parser; sectionParser: SectionParser): PNode =
   let condition = expression(p)
   if p.simplify(condition).isIdent("false"):
     skipUntilEndif(p)
-    result = ast.emptyNode
+    result = emptyNode
   else:
     addSon(result.sons[0], condition)
     eatNewLine(p, nil)
@@ -392,7 +392,7 @@ proc parsePegLit(p: var Parser): Peg =
   try:
     result = parsePeg(
       pattern = if p.tok.xkind == pxStrLit: p.tok.s else: escapePeg(p.tok.s),
-      filename = p.lex.fileIdx.toFilename,
+      filename = toFilename(p.lex.fileIdx),
       line = p.lex.linenumber,
       col = col)
     getTok(p)
@@ -414,7 +414,7 @@ proc modulePragmas(p: var Parser): PNode =
     addSon(e, newIdentNodeP("deadCodeElim", p), newIdentNodeP("on", p))
     addSon(result, e)
   else:
-    result = ast.emptyNode
+    result = emptyNode
 
 proc parseOverride(p: var Parser; tab: StringTableRef) =
   getTok(p)
@@ -424,7 +424,7 @@ proc parseOverride(p: var Parser; tab: StringTableRef) =
   eatNewLine(p, nil)
 
 proc parseDir(p: var Parser; sectionParser: SectionParser): PNode =
-  result = ast.emptyNode
+  result = emptyNode
   assert(p.tok.xkind in {pxDirective, pxDirectiveParLe})
   case p.tok.s
   of "define":

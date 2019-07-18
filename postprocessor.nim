@@ -12,6 +12,10 @@
 
 import compiler/ast, compiler/renderer, compiler/idents
 
+import clex
+
+template emptyNode: untyped = newNode(nkEmpty)
+
 proc pp(n: var PNode, stmtList: PNode = nil, idx: int = -1) =
   case n.kind
   of nkIdent:
@@ -20,14 +24,14 @@ proc pp(n: var PNode, stmtList: PNode = nil, idx: int = -1) =
       m.add n
       n = m
   of nkInfix, nkPrefix, nkPostfix:
-    for i in 1.. < n.safeLen: pp(n.sons[i], stmtList, idx)
+    for i in 1 ..< n.safeLen: pp(n.sons[i], stmtList, idx)
   of nkAccQuoted: discard
 
   of nkStmtList:
-    for i in 0.. < n.safeLen: pp(n.sons[i], n, i)
+    for i in 0 ..< n.safeLen: pp(n.sons[i], n, i)
   of nkRecList:
     var consts: seq[int] = @[]
-    for i in 0.. < n.safeLen:
+    for i in 0 ..< n.safeLen:
       pp(n.sons[i], stmtList, idx)
       if n.sons[i].kind == nkConstSection:
         consts.insert(i)
@@ -37,14 +41,17 @@ proc pp(n: var PNode, stmtList: PNode = nil, idx: int = -1) =
       insert(stmtList.sons, c, idx)
 
   else:
-    for i in 0.. < n.safeLen: pp(n.sons[i], stmtList, idx)
+    for i in 0 ..< n.safeLen: pp(n.sons[i], stmtList, idx)
 
 proc postprocess*(n: PNode): PNode =
   result = n
   pp(result)
 
 proc newIdentNode(s: string; n: PNode): PNode =
-  result = ast.newIdentNode(getIdent(s), n.info)
+  when declared(identCache):
+    result = ast.newIdentNode(getIdent(identCache, s), n.info)
+  else:
+    result = ast.newIdentNode(getIdent(s), n.info)
 
 proc createDllProc(n: PNode; prefix: string): PNode =
   const oprMappings = {"&": "Band", "&&": "Land", "&=": "Bandeq",
@@ -91,14 +98,14 @@ proc createDllProc(n: PNode; prefix: string): PNode =
   addSon(result, newTree(nkPostFix, newIdentNode("*", n),
                     newIdentNode(dest, n)))
   # no pattern:
-  addSon(result, ast.emptyNode)
+  addSon(result, emptyNode)
   # no generics:
-  addSon(result, ast.emptyNode)
+  addSon(result, emptyNode)
   addSon(result, params)
   # pragmas
   addSon(result, newTree(nkPragma, newIdentNode("dllinterf", n)))
   # empty exception tracking:
-  addSon(result, ast.emptyNode)
+  addSon(result, emptyNode)
   # body:
   addSon(result, newTree(nkStmtList, call))
 
