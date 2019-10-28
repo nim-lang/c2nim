@@ -796,7 +796,10 @@ proc parseStructBody(p: var Parser, stmtList: PNode, isUnion: bool,
     elif p.tok.xkind == pxDirective or p.tok.xkind == pxDirectiveParLe:
       var define = parseDir(p, statement)
       addSon(result, define)
-      baseTyp = typeAtom(p)
+      if p.tok.xkind == pxSymbol:
+        baseTyp = typeAtom(p)
+      else:
+        continue
     else:
       baseTyp = typeAtom(p)
 
