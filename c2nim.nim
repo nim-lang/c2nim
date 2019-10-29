@@ -30,6 +30,7 @@ Options:
   --header:HEADER_FILE   import from a HEADER_FILE (discouraged!)
   --header               import from the given header file
   --cdecl                annotate procs with ``{.cdecl.}``
+  --noconv               annotate procs with ``{.noconv.}``
   --stdcall              annotate procs with ``{.stdcall.}``
   --ref                  convert typ* to ref typ (default: ptr typ)
   --prefix:PREFIX        strip prefix for the generated Nim identifiers

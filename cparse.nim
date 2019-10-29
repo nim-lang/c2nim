@@ -33,6 +33,7 @@ type
     pfRefs,             ## use "ref" instead of "ptr" for C's typ*
     pfCDecl,            ## annotate procs with cdecl
     pfStdCall,          ## annotate procs with stdcall
+    pfNoConv,           ## annotate procs with noconv
     pfSkipInclude,      ## skip all ``#include``
     pfTypePrefixes,     ## all generated types start with 'T' or 'P'
     pfSkipComments,     ## do not generate comments
@@ -128,6 +129,7 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
     if val.len > 0: parserOptions.headerOverride = val
   of "cdecl": incl(parserOptions.flags, pfCdecl)
   of "stdcall": incl(parserOptions.flags, pfStdCall)
+  of "noconv": incl(parserOptions.flags, pfNoConv)
   of "prefix": parserOptions.prefixes.add(val)
   of "suffix": parserOptions.suffixes.add(val)
   of "paramprefix":
@@ -624,6 +626,8 @@ proc newProcPragmas(p: Parser): PNode =
     addSon(result, newIdentNodeP("cdecl", p))
   elif pfStdCall in p.options.flags:
     addSon(result, newIdentNodeP("stdcall", p))
+  elif pfNoConv in p.options.flags:
+    addSon(result, newIdentNodeP("noconv", p))
 
 proc addPragmas(father, pragmas: PNode) =
   if sonsLen(pragmas) > 0: addSon(father, pragmas)
