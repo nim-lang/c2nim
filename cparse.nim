@@ -658,17 +658,21 @@ proc parseTypeSuffix(p: var Parser, typ: PNode): PNode =
       var index = expression(p)
       # array type:
       result = newNodeP(nkBracketExpr, p)
-      addSon(result, newIdentNodeP("array", p))
-      addSon(result, index)
+      if $index == "0":
+        addSon(result, newIdentNodeP("UncheckedArray", p))
+      else:
+        addSon(result, newIdentNodeP("array", p))
+        addSon(result, index)
       eat(p, pxBracketRi, result)
       addSon(result, parseTypeSuffix(p, tmp))
     else:
-      # pointer type:
       var tmp = result
       if pfRefs in p.options.flags:
         result = newNodeP(nkRefTy, p)
       else:
-        result = newNodeP(nkPtrTy, p)
+        # flexible array
+        result = newNodeP(nkBracketExpr, p)
+        addSon(result, newIdentNodeP("UncheckedArray", p))
       eat(p, pxBracketRi, result)
       addSon(result, parseTypeSuffix(p, tmp))
   of pxParLe:
