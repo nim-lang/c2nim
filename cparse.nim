@@ -647,7 +647,7 @@ proc addDiscardable(origName: string; pragmas: PNode; p: Parser) =
 
 proc parseFormalParams(p: var Parser, params, pragmas: PNode)
 
-proc parseTypeSuffix(p: var Parser, typ: PNode): PNode =
+proc parseTypeSuffix(p: var Parser, typ: PNode, isParam: bool = false): PNode =
   result = typ
   case p.tok.xkind
   of pxBracketLe:
@@ -658,8 +658,11 @@ proc parseTypeSuffix(p: var Parser, typ: PNode): PNode =
       var index = expression(p)
       # array type:
       result = newNodeP(nkBracketExpr, p)
-      addSon(result, newIdentNodeP("array", p))
-      addSon(result, index)
+      if index.kind == nkIntLit and index.intVal == 0:
+        addSon(result, newIdentNodeP("UncheckedArray", p))
+      else:
+        addSon(result, newIdentNodeP("array", p))
+        addSon(result, index)
       eat(p, pxBracketRi, result)
       addSon(result, parseTypeSuffix(p, tmp))
     else:
@@ -667,8 +670,12 @@ proc parseTypeSuffix(p: var Parser, typ: PNode): PNode =
       var tmp = result
       if pfRefs in p.options.flags:
         result = newNodeP(nkRefTy, p)
-      else:
+      elif isParam:
         result = newNodeP(nkPtrTy, p)
+      else:
+        # flexible array
+        result = newNodeP(nkBracketExpr, p)
+        addSon(result, newIdentNodeP("UncheckedArray", p))
       eat(p, pxBracketRi, result)
       addSon(result, parseTypeSuffix(p, tmp))
   of pxParLe:
@@ -904,7 +911,7 @@ proc directDeclarator(p: var Parser, a: PNode, ident: ptr PNode): PNode =
       eat(p, pxParRi, result)
   else:
     discard
-  return parseTypeSuffix(p, a)
+  return parseTypeSuffix(p, a, true)
 
 proc declarator(p: var Parser, a: PNode, ident: ptr PNode): PNode =
   directDeclarator(p, pointer(p, a), ident)
