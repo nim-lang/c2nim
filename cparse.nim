@@ -2308,10 +2308,15 @@ proc parseMethod(p: var Parser, origName: string, rettyp, pragmas: PNode,
     if pfKeepBodies in p.options.flags:
       result.sons[bodyPos] = body
   of pxAsgn:
-    # '= 0' aka abstract method:
     getTok(p)
-    eat(p, pxIntLit)
-    eat(p, pxSemicolon)
+    if p.tok.s == "delete":
+      eat(p, pxSymbol)
+      eat(p, pxSemiColon)
+      return emptyNode
+    else:
+      # '= 0' aka abstract method:
+      eat(p, pxIntLit)
+      eat(p, pxSemicolon)
   else:
     parMessage(p, errGenerated, "expected ';'")
   if result.sons[bodyPos].kind == nkEmpty:
