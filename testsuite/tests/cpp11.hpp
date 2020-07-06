@@ -14,3 +14,11 @@ class ConstexprConstructor {
 };
 // list initialization, issue #163
 constexpr int list_init{123};
+
+class NonCopy {
+public:
+  NonCopy() {}
+  ~NonCopy() {}
+  // deleted constructor, issue #165
+  NonCopy(const NonCopy &) = delete;
+};

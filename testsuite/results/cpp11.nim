@@ -18,3 +18,12 @@ proc constructConstexprConstructor*(i: cint = 1): ConstexprConstructor {.constru
 ##  list initialization, issue #163
 
 var list_init* {.importcpp: "list_init", header: "cpp11.hpp".}: cint
+
+type
+  NonCopy* {.importcpp: "NonCopy", header: "cpp11.hpp", bycopy.} = object
+
+
+proc constructNonCopy*(): NonCopy {.constructor, importcpp: "NonCopy(@)",
+                                 header: "cpp11.hpp".}
+proc destroyNonCopy*(this: var NonCopy) {.importcpp: "#.~NonCopy()",
+                                      header: "cpp11.hpp".}
