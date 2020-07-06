@@ -21,4 +21,5 @@ public:
   ~NonCopy() {}
   // deleted constructor, issue #165
   NonCopy(const NonCopy &) = delete;
+  NonCopy &operator=(const NonCopy &) = delete;
 };
