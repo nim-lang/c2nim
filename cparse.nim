@@ -2245,8 +2245,13 @@ proc parseConstructor(p: var Parser, pragmas: PNode, isDestructor: bool;
     if p.tok.s == "default":
       eat(p, pxSymbol)
       eat(p, pxSemicolon)
+    elif p.tok.s == "delete":
+      # Deleted constructors should just be ignored.
+      eat(p, pxSymbol)
+      eat(p, pxSemicolon)
+      return emptyNode
     else:
-      parMessage(p, errGenerated, "expected 'default'")
+      parMessage(p, errGenerated, "expected 'default' or 'delete'")
   else:
     parMessage(p, errGenerated, "expected ';'")
   if result.sons[bodyPos].kind == nkEmpty:
