@@ -23,3 +23,12 @@ public:
   NonCopy(const NonCopy &) = delete;
   NonCopy &operator=(const NonCopy &) = delete;
 };
+
+class VirtClass {
+public:
+  VirtClass() = default;
+  ~VirtClass() = 0;
+  virtual void pureFunction() = 0;
+  virtual void implementedFunction();
+  void concreteFunction();
+};

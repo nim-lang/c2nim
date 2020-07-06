@@ -2250,6 +2250,9 @@ proc parseConstructor(p: var Parser, pragmas: PNode, isDestructor: bool;
       eat(p, pxSymbol)
       eat(p, pxSemicolon)
       return emptyNode
+    elif p.tok.xkind == pxIntLit:
+      eat(p, pxIntLit)
+      eat(p, pxSemicolon)
     else:
       parMessage(p, errGenerated, "expected 'default' or 'delete'")
   else:
