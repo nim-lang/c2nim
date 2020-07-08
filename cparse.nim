@@ -2245,8 +2245,16 @@ proc parseConstructor(p: var Parser, pragmas: PNode, isDestructor: bool;
     if p.tok.s == "default":
       eat(p, pxSymbol)
       eat(p, pxSemicolon)
+    elif p.tok.s == "delete":
+      # Deleted constructors should just be ignored.
+      eat(p, pxSymbol)
+      eat(p, pxSemicolon)
+      return emptyNode
+    elif p.tok.xkind == pxIntLit:
+      eat(p, pxIntLit)
+      eat(p, pxSemicolon)
     else:
-      parMessage(p, errGenerated, "expected 'default'")
+      parMessage(p, errGenerated, "expected 'default' or 'delete'")
   else:
     parMessage(p, errGenerated, "expected ';'")
   if result.sons[bodyPos].kind == nkEmpty:
@@ -2303,10 +2311,15 @@ proc parseMethod(p: var Parser, origName: string, rettyp, pragmas: PNode,
     if pfKeepBodies in p.options.flags:
       result.sons[bodyPos] = body
   of pxAsgn:
-    # '= 0' aka abstract method:
     getTok(p)
-    eat(p, pxIntLit)
-    eat(p, pxSemicolon)
+    if p.tok.s == "delete":
+      eat(p, pxSymbol)
+      eat(p, pxSemiColon)
+      return emptyNode
+    else:
+      # '= 0' aka abstract method:
+      eat(p, pxIntLit)
+      eat(p, pxSemicolon)
   else:
     parMessage(p, errGenerated, "expected ';'")
   if result.sons[bodyPos].kind == nkEmpty:
