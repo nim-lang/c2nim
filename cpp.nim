@@ -256,8 +256,11 @@ proc isIncludeGuard(p: var Parser): bool =
   if p.tok.xkind == pxDirective and p.tok.s == "define":
     getTok(p) # skip #define
     expectIdent(p)
-    result = p.tok.s == guard
-    skipLine(p)
+    if p.tok.s == guard:
+      getTok(p)
+      if p.tok.xkind in {pxLineComment, pxNewLine, pxEof}:
+        result = true
+        skipLine(p)
 
 proc parseIfndef(p: var Parser; sectionParser: SectionParser): PNode =
   result = emptyNode
