@@ -28,7 +28,7 @@ proc nep1(s: string, k: TSymKind): string =
     # Types should start with a capital unless builtins like 'int' etc.:
     if s =~ ["int", "uint", "cint", "cuint", "clong", "cstring", "string",
              "char", "byte", "bool", "openArray", "seq", "array", "void",
-             "pointer", "float", "csize", "cdouble", "cchar", "cschar",
+             "pointer", "float", "csize_t", "cdouble", "cchar", "cschar",
              "cshort", "cu", "nil", "expr", "stmt", "typedesc", "auto", "any",
              "range", "openarray", "varargs", "set", "cfloat"]:
       result.add s[i]
