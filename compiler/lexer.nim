@@ -760,12 +760,6 @@ proc getEscapedChar(L: var TLexer, tok: var TToken) =
     else: lexMessage(L, errGenerated, "invalid character constant")
   else: lexMessage(L, errGenerated, "invalid character constant")
 
-proc newString(s: cstring, len: int): string =
-  ## XXX, how come there is no support for this?
-  result = newString(len)
-  for i in 0 ..< len:
-    result[i] = s[i]
-
 proc handleCRLF(L: var TLexer, pos: int): int =
   template registerLine =
     let col = L.getColNumber(pos)

@@ -1285,8 +1285,8 @@ proc newType*(kind: TTypeKind, owner: PSym): PType =
   result.lockLevel = UnspecifiedLockLevel
 
 proc mergeLoc(a: var TLoc, b: TLoc) =
-  if a.k == low(a.k): a.k = b.k
-  if a.storage == low(a.storage): a.storage = b.storage
+  if a.k == low(TLocKind): a.k = b.k
+  if a.storage == low(TStorageLoc): a.storage = b.storage
   a.flags = a.flags + b.flags
   if a.lode == nil: a.lode = b.lode
   if a.r == nil: a.r = b.r
