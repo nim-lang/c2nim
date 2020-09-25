@@ -568,7 +568,7 @@ proc typeAtom(p: var Parser): PNode =
       getTok(p, nil)
       if skipConst(p): isConst = true
     if x.len == 0: x = "int"
-    let xx = if isSizeT: "csize" elif isUnsigned: "cu" & x else: "c" & x
+    let xx = if isSizeT: "csize_t" elif isUnsigned: "cu" & x else: "c" & x
     result = mangledIdent(xx, p, skDontMangle)
   else:
     result = mangledIdent(p.tok.s, p, skType)
