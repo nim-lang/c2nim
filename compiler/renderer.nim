@@ -132,10 +132,6 @@ proc putNL(g: var TSrcGen, indent: int) =
   g.lineLen = indent
   g.pendingWhitespace = -1
 
-proc previousNL(g: TSrcGen): bool =
-  result = g.pendingNL >= 0 or (g.tokens.len > 0 and
-                                g.tokens[^1].kind == tkSpaces)
-
 proc putNL(g: var TSrcGen) =
   putNL(g, g.indent)
 
@@ -235,28 +231,6 @@ proc maxLineLength(s: string): int =
     else:
       inc(lineLen)
       inc(i)
-
-proc putRawStr(g: var TSrcGen, kind: TTokType, s: string) =
-  var i = 0
-  let hi = len(s) - 1
-  var str = ""
-  while i <= hi:
-    case s[i]
-    of '\x0D':
-      put(g, kind, str)
-      str = ""
-      inc(i)
-      if i <= hi and s[i] == '\x0A': inc(i)
-      optNL(g, 0)
-    of '\x0A':
-      put(g, kind, str)
-      str = ""
-      inc(i)
-      optNL(g, 0)
-    else:
-      add(str, s[i])
-      inc(i)
-  put(g, kind, str)
 
 proc containsNL(s: string): bool =
   for i in 0 ..< len(s):
@@ -1371,7 +1345,6 @@ proc gsub(g: var TSrcGen, n: PNode, c: TContext) =
   of nkPragma:
     if g.inPragma <= 0:
       inc g.inPragma
-      #if not previousNL(g):
       put(g, tkSpaces, Space)
       put(g, tkCurlyDotLe, "{.")
       gcomma(g, n, emptyContext)

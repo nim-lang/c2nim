@@ -513,12 +513,12 @@ proc pathSubs*(conf: ConfigRef; p, config: string): string =
 proc toGeneratedFile*(conf: ConfigRef; path: AbsoluteFile,
                       ext: string): AbsoluteFile =
   ## converts "/home/a/mymodule.nim", "rod" to "/home/a/nimcache/mymodule.rod"
-  let (head, tail) = splitPath(path.string)
+  let (_, tail) = splitPath(path.string)
   result = getNimcacheDir(conf) / RelativeFile changeFileExt(tail, ext)
 
 proc completeGeneratedFilePath*(conf: ConfigRef; f: AbsoluteFile,
                                 createSubDir: bool = true): AbsoluteFile =
-  let (head, tail) = splitPath(f.string)
+  let (_, tail) = splitPath(f.string)
   let subdir = getNimcacheDir(conf)
   if createSubDir:
     try:
@@ -551,7 +551,7 @@ proc rawFindFile2(conf: ConfigRef; f: RelativeFile): AbsoluteFile =
 
 proc findFile*(conf: ConfigRef; f: string; suppressStdlib = false): AbsoluteFile {.procvar.} =
   if f.isAbsolute:
-    result = if f.existsFile: AbsoluteFile(f) else: AbsoluteFile""
+    result = if f.fileExists: AbsoluteFile(f) else: AbsoluteFile""
   else:
     result = rawFindFile(conf, RelativeFile f, suppressStdlib)
     if result.isEmpty:
