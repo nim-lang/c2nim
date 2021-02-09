@@ -33,6 +33,7 @@ type
     pfRefs,             ## use "ref" instead of "ptr" for C's typ*
     pfCDecl,            ## annotate procs with cdecl
     pfStdCall,          ## annotate procs with stdcall
+    pfImportc,          ## annotate procs with importc
     pfNoConv,           ## annotate procs with noconv
     pfSkipInclude,      ## skip all ``#include``
     pfTypePrefixes,     ## all generated types start with 'T' or 'P'
@@ -129,6 +130,7 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
     if val.len > 0: parserOptions.headerOverride = val
   of "cdecl": incl(parserOptions.flags, pfCdecl)
   of "stdcall": incl(parserOptions.flags, pfStdCall)
+  of "importc": incl(parserOptions.flags, pfImportc)
   of "noconv": incl(parserOptions.flags, pfNoConv)
   of "prefix": parserOptions.prefixes.add(val)
   of "suffix": parserOptions.suffixes.add(val)
@@ -1437,6 +1439,8 @@ proc declaration(p: var Parser; genericParams: PNode = emptyNode): PNode =
       addSon(pragmas, newIdentNodeP("cdecl", p))
     elif pfStdcall in p.options.flags:
       addSon(pragmas, newIdentNodeP("stdcall", p))
+    if pfImportc in p.options.flags:
+      addSon(pragmas, newIdentStrLitPair(p.options.importcLit, origName, p))
     # no pattern, no exceptions:
     addSon(result, exportSym(p, name, origName), emptyNode, genericParams)
     addSon(result, params, pragmas, emptyNode) # no exceptions
