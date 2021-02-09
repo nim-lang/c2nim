@@ -32,6 +32,7 @@ Options:
   --cdecl                annotate procs with ``{.cdecl.}``
   --noconv               annotate procs with ``{.noconv.}``
   --stdcall              annotate procs with ``{.stdcall.}``
+  --importc              annotate procs with ``{.importc.}``
   --ref                  convert typ* to ref typ (default: ptr typ)
   --prefix:PREFIX        strip prefix for the generated Nim identifiers
                          (multiple --prefix options are supported)
