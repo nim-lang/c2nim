@@ -1132,6 +1132,7 @@ proc enumFields(p: var Parser, constList: PNode): PNode =
         else: parMessage(p, errGenerated, outofOrder)
     of isAlias:
       var constant = createConst(f.node.getEnumIdent, emptyNode, f.value, p)
+      constList.addSon(constant)
 
 
 proc parseTypedefStruct(p: var Parser, result, stmtList: PNode, isUnion: bool) =
