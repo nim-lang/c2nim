@@ -93,8 +93,8 @@ type
 
 proc parseDir(p: var Parser; sectionParser: SectionParser): PNode
 proc addTypeDef(section, name, t, genericParams: PNode)
-proc parseStruct(p: var Parser, stmtList: PNode): PNode
-proc parseStructBody(p: var Parser, stmtList: PNode,
+proc parseStruct(p: var Parser, stmtList: PNode, isUnion: bool): PNode
+proc parseStructBody(p: var Parser, stmtList: PNode, isUnion: bool,
                      kind: TNodeKind = nkRecList): PNode
 
 proc newParserOptions*(): PParserOptions =
@@ -721,8 +721,7 @@ proc parseField(p: var Parser, kind: TNodeKind): PNode =
     else: result = mangledIdent(p.tok.s, p, skField)
     getTok(p, result)
 
-proc structPragmas(p: Parser, name: PNode, origName: string,
-                   isUnion: bool): PNode =
+proc structPragmas(p: Parser, name: PNode, origName: string): PNode =
   assert name.kind == nkIdent
   result = newNodeP(nkPragmaExpr, p)
   addSon(result, exportSym(p, name, origName))
@@ -736,7 +735,6 @@ proc structPragmas(p: Parser, name: PNode, origName: string,
     addSon(pragmas, newIdentNodeP("inheritable", p))
     addSon(pragmas, newIdentNodeP("pure", p))
   pragmas.add newIdentNodeP("bycopy", p)
-  if isUnion: pragmas.add newIdentNodeP("union", p)
   result.add pragmas
 
 proc hashPosition(p: Parser): string =
@@ -760,18 +758,22 @@ proc parseInnerStruct(p: var Parser, stmtList: PNode,
     structName = name & "_" & p.hashPosition
   let typeSection = newNodeP(nkTypeSection, p)
   let newStruct = newNodeP(nkObjectTy, p)
-  addSon(newStruct, emptyNode, emptyNode) # no pragmas, no inheritance
+  var pragmas = emptyNode
+  if isUnion:
+    pragmas = newNodeP(nkPragma, p)
+    addSon(pragmas, newIdentNodeP("union", p))
+  addSon(newStruct, pragmas, emptyNode) # no inheritance
   result = newNodeP(nkIdent, p)
   result.ident = getIdent(structName)
-  let struct = parseStructBody(p, stmtList)
+  let struct = parseStructBody(p, stmtList, isUnion)
   let defName = newNodeP(nkIdent, p)
   defName.ident = getIdent(structName)
   addSon(newStruct, struct)
-  addTypeDef(typeSection, structPragmas(p, defName, "no_name", isUnion),
-             newStruct, emptyNode)
+  addTypeDef(typeSection, structPragmas(p, defName, "no_name"), newStruct,
+             emptyNode)
   addSon(stmtList, typeSection)
 
-proc parseStructBody(p: var Parser, stmtList: PNode,
+proc parseStructBody(p: var Parser, stmtList: PNode, isUnion: bool,
                      kind: TNodeKind = nkRecList): PNode =
   result = newNodeP(kind, p)
   eat(p, pxCurlyLe, result)
@@ -885,13 +887,16 @@ proc parseInheritance(p: var Parser; result: PNode) =
         discard typeAtom(p)
     result.sons[0] = inh
 
-proc parseStruct(p: var Parser, stmtList: PNode): PNode =
+proc parseStruct(p: var Parser, stmtList: PNode, isUnion: bool): PNode =
   result = newNodeP(nkObjectTy, p)
   var pragmas = emptyNode
+  if isUnion:
+    pragmas = newNodeP(nkPragma, p)
+    addSon(pragmas, newIdentNodeP("union", p))
   addSon(result, pragmas, emptyNode) # no inheritance
   parseInheritance(p, result)
   if p.tok.xkind == pxCurlyLe:
-    addSon(result, parseStructBody(p, stmtList))
+    addSon(result, parseStructBody(p, stmtList, isUnion))
   else:
     addSon(result, newNodeP(nkRecList, p))
 
@@ -1132,16 +1137,17 @@ proc enumFields(p: var Parser, constList: PNode): PNode =
         else: parMessage(p, errGenerated, outofOrder)
     of isAlias:
       var constant = createConst(f.node.getEnumIdent, emptyNode, f.value, p)
+      constList.addSon(constant)
 
 
 proc parseTypedefStruct(p: var Parser, result, stmtList: PNode, isUnion: bool) =
   getTok(p, result)
   if p.tok.xkind == pxCurlyLe:
-    var t = parseStruct(p, stmtList)
+    var t = parseStruct(p, stmtList, isUnion)
     var origName = p.tok.s
     markTypeIdent(p, nil)
     var name = skipIdent(p, skType)
-    addTypeDef(result, structPragmas(p, name, origName, isUnion), t, emptyNode)
+    addTypeDef(result, structPragmas(p, name, origName), t, emptyNode)
     parseTrailingDefinedTypes(p, result, name)
   elif p.tok.xkind == pxSymbol:
     # name to be defined or type "struct a", we don't know yet:
@@ -1150,17 +1156,17 @@ proc parseTypedefStruct(p: var Parser, result, stmtList: PNode, isUnion: bool) =
     var nameOrType = skipIdent(p, skVar)
     case p.tok.xkind
     of pxCurlyLe:
-      var t = parseStruct(p, stmtList)
+      var t = parseStruct(p, stmtList, isUnion)
       if p.tok.xkind == pxSymbol:
         # typedef struct tagABC {} abc, *pabc;
         # --> abc is a better type name than tagABC!
         markTypeIdent(p, nil)
         var origName = p.tok.s
         var name = skipIdent(p, skType)
-        addTypeDef(result, structPragmas(p, name, origName, isUnion), t, emptyNode)
+        addTypeDef(result, structPragmas(p, name, origName), t, emptyNode)
         parseTrailingDefinedTypes(p, result, name)
       else:
-        addTypeDef(result, structPragmas(p, nameOrType, origName, isUnion), t,
+        addTypeDef(result, structPragmas(p, nameOrType, origName), t,
                    emptyNode)
     of pxSymbol:
       # typedef struct a a?
@@ -2019,8 +2025,8 @@ proc declarationOrStatement(p: var Parser): PNode =
       result = expressionStatement(p)
   assert result != nil
 
-proc parseTuple(p: var Parser, statements: PNode): PNode =
-  parseStructBody(p, statements, nkTupleTy)
+proc parseTuple(p: var Parser, statements: PNode, isUnion: bool): PNode =
+  parseStructBody(p, statements, isUnion, nkTupleTy)
 
 proc parseTrailingDefinedIdents(p: var Parser, result, baseTyp: PNode) =
   var varSection = newNodeP(nkVarSection, p)
@@ -2052,14 +2058,13 @@ proc parseStandaloneStruct(p: var Parser, isUnion: bool;
   if p.tok.xkind in {pxCurlyLe, pxSemiColon, pxColon}:
     if origName.len > 0:
       var name = mangledIdent(origName, p, skType)
-      var t = parseStruct(p, result)
+      var t = parseStruct(p, result, isUnion)
       var typeSection = newNodeP(nkTypeSection, p)
-      addTypeDef(typeSection, structPragmas(p, name, origName, isUnion), t,
-                 genericParams)
+      addTypeDef(typeSection, structPragmas(p, name, origName), t, genericParams)
       addSon(result, typeSection)
       parseTrailingDefinedIdents(p, result, name)
     else:
-      var t = parseTuple(p, result)
+      var t = parseTuple(p, result, isUnion)
       parseTrailingDefinedIdents(p, result, t)
   else:
     backtrackContext(p)
@@ -2588,11 +2593,11 @@ proc parseStandaloneClass(p: var Parser, isStruct: bool;
         p.currentClassOrig = oldClassOrig
         p.options.classes[p.currentClassOrig] = "true"
         return result
-      addTypeDef(typeSection, structPragmas(p, name, p.currentClassOrig, false), t,
+      addTypeDef(typeSection, structPragmas(p, name, p.currentClassOrig), t,
                  genericParams)
       parseTrailingDefinedIdents(p, result, name)
     else:
-      var t = parseTuple(p, result)
+      var t = parseTuple(p, result, isUnion=false)
       parseTrailingDefinedIdents(p, result, t)
   else:
     backtrackContext(p)
