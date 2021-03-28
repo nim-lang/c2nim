@@ -1136,7 +1136,9 @@ proc enumFields(p: var Parser, constList: PNode): PNode =
         of nkIdent: lastIdent = f.node
         else: parMessage(p, errGenerated, outofOrder)
     of isAlias:
-      var constant = createConst(f.node.getEnumIdent, emptyNode, f.value, p)
+      let ident = f.node.getEnumIdent
+      var constant = createConst(exportSym(p, ident, ident.ident.s), emptyNode,
+                                 f.value, p)
       constList.addSon(constant)
 
 
