@@ -375,7 +375,7 @@ proc getNumber(L: var Lexer, tok: var Token) =
       tok.fnumber = parseFloat(tok.s)
       tok.xkind = pxFloatLit
     else:
-      tok.iNumber = parseInt(tok.s)
+      tok.iNumber = parseBiggestInt(tok.s)
       if (tok.iNumber < low(int32)) or (tok.iNumber > high(int32)):
         tok.xkind = pxInt64Lit
       else:

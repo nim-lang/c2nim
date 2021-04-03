@@ -1630,7 +1630,7 @@ proc startExpression(p: var Parser, tok: Token): PNode =
       if p.tok.xkind != pxParRi:
         raise newException(ERetryParsing, "expected a ')'")
       getTok(p, result)
-      if p.tok.xkind in {pxSymbol, pxIntLit, pxFloatLit, pxStrLit, pxCharLit}:
+      if p.tok.xkind in {pxSymbol, pxIntLit, pxInt64Lit, pxFloatLit, pxStrLit, pxCharLit}:
         raise newException(ERetryParsing, "expected a non literal token")
       closeContext(p)
     except ERetryParsing:
