@@ -1059,6 +1059,10 @@ proc getEnumIdent(n: PNode): PNode =
   else: result = n
   assert result.kind == nkIdent
 
+proc buildStmtList(a: PNode): PNode
+
+include cpp
+
 proc enumFields(p: var Parser, constList: PNode): PNode =
   type EnumFieldKind = enum isNormal, isNumber, isAlias
   result = newNodeP(nkEnumTy, p)
@@ -1066,7 +1070,12 @@ proc enumFields(p: var Parser, constList: PNode): PNode =
   var i: BiggestInt = 0
   var field: tuple[id: BiggestInt, kind: EnumFieldKind, node, value: PNode]
   var fields = newSeq[type(field)]()
-  while true:
+  var fieldsComplete = false
+  while p.tok.xkind != pxCurlyRi:
+    if isDir(p, "define"):
+      skipLine(p)
+      continue
+    if fieldsComplete: parMessage(p, errGenerated, "expected '}'")
     var e = skipIdent(p, skEnumField)
     if p.tok.xkind == pxAsgn:
       getTok(p, e)
@@ -1095,10 +1104,9 @@ proc enumFields(p: var Parser, constList: PNode): PNode =
     field.id = i
     field.node = e
     fields.add(field)
-    if p.tok.xkind != pxComma: break
-    getTok(p, e)
-    # allow trailing comma:
-    if p.tok.xkind == pxCurlyRi: break
+    if p.tok.xkind == pxComma: getTok(p, e)
+    else: fieldsComplete = true
+  if fields.len == 0: parMessage(p, errGenerated, "enum has no fields")
   fields.sort do (x, y: type(field)) -> int:
     cmp(x.id, y.id)
   var lastId: BiggestInt
@@ -1499,7 +1507,12 @@ proc enumSpecifier(p: var Parser): PNode =
     getTok(p, result)
     var i = 0
     var hasUnknown = false
-    while true:
+    var fieldsComplete = false
+    while p.tok.xkind != pxCurlyRi:
+      if isDir(p, "define"):
+        skipLine(p)
+        continue
+      if fieldsComplete: parMessage(p, errGenerated, "expected '}'")
       var name = skipIdentExport(p, skEnumField)
       var val: PNode
       if p.tok.xkind == pxAsgn:
@@ -1518,10 +1531,9 @@ proc enumSpecifier(p: var Parser): PNode =
         inc(i)
       var c = createConst(name, emptyNode, val, p)
       addSon(result, c)
-      if p.tok.xkind != pxComma: break
-      getTok(p, c)
-      # allow trailing comma:
-      if p.tok.xkind == pxCurlyRi: break
+      if p.tok.xkind == pxComma: getTok(p, c)
+      else: fieldsComplete = true
+    if result.sons.len == 0: parMessage(p, errGenerated, "enum has no fields")
     eat(p, pxCurlyRi, result)
     eat(p, pxSemicolon)
   of pxSymbol:
@@ -1712,8 +1724,6 @@ proc leftBindingPower(p: var Parser, tok: ref Token): int =
     # :: == 170
   else:
     return 0
-
-proc buildStmtList(a: PNode): PNode
 
 proc leftExpression(p: var Parser, tok: Token, left: PNode): PNode =
   case tok.xkind
@@ -2607,8 +2617,6 @@ proc unwrap(a: PNode): PNode =
   if a.kind == nkPar:
     return a.sons[0]
   return a
-
-include cpp
 
 proc fullTemplate(p: var Parser): PNode =
   let tmpl = parseTemplate(p)
