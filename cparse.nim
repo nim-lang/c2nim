@@ -890,6 +890,11 @@ proc parseStruct(p: var Parser, stmtList: PNode): PNode =
   var pragmas = emptyNode
   addSon(result, pragmas, emptyNode) # no inheritance
   parseInheritance(p, result)
+  # 'struct foo;' or 'union foo;' <- forward declaration; in order to avoid
+  # multiple definitions, we ignore those completely:
+  if p.tok.xkind == pxSemicolon:
+    eat(p, pxSemicolon, result)
+    return nil
   if p.tok.xkind == pxCurlyLe:
     addSon(result, parseStructBody(p, stmtList))
   else:
@@ -2066,6 +2071,10 @@ proc parseStandaloneStruct(p: var Parser, isUnion: bool;
     if origName.len > 0:
       var name = mangledIdent(origName, p, skType)
       var t = parseStruct(p, result)
+      if t.isNil:
+        result = newNodeP(nkDiscardStmt, p)
+        result.add(newStrNodeP(nkStrLit, "forward decl of " & origName, p))
+        return
       var typeSection = newNodeP(nkTypeSection, p)
       addTypeDef(typeSection, structPragmas(p, name, origName, isUnion), t,
                  genericParams)
