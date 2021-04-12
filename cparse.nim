@@ -2576,7 +2576,7 @@ proc parseStandaloneClass(p: var Parser, isStruct: bool;
   saveContext(p)
   getTok(p, result) # skip "class" or "struct"
   let oldClass = p.currentClass
-  var oldClassOrig = p.currentClassOrig
+  let oldClassOrig = p.currentClassOrig
   p.currentClassOrig = ""
   if p.tok.xkind == pxSymbol:
     markTypeIdent(p, nil)
@@ -2599,8 +2599,7 @@ proc parseStandaloneClass(p: var Parser, isStruct: bool;
         result.add(newStrNodeP(nkStrLit, "forward decl of " & p.currentClassOrig, p))
         p.currentClass = oldClass
         p.currentClassOrig = oldClassOrig
-        p.options.classes[p.currentClassOrig] = "true"
-        return result
+        return
       addTypeDef(typeSection, structPragmas(p, name, p.currentClassOrig, false), t,
                  genericParams)
       parseTrailingDefinedIdents(p, result, name)
