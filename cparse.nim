@@ -2576,7 +2576,7 @@ proc parseStandaloneClass(p: var Parser, isStruct: bool;
   saveContext(p)
   getTok(p, result) # skip "class" or "struct"
   let oldClass = p.currentClass
-  let oldClassOrig = p.currentClassOrig
+  var oldClassOrig = p.currentClassOrig
   p.currentClassOrig = ""
   if p.tok.xkind == pxSymbol:
     markTypeIdent(p, nil)
