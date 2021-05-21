@@ -2686,10 +2686,10 @@ proc statement(p: var Parser): PNode =
     of "namespace":
       if pfCpp in p.options.flags:
         getTok(p)
-        expectIdent(p)
         var oldNamespace = p.currentNamespace
-        p.currentNamespace &= p.tok.s & "::"
-        getTok(p)
+        if p.tok.xkind == pxSymbol:
+          p.currentNamespace &= p.tok.s & "::"
+          getTok(p)
         if p.tok.xkind != pxCurlyLe:
           parMessage(p, errGenerated, "expected " & tokKindToStr(pxCurlyLe))
         result = compoundStatement(p, newScope=false)
