@@ -10,6 +10,7 @@ constexpr Event foo;
 
 class ConstexprConstructor {
   public:
+  [[deprecated("getCenter() was renamed to getResourceDepot()")]]
   constexpr ConstexprConstructor(int i = 1) : id(i) {}
 };
 // list initialization, issue #163

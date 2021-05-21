@@ -10,7 +10,7 @@ var foo* {.importcpp: "foo", header: "cpp11.hpp".}: Event
 
 type
   ConstexprConstructor* {.importcpp: "ConstexprConstructor", header: "cpp11.hpp",
-                         bycopy.} = object
+                         bycopy.} = object ## deprecated("getCenter() was renamed to getResourceDepot()")
 
 
 proc constructConstexprConstructor*(i: cint = 1): ConstexprConstructor {.constructor,

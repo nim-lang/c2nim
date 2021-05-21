@@ -575,6 +575,34 @@ proc scanStarComment(L: var Lexer, tok: var Token) =
   while tok.s.len > 0 and tok.s[^1] in {'\t', ' '}: setLen(tok.s, tok.s.len-1)
   L.bufpos = pos
 
+proc scanAttribute(L: var Lexer, tok: var Token) =
+  # C++ and C23 attribute that starts with '[['. These cannot be nested.
+  var pos = L.bufpos
+  var buf = L.buf
+  tok.s = ""
+  tok.xkind = pxStarComment
+  while true:
+    case buf[pos]
+    of CR, LF:
+      pos = handleCRLF(L, pos)
+      buf = L.buf
+      add(tok.s, "\n")
+    of ']':
+      inc(pos)
+      if buf[pos] == ']':
+        inc(pos)
+        break
+      else:
+        add(tok.s, ']')
+    of nimlexbase.EndOfFile:
+      lexMessage(L, errGenerated, "expected closing ']]'")
+    else:
+      add(tok.s, buf[pos])
+      inc(pos)
+  # strip trailing whitespace
+  while tok.s.len > 0 and tok.s[^1] in {'\t', ' '}: setLen(tok.s, tok.s.len-1)
+  L.bufpos = pos
+
 proc scanVerbatim(L: var Lexer, tok: var Token; isCurlyDot: bool) =
   var pos = L.bufpos+2
   var buf = L.buf
@@ -704,7 +732,11 @@ proc getTok*(L: var Lexer, tok: var Token) =
       tok.xkind = pxParRi
     of '[':
       inc(L.bufpos)
-      tok.xkind = pxBracketLe
+      if L.buf[L.bufpos] == '[':
+        inc(L.bufpos)
+        scanAttribute(L, tok)
+      else:
+        tok.xkind = pxBracketLe
     of ']':
       inc(L.bufpos)
       tok.xkind = pxBracketRi
