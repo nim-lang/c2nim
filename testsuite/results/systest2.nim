@@ -23,4 +23,4 @@ type
     wxLeft, wxTop, wxRight, wxBottom, wxWidth, wxHeight, wxCentre, wxCentreX, wxCentreY
 
 const
-  wxCenter = wxCentre
+  wxCenter* = wxCentre

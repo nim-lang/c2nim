@@ -23,5 +23,5 @@ const
 
 const
   negativeten = nten
-  aliasA = one
-  aliasB = nnine
+  aliasA* = one
+  aliasB* = nnine

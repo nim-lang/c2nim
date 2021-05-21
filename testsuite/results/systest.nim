@@ -42,9 +42,8 @@ var uiVar*: cint
 
 var myPrivateVar__: cint
 
+discard "forward decl of XML_ParserStruct"
 type
-  ParserStruct {.bycopy.} = object
-
   ElementDeclHandler* = proc (userData: pointer; name: ptr Char; model: ptr Content) {.
       cdecl.}
 
@@ -75,7 +74,7 @@ type
 ##  Test standalone structs:
 
 type
-  myunion* {.bycopy.} = object {.union.}
+  myunion* {.bycopy, union.} = object
     x*: char
     y*: char
     z*: cstring

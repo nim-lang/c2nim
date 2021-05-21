@@ -3,7 +3,7 @@ type
     a*: cint
     b*: cint
 
-  INNER_C_UNION_struct_anonym_14* {.bycopy.} = object {.union.}
+  INNER_C_UNION_struct_anonym_14* {.bycopy, union.} = object
     b*: cint
 
   INNER_C_STRUCT_struct_anonym_13* {.bycopy.} = object
@@ -13,7 +13,7 @@ type
   INNER_C_STRUCT_struct_anonym_24* {.bycopy.} = object
     e*: cint
 
-  INNER_C_UNION_struct_anonym_21* {.bycopy.} = object {.union.}
+  INNER_C_UNION_struct_anonym_21* {.bycopy, union.} = object
     d*: cint
     a_struct_in_the_union*: INNER_C_STRUCT_struct_anonym_24
 

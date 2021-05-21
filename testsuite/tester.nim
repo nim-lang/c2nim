@@ -15,6 +15,7 @@ Usage: tester testnames [options]
   test file names without extension.
 Options:
   -h --help        Shows this help
+  --overwrite      Overwrite the test results with the current results
 """
 
 var
@@ -22,6 +23,7 @@ var
   exitEarly = false
   infiles = newSeq[string](0)
   diffTool = "diff -uNdr"
+  overwrite = false
 
 for kind, key, val in getopt():
   case kind
@@ -34,6 +36,8 @@ for kind, key, val in getopt():
       exitEarly = true
     of "diff", "d":
       diffTool = val
+    of "overwrite":
+      overwrite = true
   else:
     stdout.writeLine("[Error] unknown option: " & key)
 
@@ -47,7 +51,7 @@ proc test(t, cmd: string) =
     echo "FAILURE: files differ: ", nimFile
     discard execShellCmd(diffTool & " " & dir & "results" / nimFile & " " & dir & "tests" / nimFile)
     failures += 1
-    when false:
+    if overwrite:
       copyFile(dir & "tests" / nimFile, dir & "results" / nimFile)
   else:
     echo "SUCCESS: files identical: ", nimFile
