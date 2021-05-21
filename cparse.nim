@@ -2016,7 +2016,6 @@ proc declarationOrStatement(p: var Parser): PNode =
       if p.tok.s == "operator":
         backtrackContext(p)
         return declaration(p)
-      backtrackContext(p)
 
     case p.tok.xkind
     of pxSymbol, pxStar, pxLt, pxAmp, pxAmpAmp:
