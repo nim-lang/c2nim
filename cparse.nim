@@ -87,7 +87,7 @@ type
 
   ReplaceTuple* = array[0..1, string]
 
-  ERetryParsing = object of Exception
+  ERetryParsing = object of ValueError
 
   SectionParser = proc(p: var Parser): PNode {.nimcall.}
 
@@ -98,27 +98,27 @@ proc parseStructBody(p: var Parser, stmtList: PNode,
                      kind: TNodeKind = nkRecList): PNode
 
 proc newParserOptions*(): PParserOptions =
-  new(result)
-  result.prefixes = @[]
-  result.suffixes = @[]
-  result.assumeDef = @[]
-  result.assumenDef = @["__cplusplus"]
-  result.macros = @[]
-  result.mangleRules = @[]
-  result.privateRules = @[]
-  result.discardablePrefixes = @[]
-  result.flags = {}
-  result.dynlibSym = ""
-  result.headerOverride = ""
-  result.toMangle = newStringTable(modeCaseSensitive)
-  result.classes = newStringTable(modeCaseSensitive)
-  result.toPreprocess = newStringTable(modeCaseSensitive)
-  result.inheritable = newStringTable(modeCaseSensitive)
-  result.constructor = "construct"
-  result.destructor = "destroy"
-  result.importcLit = "importc"
-  result.exportPrefix = ""
-  result.paramPrefix = "a"
+  PParserOptions(
+    prefixes: @[],
+    suffixes: @[],
+    assumeDef: @[],
+    assumenDef: @["__cplusplus"],
+    macros: @[],
+    mangleRules: @[],
+    privateRules: @[],
+    discardablePrefixes: @[],
+    flags: {},
+    dynlibSym: "",
+    headerOverride: "",
+    toMangle: newStringTable(modeCaseSensitive),
+    classes: newStringTable(modeCaseSensitive),
+    toPreprocess: newStringTable(modeCaseSensitive),
+    inheritable: newStringTable(modeCaseSensitive),
+    constructor: "construct",
+    destructor: "destroy",
+    importcLit: "importc",
+    exportPrefix: "",
+    paramPrefix: "a")
 
 proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   result = true
@@ -332,15 +332,15 @@ proc expectIdent(p: Parser) =
 
 proc eat(p: var Parser, xkind: Tokkind, n: PNode) =
   if p.tok.xkind == xkind: getTok(p, n)
-  else: parMessage(p, errGenerated, "token expected: " & tokKindToStr(xkind))
+  else: parMessage(p, errGenerated, "token expected: " & tokKindToStr(xkind) & " but got: " & tokKindToStr(p.tok.xkind))
 
 proc eat(p: var Parser, xkind: Tokkind) =
   if p.tok.xkind == xkind: getTok(p)
-  else: parMessage(p, errGenerated, "token expected: " & tokKindToStr(xkind))
+  else: parMessage(p, errGenerated, "token expected: " & tokKindToStr(xkind) & " but got: " & tokKindToStr(p.tok.xkind))
 
 proc eat(p: var Parser, tok: string, n: PNode) =
   if p.tok.s == tok: getTok(p, n)
-  else: parMessage(p, errGenerated, "token expected: " & tok)
+  else: parMessage(p, errGenerated, "token expected: " & tok & " but got: " & tokKindToStr(p.tok.xkind))
 
 proc opt(p: var Parser, xkind: Tokkind, n: PNode) =
   if p.tok.xkind == xkind: getTok(p, n)
@@ -850,12 +850,12 @@ proc enumPragmas(p: Parser, name: PNode; origName: string): PNode =
     addSon(pragmas, e)
   if p.options.inheritable.hasKey(origName):
     addSon(pragmas, newIdentNodeP("pure", p))
-  if pfCpp in p.options.flags and p.options.useHeader:
+  if pfCpp in p.options.flags:
     let importName =
-          if p.currentClassOrig.len > 0:
-            p.currentNamespace & p.currentClassOrig & "::" & origName
-          else:
-            p.currentNamespace & origName
+      if p.currentClassOrig.len > 0:
+        p.currentNamespace & p.currentClassOrig & "::" & origName
+      else:
+        p.currentNamespace & origName
     addSon(pragmas, newIdentStrLitPair("importcpp", importName, p))
     addSon(pragmas, getHeaderPair(p))
   if pragmas.len > 0:
@@ -1291,12 +1291,12 @@ proc skipThrowSpecifier(p: var Parser) =
     var pgms = newNodeP(nkPragma, p)
     parseFormalParams(p, pms, pgms) #ignore
 
-proc parseInitializer(p: var Parser): PNode =
+proc parseInitializer(p: var Parser; kind: TNodeKind): PNode =
   if p.tok.xkind == pxCurlyLe:
-    result = newNodeP(nkBracket, p)
+    result = newNodeP(kind, p)
     getTok(p, result)
     while p.tok.xkind notin {pxEof, pxCurlyRi}:
-      addSon(result, parseInitializer(p))
+      addSon(result, parseInitializer(p, kind))
       opt(p, pxComma, nil)
     eat(p, pxCurlyRi, result)
   else:
@@ -1305,13 +1305,37 @@ proc parseInitializer(p: var Parser): PNode =
 proc addInitializer(p: var Parser, def: PNode) =
   if p.tok.xkind == pxAsgn:
     getTok(p, def)
-    let initVal = parseInitializer(p)
+    let initVal = parseInitializer(p, nkBracket)
     if p.options.dynlibSym.len > 0 or p.options.useHeader:
       addSon(def, emptyNode)
     else:
       addSon(def, initVal)
+  elif p.tok.xkind == pxCurlyLe and pfCpp in p.options.flags:
+    # C++11 initializer:  Foo x{1, 2, 3};
+    # we transform it into:  var x = Foo(1, 2, 3)
+    # for the lack of a better solution.
+    let initVal = parseInitializer(p, nkTupleConstr)
+    var constructorCall = newNodeI(nkCall, initVal.info)
+    constructorCall.add copyTree(def[^1])
+    for i in 0..<initVal.len:
+      constructorCall.add initVal[i]
+    if p.options.useHeader:
+      # for headers we ignore initializer lists:
+      addSon(def, emptyNode)
+    else:
+      addSon(def, constructorCall)
   else:
     addSon(def, emptyNode)
+
+proc optInitializer(p: var Parser; n: PNode): PNode =
+  if pfCpp in p.options.flags and p.tok.xkind == pxCurlyLe:
+    let initVal = parseInitializer(p, nkTupleConstr)
+    result = newNodeI(nkCall, initVal.info)
+    result.add n
+    for i in 0..<initVal.len:
+      result.add initVal[i]
+  else:
+    result = n
 
 proc parseVarDecl(p: var Parser, baseTyp, typ: PNode,
                   origName: string): PNode =
@@ -1332,22 +1356,6 @@ proc parseVarDecl(p: var Parser, baseTyp, typ: PNode,
     addSon(def, parseTypeSuffix(p, t))
     addInitializer(p, def)
     addSon(result, def)
-
-  if p.options.useHeader and p.options.flags.contains(pfCpp):
-    var unmatched_braces = 0
-    while true: # skip c++11 list initializer
-      if p.tok.xkind == pxCurlyLe:
-        eat(p, pxCurlyLe)
-        inc unmatched_braces
-        continue
-      elif p.tok.xkind == pxCurlyRi:
-        eat(p, pxCurlyRi)
-        dec unmatched_braces
-        continue
-      if unmatched_braces == 0:
-        break
-      # consume initalizer list contents
-      getTok(p, nil)
   eat(p, pxSemicolon)
 
 proc parseOperator(p: var Parser, origName: var string): bool =
@@ -1623,6 +1631,7 @@ proc startExpression(p: var Parser, tok: Token): PNode =
         result = mangledIdent(tok.s, p, kind)
       result = optScope(p, result, kind)
       result = optAngle(p, result)
+      result = optInitializer(p, result)
   of pxIntLit:
     result = newIntNodeP(nkIntLit, tok.iNumber, p)
     setBaseFlags(result, tok.base)

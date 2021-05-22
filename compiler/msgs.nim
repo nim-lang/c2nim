@@ -455,7 +455,7 @@ proc sourceLine*(conf: ConfigRef; i: TLineInfo): string =
   if conf.m.fileInfos[i.fileIndex.int32].lines.len == 0:
     try:
       for line in lines(toFullPathConsiderDirty(conf, i)):
-        addSourceLine conf, i.fileIndex, line.string
+        addSourceLine conf, i.fileIndex, line
     except IOError:
       discard
   assert i.fileIndex.int32 < conf.m.fileInfos.len

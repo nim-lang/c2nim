@@ -382,7 +382,7 @@ proc getNumber(L: var Lexer, tok: var Token) =
         tok.xkind = pxIntLit
   except ValueError:
     lexMessage(L, errGenerated, "invalid number: " & tok.s)
-  except OverflowError:
+  except OverflowDefect:
     lexMessage(L, errGenerated, "number out of range: " & tok.s)
   # ignore type suffix:
   while L.buf[L.bufpos] in {'A'..'Z', 'a'..'z'}: inc(L.bufpos)
