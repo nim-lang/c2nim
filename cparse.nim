@@ -434,13 +434,13 @@ proc statement(p: var Parser): PNode
 proc declKeyword(p: Parser, s: string): bool =
   # returns true if it is a keyword that introduces a declaration
   case s
-  of  "extern", "static", "auto", "register", "const", "constexpr", "volatile",
+  of  "extern", "static", "auto", "register", "const", "volatile",
       "restrict", "inline", "__inline", "__cdecl", "__stdcall", "__syscall",
       "__fastcall", "__safecall", "void", "struct", "union", "enum", "typedef",
       "size_t", "short", "int", "long", "float", "double", "signed", "unsigned",
       "char":
     result = true
-  of "class", "mutable":
+  of "class", "mutable", "constexpr":
     result = p.options.flags.contains(pfCpp)
   else: discard
 
@@ -461,11 +461,10 @@ proc isIntType(s: string): bool =
     result = true
   else: discard
 
-proc skipConst(p: var Parser): bool {.discardable.} =
+proc skipConst(p: var Parser): bool =
   while p.tok.xkind == pxSymbol and
-      (p.tok.s == "const" or p.tok.s == "constexpr" or p.tok.s == "volatile" or
-       p.tok.s == "restrict" or (p.tok.s == "mutable" and
-        pfCpp in p.options.flags)):
+      (p.tok.s in ["const", "volatile", "restrict"] or
+      (p.tok.s in ["mutable", "constexpr"] and pfCpp in p.options.flags)):
     if p.tok.s == "const": result = true
     getTok(p, nil)
 
@@ -594,7 +593,7 @@ proc pointer(p: var Parser, a: PNode): PNode =
     if p.tok.xkind == pxStar:
       inc(i)
       getTok(p, result)
-      skipConst(p)
+      discard skipConst(p)
       result = newPointerTy(p, result)
     elif p.tok.xkind == pxAmp and pfCpp in p.options.flags:
       getTok(p, result)
@@ -607,7 +606,7 @@ proc pointer(p: var Parser, a: PNode): PNode =
         result.add(b)
     elif p.tok.xkind == pxAmpAmp and pfCpp in p.options.flags:
       getTok(p, result)
-      skipConst(p)
+      discard skipConst(p)
       if pfIgnoreRvalueRefs notin p.options.flags:
         let b = result
         result = newNodeP(nkVarTy, p)
@@ -654,7 +653,7 @@ proc parseTypeSuffix(p: var Parser, typ: PNode, isParam: bool = false): PNode =
   case p.tok.xkind
   of pxBracketLe:
     getTok(p, result)
-    skipConst(p) # POSIX contains: ``int [restrict]``
+    discard skipConst(p) # POSIX contains: ``int [restrict]``
     if p.tok.xkind != pxBracketRi:
       var tmp = result
       var index = expression(p)
@@ -776,7 +775,7 @@ proc parseStructBody(p: var Parser, stmtList: PNode,
   result = newNodeP(kind, p)
   eat(p, pxCurlyLe, result)
   while p.tok.xkind notin {pxEof, pxCurlyRi}:
-    skipConst(p)
+    discard skipConst(p)
     var baseTyp: PNode
     if p.tok.xkind == pxSymbol and (p.tok.s == "struct" or p.tok.s == "union"):
       let gotUnion = if p.tok.s == "union": true   else: false
@@ -1277,12 +1276,12 @@ proc parseTypeDef(p: var Parser): PNode =
 proc skipDeclarationSpecifiers(p: var Parser) =
   while p.tok.xkind == pxSymbol:
     case p.tok.s
-    of "static", "register", "const", "constexpr", "volatile":
+    of "static", "register", "const", "volatile":
       getTok(p, nil)
     of "auto":
       if pfCpp notin p.options.flags: getTok(p, nil)
       else: break
-    of "mutable":
+    of "constexpr", "mutable":
       if pfCpp in p.options.flags: getTok(p, nil)
       else: break
     of "extern":
