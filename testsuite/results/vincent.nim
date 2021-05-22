@@ -21,7 +21,7 @@ proc main*(): cint =
   j = 0
   a = 10
   while j < 0:
-    nil
+    ## ignored statement
     inc(j)
     inc(a)
   while true:

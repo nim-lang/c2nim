@@ -2503,7 +2503,7 @@ proc parseClass(p: var Parser; isStruct: bool;
     elif p.tok.xkind == pxSymbol and p.tok.s == "typedef":
       let x = parseTypeDef(p)
       if not private or pfKeepBodies in p.options.flags: stmtList.add(x)
-    elif p.tok.xkind == pxSymbol and(p.tok.s == "struct" or p.tok.s == "class"):
+    elif p.tok.xkind == pxSymbol and p.tok.s in ["struct", "class"]:
       let x = parseStandaloneClass(p, isStruct=p.tok.s == "struct", gp)
       if not private or pfKeepBodies in p.options.flags: stmtList.add(x)
     elif p.tok.xkind == pxSymbol and p.tok.s == "union":
@@ -2731,7 +2731,8 @@ proc statement(p: var Parser): PNode =
       if pfCpp in p.options.flags:
         while p.tok.xkind notin {pxEof, pxSemicolon}: getTok(p)
         eat(p, pxSemicolon)
-        result = newNodeP(nkNilLit, p)
+        result = newNodeP(nkCommentStmt, p)
+        result.comment = "using statement"
       else:
         result = declarationOrStatement(p)
     else: result = declarationOrStatement(p)
@@ -2749,7 +2750,8 @@ proc statement(p: var Parser): PNode =
       result = newNodeP(nkCommentStmt, p)
       skipCom(p, result)
     else:
-      result = newNodeP(nkNilLit, p)
+      result = newNodeP(nkCommentStmt, p)
+      result.comment = "ignored statement"
   else:
     result = expressionStatement(p)
   assert result != nil

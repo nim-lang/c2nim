@@ -149,7 +149,7 @@ proc newPoint*(): ptr point =
     discard
     inc(j)
   while true:
-    nil
+    ## ignored statement
     dec(j)
   while true:
     discard
