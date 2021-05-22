@@ -1593,7 +1593,7 @@ proc setBaseFlags(n: PNode, base: NumericalBase) =
   of base16: incl(n.flags, nfBase16)
 
 proc startExpression(p: var Parser, tok: Token): PNode =
-  case tok.xkind:
+  case tok.xkind
   of pxSymbol:
     if tok.s == "NULL":
       result = newNodeP(nkNilLit, p)
@@ -1697,6 +1697,15 @@ proc startExpression(p: var Parser, tok: Token): PNode =
     addSon(result, expression(p, 139))
   of pxVerbatim:
     result = newIdentNodeP(tok.s, p)
+  of pxCurlyLe:
+    if pfCpp in p.options.flags:
+      result = newNodeP(nkTupleConstr, p)
+      while p.tok.xkind notin {pxEof, pxCurlyRi}:
+        addSon(result, expression(p, 139))
+        if p.tok.xkind == pxComma: getTok(p, result[^1])
+      eat(p, pxCurlyRi)
+    else:
+      raise newException(ERetryParsing, "did not expect " & $tok)
   else:
     # probably from a failed sub expression attempt, try a type cast
     raise newException(ERetryParsing, "did not expect " & $tok)
@@ -1704,40 +1713,40 @@ proc startExpression(p: var Parser, tok: Token): PNode =
 proc leftBindingPower(p: var Parser, tok: ref Token): int =
   case tok.xkind
   of pxComma:
-    return 10
+    result = 10
     # throw == 20
   of pxAsgn, pxPlusAsgn, pxMinusAsgn, pxStarAsgn, pxSlashAsgn, pxModAsgn,
      pxShlAsgn, pxShrAsgn, pxAmpAsgn, pxHatAsgn, pxBarAsgn:
-    return 30
+    result = 30
   of pxConditional:
-    return 40
+    result = 40
   of pxBarBar:
-    return 50
+    result = 50
   of pxAmpAmp:
-    return 60
+    result = 60
   of pxBar:
-    return 70
+    result = 70
   of pxHat:
-    return 80
+    result = 80
   of pxAmp:
-    return 90
+    result = 90
   of pxEquals, pxNeq:
-    return 100
+    result = 100
   of pxLt, pxLe, pxGt, pxGe:
-    return 110
+    result = 110
   of pxShl, pxShr:
-    return 120
+    result = 120
   of pxPlus, pxMinus:
-    return 130
+    result = 130
   of pxStar, pxSlash, pxMod:
-    return 140
+    result = 140
     # .* ->* == 150
   of pxPlusPlus, pxMinusMinus, pxParLe, pxDot, pxArrow, pxArrowStar,
      pxBracketLe:
-    return 160
+    result = 160
     # :: == 170
   else:
-    return 0
+    result = 0
 
 proc leftExpression(p: var Parser, tok: Token, left: PNode): PNode =
   case tok.xkind
