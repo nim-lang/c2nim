@@ -1277,11 +1277,19 @@ proc parseTypeDef(p: var Parser): PNode =
 proc skipDeclarationSpecifiers(p: var Parser) =
   while p.tok.xkind == pxSymbol:
     case p.tok.s
-    of "extern", "static", "auto", "register", "const", "constexpr", "volatile":
+    of "static", "register", "const", "constexpr", "volatile":
       getTok(p, nil)
+    of "auto":
+      if pfCpp notin p.options.flags: getTok(p, nil)
+      else: break
     of "mutable":
       if pfCpp in p.options.flags: getTok(p, nil)
       else: break
+    of "extern":
+      getTok(p, nil)
+      # extern "C" ?
+      if pfCpp in p.options.flags and p.tok.xkind == pxStrLit and p.tok.s == "C":
+        getTok(p, nil)
     else: break
 
 proc skipThrowSpecifier(p: var Parser) =
@@ -1701,7 +1709,7 @@ proc startExpression(p: var Parser, tok: Token): PNode =
     if pfCpp in p.options.flags:
       result = newNodeP(nkTupleConstr, p)
       while p.tok.xkind notin {pxEof, pxCurlyRi}:
-        addSon(result, expression(p, 139))
+        addSon(result, expression(p, 11))
         if p.tok.xkind == pxComma: getTok(p, result[^1])
       eat(p, pxCurlyRi)
     else:
@@ -1940,11 +1948,12 @@ proc expressionStatement(p: var Parser): PNode =
   assert result != nil
 
 proc parseIf(p: var Parser): PNode =
-  # we parse additional "else if"s too here for better Nimrod code
+  # we parse additional "else if"s too here for better Nim code
   result = newNodeP(nkIfStmt, p)
   while true:
     getTok(p) # skip ``if``
     var branch = newNodeP(nkElifBranch, p)
+    skipCom(p, branch)
     eat(p, pxParLe, branch)
     addSon(branch, expression(p))
     eat(p, pxParRi, branch)
@@ -2142,7 +2151,7 @@ proc switchStatement(p: var Parser): PNode =
     else: discard
     addSon(result, statement(p))
   if sonsLen(result) == 0:
-    # translate empty statement list to Nimrod's ``nil`` statement
+    # translate empty statement list to Nim's ``nil`` statement
     result = newNodeP(nkNilLit, p)
 
 proc rangeExpression(p: var Parser): PNode =
