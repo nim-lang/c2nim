@@ -459,12 +459,12 @@ Produces:
     foobar* = 5 or 9
 
 
-Instead of ``#@  @#`` Nim's pragma brackets ``{.  .}`` can also be used, but
-not nested since the ``.}`` doesn't have to be on a line of its own:
+Instead of ``#@  @#`` the special brackets ``{|  |}`` can also be used, but
+not nested since the ``|}`` doesn't have to be on a line of its own:
 
 .. code-block:: C
 
-  #define foobar {. 5 or 9 .}
+  #define foobar {| 5 or 9 |}
 
 
 

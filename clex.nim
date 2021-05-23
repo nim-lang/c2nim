@@ -625,7 +625,7 @@ proc scanVerbatim(L: var Lexer, tok: var Token; isCurlyDot: bool) =
       add(tok.s, "\n")
     of nimlexbase.EndOfFile:
       lexMessage(L, errGenerated, "expected closing '@#'")
-    of '.':
+    of '|':
       if isCurlyDot and buf[pos+1] == '}':
         inc pos, 2
         break
@@ -748,7 +748,7 @@ proc getTok*(L: var Lexer, tok: var Token) =
       else:
         tok.xkind = pxDot
     of '{':
-      if L.buf[L.bufpos+1] == '.':
+      if L.buf[L.bufpos+1] == '|':
         scanVerbatim(L, tok, true)
       else:
         inc(L.bufpos)

@@ -777,8 +777,8 @@ proc parseStructBody(p: var Parser, stmtList: PNode,
   while p.tok.xkind notin {pxEof, pxCurlyRi}:
     discard skipConst(p)
     var baseTyp: PNode
-    if p.tok.xkind == pxSymbol and (p.tok.s == "struct" or p.tok.s == "union"):
-      let gotUnion = if p.tok.s == "union": true   else: false
+    if p.tok.xkind == pxSymbol and p.tok.s in ["struct", "union"]:
+      let gotUnion = if p.tok.s == "union": true else: false
       saveContext(p)
       getTok(p, nil)
       let prev = p
@@ -1298,21 +1298,44 @@ proc skipThrowSpecifier(p: var Parser) =
     var pgms = newNodeP(nkPragma, p)
     parseFormalParams(p, pms, pgms) #ignore
 
-proc parseInitializer(p: var Parser; kind: TNodeKind): PNode =
-  if p.tok.xkind == pxCurlyLe:
+proc parseInitializer(p: var Parser; kind: TNodeKind; isArray: var bool): PNode =
+  template initExpr(p: untyped): untyped = expression(p, 11)
+
+  case p.tok.xkind
+  of pxCurlyLe:
     result = newNodeP(kind, p)
     getTok(p, result)
+    var isArray = false
     while p.tok.xkind notin {pxEof, pxCurlyRi}:
-      addSon(result, parseInitializer(p, kind))
+      addSon(result, parseInitializer(p, kind, isArray))
       opt(p, pxComma, nil)
     eat(p, pxCurlyRi, result)
+    if isArray: result.kind = nkBracket
+  of pxDot:
+    # designated initializer?
+    result = newNodeP(nkExprColonExpr, p)
+    getTok(p)
+    result.add skipIdent(p, skField)
+    eat(p, pxAsgn)
+    result.add initExpr(p)
+  of pxBracketLe:
+    # designated initializer?
+    result = newNodeP(nkExprColonExpr, p)
+    getTok(p)
+    result.add initExpr(p)
+    eat(p, pxBracketRi)
+    eat(p, pxAsgn)
+    result.add initExpr(p)
+    isArray = true
   else:
-    result = assignmentExpression(p)
+    result = initExpr(p)
+
+template discardVarParam(t): untyped = (var hidden: t; hidden)
 
 proc addInitializer(p: var Parser, def: PNode) =
   if p.tok.xkind == pxAsgn:
     getTok(p, def)
-    let initVal = parseInitializer(p, nkBracket)
+    let initVal = parseInitializer(p, nkBracket, discardVarParam(bool))
     if p.options.dynlibSym.len > 0 or p.options.useHeader:
       addSon(def, emptyNode)
     else:
@@ -1321,7 +1344,7 @@ proc addInitializer(p: var Parser, def: PNode) =
     # C++11 initializer:  Foo x{1, 2, 3};
     # we transform it into:  var x = Foo(1, 2, 3)
     # for the lack of a better solution.
-    let initVal = parseInitializer(p, nkTupleConstr)
+    let initVal = parseInitializer(p, nkTupleConstr, discardVarParam(bool))
     var constructorCall = newNodeI(nkCall, initVal.info)
     constructorCall.add copyTree(def[^1])
     for i in 0..<initVal.len:
@@ -1336,7 +1359,7 @@ proc addInitializer(p: var Parser, def: PNode) =
 
 proc optInitializer(p: var Parser; n: PNode): PNode =
   if pfCpp in p.options.flags and p.tok.xkind == pxCurlyLe:
-    let initVal = parseInitializer(p, nkTupleConstr)
+    let initVal = parseInitializer(p, nkTupleConstr, discardVarParam(bool))
     result = newNodeI(nkCall, initVal.info)
     result.add n
     for i in 0..<initVal.len:
@@ -1705,14 +1728,14 @@ proc startExpression(p: var Parser, tok: Token): PNode =
   of pxVerbatim:
     result = newIdentNodeP(tok.s, p)
   of pxCurlyLe:
-    if pfCpp in p.options.flags:
-      result = newNodeP(nkTupleConstr, p)
-      while p.tok.xkind notin {pxEof, pxCurlyRi}:
-        addSon(result, expression(p, 11))
-        if p.tok.xkind == pxComma: getTok(p, result[^1])
-      eat(p, pxCurlyRi)
-    else:
-      raise newException(ERetryParsing, "did not expect " & $tok)
+    result = newNodeP(nkTupleConstr, p)
+    var isArray = false
+    while p.tok.xkind notin {pxEof, pxCurlyRi}:
+      result.add parseInitializer(p, nkBracket, isArray)
+      # addSon(result, expression(p, 11)) # XXX
+      if p.tok.xkind == pxComma: getTok(p, result[^1])
+    eat(p, pxCurlyRi)
+    if isArray: result.kind = nkBracket
   else:
     # probably from a failed sub expression attempt, try a type cast
     raise newException(ERetryParsing, "did not expect " & $tok)
