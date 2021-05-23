@@ -2504,6 +2504,10 @@ proc usingStatement(p: var Parser): PNode =
     result = newNodeP(nkCommentStmt, p)
     result.comment = "using statement"
 
+proc toVariableDecl(def: PNode; isConst: bool): PNode =
+  result = newNodeI(if isConst: nkConstSection else: nkVarSection, def.info)
+  result.add def
+
 proc parseClass(p: var Parser; isStruct: bool;
                 stmtList, genericParams: PNode): PNode =
   result = newNodeP(nkObjectTy, p)
@@ -2578,8 +2582,10 @@ proc parseClass(p: var Parser; isStruct: bool;
         getTok(p, stmtList)
         isStatic = true
       # skip constexpr for now
+      var isConst = false
       if p.tok.xkind == pxSymbol and p.tok.s in ["constexpr", "consteval", "constinit"]:
         getTok(p, stmtList)
+        isConst = true
 
       parseCallConv(p, pragmas)
       if p.tok.xkind == pxSymbol and p.tok.s == p.currentClassOrig and
@@ -2649,7 +2655,10 @@ proc parseClass(p: var Parser; isStruct: bool;
               value = assignmentExpression(p)
             if not private or pfKeepBodies in p.options.flags:
               addSon(def, i, t, value)
-            if not isStatic: addSon(recList, def)
+            if not isStatic:
+              addSon(recList, def)
+            elif pfKeepBodies in p.options.flags:
+              addSon(stmtList, toVariableDecl(def, isConst))
           if p.tok.xkind != pxComma: break
           getTok(p, def)
         if p.tok.xkind == pxSemicolon:

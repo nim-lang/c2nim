@@ -5,6 +5,7 @@ import strutils, os, parseopt
 const
   c2nimCmd = "c2nim $#"
   cpp2nimCmd = "c2nim --cpp $#"
+  cpp2nimCmdKeepBodies = "c2nim --cpp --keepBodies $#"
   hpp2nimCmd = "c2nim --cpp --header $#"
   dir = "testsuite/"
   usage = """
@@ -41,29 +42,32 @@ for kind, key, val in getopt():
   else:
     stdout.writeLine("[Error] unknown option: " & key)
 
-proc test(t, cmd: string) =
+proc test(t, cmd, origin: string) =
   let (_, name, _) = splitFile(t)
   if infiles.len() > 0 and not (name in infiles):
     return
   if execShellCmd(cmd % t) != 0: quit("FAILURE")
   let nimFile = name & ".nim"
-  if readFile(dir & "tests" / nimFile) != readFile(dir & "results" / nimFile):
+  if readFile(dir & origin / nimFile) != readFile(dir & "results" / nimFile):
     echo "FAILURE: files differ: ", nimFile
-    discard execShellCmd(diffTool & " " & dir & "results" / nimFile & " " & dir & "tests" / nimFile)
+    discard execShellCmd(diffTool & " " & dir & "results" / nimFile & " " & dir & origin / nimFile)
     failures += 1
     if overwrite:
-      copyFile(dir & "tests" / nimFile, dir & "results" / nimFile)
+      copyFile(dir & origin / nimFile, dir & "results" / nimFile)
   else:
     echo "SUCCESS: files identical: ", nimFile
 
 if not exitEarly:
   for t in walkFiles(dir & "tests/*.c"):
-    test(t, c2nimCmd)
+    test(t, c2nimCmd, "tests")
   for t in walkFiles(dir & "tests/*.h"):
-    test(t, c2nimCmd)
+    test(t, c2nimCmd, "tests")
   for t in walkFiles(dir & "tests/*.cpp"):
-    test(t, cpp2nimCmd)
+    test(t, cpp2nimCmd, "tests")
   for t in walkFiles(dir & "tests/*.hpp"):
-    test(t, hpp2nimCmd)
+    test(t, hpp2nimCmd, "tests")
+
+  for t in walkFiles(dir & "cppkeepbodies/*.cpp"):
+    test(t, cpp2nimCmdKeepBodies, "cppkeepbodies")
 
   if failures > 0: quit($failures & " failures occurred.")
