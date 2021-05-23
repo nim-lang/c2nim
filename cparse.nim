@@ -172,6 +172,9 @@ proc openParser*(p: var Parser, filename: string,
 proc parMessage(p: Parser, msg: TMsgKind, arg = "") =
   lexMessage(p.lex, msg, arg)
 
+proc parError(p: Parser, arg = "") =
+  lexMessage(p.lex, errGenerated, arg)
+
 proc closeParser*(p: var Parser) = closeLexer(p.lex)
 proc saveContext(p: var Parser) = p.backtrack.add(p.tok)
 # EITHER call 'closeContext' or 'backtrackContext':
@@ -207,7 +210,7 @@ proc findMacro(p: Parser): int =
 
 proc rawEat(p: var Parser, xkind: Tokkind) =
   if p.tok.xkind == xkind: rawGetTok(p)
-  else: parMessage(p, errGenerated, "token expected: " & tokKindToStr(xkind))
+  else: parError(p, "token expected: " & tokKindToStr(xkind))
 
 proc parseMacroArguments(p: var Parser): seq[seq[ref Token]] =
   result = @[]
@@ -254,7 +257,7 @@ proc expandMacro(p: var Parser, m: Macro) =
     if m.params > 0:
       arguments = parseMacroArguments(p)
       if arguments.len != m.params:
-        parMessage(p, errGenerated, "wrong number of arguments")
+        parError(p, "wrong number of arguments")
     rawEat(p, pxParRi)
   # insert into the token list:
   if m.body.len > 0:
@@ -328,19 +331,19 @@ proc getTok(p: var Parser, n: PNode) =
 
 proc expectIdent(p: Parser) =
   if p.tok.xkind != pxSymbol:
-    parMessage(p, errGenerated, "identifier expected, but got: " & debugTok(p.lex, p.tok[]))
+    parError(p, "identifier expected, but got: " & debugTok(p.lex, p.tok[]))
 
 proc eat(p: var Parser, xkind: Tokkind, n: PNode) =
   if p.tok.xkind == xkind: getTok(p, n)
-  else: parMessage(p, errGenerated, "token expected: " & tokKindToStr(xkind) & " but got: " & tokKindToStr(p.tok.xkind))
+  else: parError(p, "token expected: " & tokKindToStr(xkind) & " but got: " & tokKindToStr(p.tok.xkind))
 
 proc eat(p: var Parser, xkind: Tokkind) =
   if p.tok.xkind == xkind: getTok(p)
-  else: parMessage(p, errGenerated, "token expected: " & tokKindToStr(xkind) & " but got: " & tokKindToStr(p.tok.xkind))
+  else: parError(p, "token expected: " & tokKindToStr(xkind) & " but got: " & tokKindToStr(p.tok.xkind))
 
 proc eat(p: var Parser, tok: string, n: PNode) =
   if p.tok.s == tok: getTok(p, n)
-  else: parMessage(p, errGenerated, "token expected: " & tok & " but got: " & tokKindToStr(p.tok.xkind))
+  else: parError(p, "token expected: " & tok & " but got: " & tokKindToStr(p.tok.xkind))
 
 proc opt(p: var Parser, xkind: Tokkind, n: PNode) =
   if p.tok.xkind == xkind: getTok(p, n)
@@ -749,7 +752,7 @@ proc hashPosition(p: Parser): string =
 proc parseInnerStruct(p: var Parser, stmtList: PNode,
                       isUnion: bool, name: string): PNode =
   if p.tok.xkind != pxCurlyLe:
-    parMessage(p, errUser, "Expected '{' but found '" & $(p.tok[]) & "'")
+    parError(p, "Expected '{' but found '" & $(p.tok[]) & "'")
 
   var structName: string
   if name == "":
@@ -985,7 +988,7 @@ proc parseFunctionPointerDecl(p: var Parser, rettyp: PNode): PNode =
     addSon(pragmas, newIdentNodeP("memberfuncptr", p))
 
   if p.tok.xkind == pxStar: getTok(p, params)
-  #else: parMessage(p, errGenerated, "expected '*'")
+  #else: parError(p, "expected '*'")
   if p.inTypeDef > 0: markTypeIdent(p, nil)
   var name = skipIdentExport(p, if p.inTypeDef > 0: skType else: skVar)
   eat(p, pxParRi, name)
@@ -1079,7 +1082,7 @@ proc enumFields(p: var Parser, constList: PNode): PNode =
     if isDir(p, "define"):
       skipLine(p)
       continue
-    if fieldsComplete: parMessage(p, errGenerated, "expected '}'")
+    if fieldsComplete: parError(p, "expected '}'")
     var e = skipIdent(p, skEnumField)
     if p.tok.xkind == pxAsgn:
       getTok(p, e)
@@ -1110,7 +1113,7 @@ proc enumFields(p: var Parser, constList: PNode): PNode =
     fields.add(field)
     if p.tok.xkind == pxComma: getTok(p, e)
     else: fieldsComplete = true
-  if fields.len == 0: parMessage(p, errGenerated, "enum has no fields")
+  if fields.len == 0: parError(p, "enum has no fields")
   fields.sort do (x, y: type(field)) -> int:
     cmp(x.id, y.id)
   var lastId: BiggestInt
@@ -1127,9 +1130,9 @@ proc enumFields(p: var Parser, constList: PNode): PNode =
         of nkEnumFieldDef:
           if f.node.sons.len > 0 and f.node.sons[0].kind == nkIdent:
             currentIdent = f.node.sons[0]
-          else: parMessage(p, errGenerated, outofOrder)
+          else: parError(p, outofOrder)
         of nkIdent: currentIdent = f.node
-        else: parMessage(p, errGenerated, outofOrder)
+        else: parError(p, outofOrder)
         var constant = createConst(currentIdent, emptyNode, lastIdent, p)
         constList.addSon(constant)
       else:
@@ -1139,9 +1142,9 @@ proc enumFields(p: var Parser, constList: PNode): PNode =
         of nkEnumFieldDef:
           if f.node.sons.len > 0 and f.node.sons[0].kind == nkIdent:
             lastIdent = f.node.sons[0]
-          else: parMessage(p, errGenerated, outofOrder)
+          else: parError(p, outofOrder)
         of nkIdent: lastIdent = f.node
-        else: parMessage(p, errGenerated, outofOrder)
+        else: parError(p, outofOrder)
     of isAlias:
       let ident = f.node.getEnumIdent
       var constant = createConst(exportSym(p, ident, ident.ident.s), emptyNode,
@@ -1412,7 +1415,7 @@ proc parseOperator(p: var Parser, origName: var string): bool =
       if x.kind == nkIdent:
         origName.add(x.ident.s)
       else:
-        parMessage(p, errGenerated, "operator symbol expected")
+        parError(p, "operator symbol expected")
       result = true
   of pxParLe:
     getTok(p)
@@ -1423,7 +1426,7 @@ proc parseOperator(p: var Parser, origName: var string): bool =
     eat(p, pxBracketRi)
     origName.add("[]")
   else:
-    parMessage(p, errGenerated, "operator symbol expected")
+    parError(p, "operator symbol expected")
 
 when false:
   proc declarationName(p: var Parser): string =
@@ -1513,7 +1516,7 @@ proc declaration(p: var Parser; genericParams: PNode = emptyNode): PNode =
       else:
         addSon(result, compoundStatement(p))
     else:
-      parMessage(p, errGenerated, "expected ';'")
+      parError(p, "expected ';'")
     if sonsLen(result.sons[pragmasPos]) == 0:
       result.sons[pragmasPos] = emptyNode
   of pxScope:
@@ -1558,7 +1561,7 @@ proc enumSpecifier(p: var Parser): PNode =
       if isDir(p, "define"):
         skipLine(p)
         continue
-      if fieldsComplete: parMessage(p, errGenerated, "expected '}'")
+      if fieldsComplete: parError(p, "expected '}'")
       var name = skipIdentExport(p, skEnumField)
       var val: PNode
       if p.tok.xkind == pxAsgn:
@@ -1579,7 +1582,7 @@ proc enumSpecifier(p: var Parser): PNode =
       addSon(result, c)
       if p.tok.xkind == pxComma: getTok(p, c)
       else: fieldsComplete = true
-    if result.sons.len == 0: parMessage(p, errGenerated, "enum has no fields")
+    if result.sons.len == 0: parError(p, "enum has no fields")
     eat(p, pxCurlyRi, result)
     eat(p, pxSemicolon)
   of pxSymbol:
@@ -1613,7 +1616,7 @@ proc enumSpecifier(p: var Parser): PNode =
       result = declaration(p)
   else:
     closeContext(p)
-    parMessage(p, errGenerated, "expected '{'")
+    parError(p, "expected '{'")
     result = emptyNode
 
 # Expressions
@@ -1969,7 +1972,7 @@ proc expressionStatement(p: var Parser): PNode =
     let semicolonRequired = p.tok.xkind != pxVerbatim
     result = expression(p)
     if p.tok.xkind == pxSemicolon: getTok(p)
-    elif semicolonRequired: parMessage(p, errGenerated, "expected ';'")
+    elif semicolonRequired: parError(p, "expected ';'")
   assert result != nil
 
 proc parseIf(p: var Parser): PNode =
@@ -2213,7 +2216,7 @@ proc parseSwitch(p: var Parser): PNode =
         addSon(b, rangeExpression(p))
         eat(p, pxColon, b)
     else:
-      parMessage(p, errXExpected, "case")
+      parError(p, "'case' expected")
     addSon(b, switchStatement(p))
     addSon(result, b)
     if b.kind == nkElse: break
@@ -2326,9 +2329,9 @@ proc parseConstructor(p: var Parser, pragmas: PNode, isDestructor: bool;
       eat(p, pxIntLit)
       eat(p, pxSemicolon)
     else:
-      parMessage(p, errGenerated, "expected 'default' or 'delete'")
+      parError(p, "expected 'default' or 'delete'")
   else:
-    parMessage(p, errGenerated, "expected ';'")
+    parError(p, "expected ';'")
   if result.sons[bodyPos].kind == nkEmpty:
     if isDestructor:
       doImportCpp("#.~" & origName & "()", pragmas, p)
@@ -2393,7 +2396,7 @@ proc parseMethod(p: var Parser, origName: string, rettyp, pragmas: PNode,
       eat(p, pxIntLit)
       eat(p, pxSemicolon)
   else:
-    parMessage(p, errGenerated, "expected ';'")
+    parError(p, "expected ';'")
   if result.sons[bodyPos].kind == nkEmpty:
     if isOperator:
       case origName
@@ -2602,7 +2605,7 @@ proc parseClass(p: var Parser; isStruct: bool;
                                      gp, genericParams)
           if not private or pfKeepBodies in p.options.flags: stmtList.add(des)
         else:
-          parMessage(p, errGenerated, "invalid destructor")
+          parError(p, "invalid destructor")
       elif p.tok.xkind == pxSymbol and p.tok.s == "operator":
         let origName = getConverterCppType(p)
         var baseTyp = typeAtom(p)
@@ -2782,7 +2785,7 @@ proc statement(p: var Parser): PNode =
           p.currentNamespace &= p.tok.s & "::"
           getTok(p)
         if p.tok.xkind != pxCurlyLe:
-          parMessage(p, errGenerated, "expected " & tokKindToStr(pxCurlyLe))
+          parError(p, "expected " & tokKindToStr(pxCurlyLe))
         result = compoundStatement(p, newScope=false)
         p.currentNamespace = oldNamespace
       else:
@@ -2826,5 +2829,5 @@ proc parseUnit(p: var Parser): PNode =
       var s = statement(p)
       if s.kind != nkEmpty: embedStmts(result, s)
   except ERetryParsing:
-    parMessage(p, errGenerated, getCurrentExceptionMsg())
+    parError(p, getCurrentExceptionMsg())
     #"Uncaught parsing exception raised")
