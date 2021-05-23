@@ -2178,7 +2178,9 @@ proc parseStandaloneStruct(p: var Parser, isUnion: bool;
       addSon(result, typeSection)
       parseTrailingDefinedIdents(p, result, name)
     else:
-      var t = parseTuple(p, result)
+      let t =
+        if isUnion: parseInnerStruct(p, result, isUnion=true, "")
+        else: parseTuple(p, result)
       parseTrailingDefinedIdents(p, result, t)
   else:
     backtrackContext(p)

@@ -40,3 +40,12 @@ enum wxEdge
     wxLeft, wxTop, wxRight, wxBottom, wxWidth, wxHeight,
     wxCentre, wxCenter = wxCentre, wxCentreX, wxCentreY
 };
+
+// bug #136
+
+static inline void bcf_float_set(float *ptr, uint32_t value)
+{
+    union { uint32_t i; float f; } u;
+    u.i = value;
+    *ptr = u.f;
+}

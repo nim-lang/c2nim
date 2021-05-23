@@ -24,3 +24,15 @@ type
 
 const
   wxCenter* = wxCentre
+
+##  bug #136
+
+proc bcf_float_set*(`ptr`: ptr cfloat; value: uint32_t) {.inline, cdecl.} =
+  type
+    INNER_C_UNION_systest2_48 {.importc: "no_name", header: "iup.h", bycopy, union.} = object
+      i: uint32_t
+      f: cfloat
+
+  var u: INNER_C_UNION_systest2_48
+  u.i = value
+  `ptr`[] = u.f
