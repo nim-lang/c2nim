@@ -255,6 +255,8 @@ proc matchUnderscoreChars(L: var Lexer, tok: var Token, chars: set[char]) =
     if buf[pos] == '_':
       add(tok.s, '_')
       inc(pos)
+    # Later versions of C++ support numbers like 100'000
+    if buf[pos] == '\'': inc pos
   L.bufPos = pos
 
 proc isFloatLiteral(s: string): bool =
@@ -328,7 +330,7 @@ proc getNumber16(L: var Lexer, tok: var Token) =
     of 'G'..'Z', 'g'..'z':
       # ignore type suffix:
       inc(pos)
-    of '_': inc(pos)
+    of '_', '\'': inc(pos)
     of '0'..'9':
       xi = `shl`(xi, 4) or (ord(L.buf[pos]) - ord('0'))
       inc(pos)

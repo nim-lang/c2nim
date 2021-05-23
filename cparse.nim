@@ -440,7 +440,7 @@ proc declKeyword(p: Parser, s: string): bool =
       "size_t", "short", "int", "long", "float", "double", "signed", "unsigned",
       "char":
     result = true
-  of "class", "mutable", "constexpr":
+  of "class", "mutable", "constexpr", "consteval", "constinit":
     result = p.options.flags.contains(pfCpp)
   else: discard
 
@@ -464,8 +464,8 @@ proc isIntType(s: string): bool =
 proc skipConst(p: var Parser): bool =
   while p.tok.xkind == pxSymbol and
       (p.tok.s in ["const", "volatile", "restrict"] or
-      (p.tok.s in ["mutable", "constexpr"] and pfCpp in p.options.flags)):
-    if p.tok.s == "const": result = true
+      (p.tok.s in ["mutable", "constexpr", "consteval", "constinit"] and pfCpp in p.options.flags)):
+    if p.tok.s in ["const", "constexpr"]: result = true
     getTok(p, nil)
 
 proc isTemplateAngleBracket(p: var Parser): bool =
@@ -496,7 +496,7 @@ proc isTemplateAngleBracket(p: var Parser): bool =
         insertAngleRi(p.tok)
         result = true
         break
-      if angles > 1: dec(angles, 2)
+      if angles > 1: dec(angles, )
     of pxLt: inc(angles)
     of pxParRi, pxBracketRi, pxCurlyRi:
       let kind = pred(kind, 3)
@@ -1242,32 +1242,35 @@ proc parseTypedefEnum(p: var Parser, result, constSection: PNode) =
   else:
     expectIdent(p)
 
+proc parseTypeBody(p: var Parser; result, typeSection, afterStatements: PNode) =
+  inc(p.inTypeDef)
+  expectIdent(p)
+  case p.tok.s
+  of "struct": parseTypedefStruct(p, typeSection, result, isUnion=false)
+  of "union": parseTypedefStruct(p, typeSection, result, isUnion=true)
+  of "enum":
+    var constSection = newNodeP(nkConstSection, p)
+    parseTypedefEnum(p, typeSection, constSection)
+    addSon(afterStatements, constSection)
+  of "class":
+    if pfCpp in p.options.flags:
+      parseTypedefStruct(p, typeSection, result, isUnion=false)
+    else:
+      var t = typeAtom(p)
+      otherTypeDef(p, typeSection, t)
+  else:
+    var t = typeAtom(p)
+    otherTypeDef(p, typeSection, t)
+  eat(p, pxSemicolon)
+  dec(p.inTypeDef)
+
 proc parseTypeDef(p: var Parser): PNode =
   result = newNodeP(nkStmtList, p)
   var typeSection = newNodeP(nkTypeSection, p)
   var afterStatements = newNodeP(nkStmtList, p)
   while p.tok.xkind == pxSymbol and p.tok.s == "typedef":
     getTok(p, typeSection)
-    inc(p.inTypeDef)
-    expectIdent(p)
-    case p.tok.s
-    of "struct": parseTypedefStruct(p, typeSection, result, isUnion=false)
-    of "union": parseTypedefStruct(p, typeSection, result, isUnion=true)
-    of "enum":
-      var constSection = newNodeP(nkConstSection, p)
-      parseTypedefEnum(p, typeSection, constSection)
-      addSon(afterStatements, constSection)
-    of "class":
-      if pfCpp in p.options.flags:
-        parseTypedefStruct(p, typeSection, result, isUnion=false)
-      else:
-        var t = typeAtom(p)
-        otherTypeDef(p, typeSection, t)
-    else:
-      var t = typeAtom(p)
-      otherTypeDef(p, typeSection, t)
-    eat(p, pxSemicolon)
-    dec(p.inTypeDef)
+    parseTypeBody(p, result, typeSection, afterStatements)
 
   addSon(result, typeSection)
   for s in afterStatements:
@@ -1281,7 +1284,7 @@ proc skipDeclarationSpecifiers(p: var Parser) =
     of "auto":
       if pfCpp notin p.options.flags: getTok(p, nil)
       else: break
-    of "constexpr", "mutable":
+    of "constexpr", "mutable", "consteval", "constinit":
       if pfCpp in p.options.flags: getTok(p, nil)
       else: break
     of "extern":
@@ -2475,6 +2478,32 @@ proc getConverterCppType(p: var Parser): string =
     getTok(p)
   backtrackContext(p)
 
+proc usingStatement(p: var Parser): PNode =
+  result = newNodeP(nkTypeSection, p)
+  getTok(p) # skip "using"
+
+  var isTypeDecl = false
+  saveContext(p)
+  if p.tok.xkind == pxSymbol:
+    getTok(p, nil) # skip identifier
+    if p.tok.xkind == pxAsgn:
+      isTypeDecl = true
+  backtrackContext(p)
+
+  if isTypeDecl:
+    markTypeIdent(p, nil)
+    let usingName = skipIdentExport(p, skType)
+    eat(p, pxAsgn)
+    var td = newNodeP(nkTypeDef, p)
+    td.addSon(usingName, emptyNode, typeName(p))
+    result.add td
+  else:
+    # some "using" statement we don't care about:
+    while p.tok.xkind notin {pxEof, pxSemicolon}: getTok(p)
+    eat(p, pxSemicolon)
+    result = newNodeP(nkCommentStmt, p)
+    result.comment = "using statement"
+
 proc parseClass(p: var Parser; isStruct: bool;
                 stmtList, genericParams: PNode): PNode =
   result = newNodeP(nkObjectTy, p)
@@ -2504,6 +2533,8 @@ proc parseClass(p: var Parser; isStruct: bool;
         getTok(p, result)
         eat(p, pxColon, result)
         private = false
+      elif p.tok.xkind == pxSemicolon:
+        getTok(p, result)
       else:
         break
     let tmpl = parseTemplate(p)
@@ -2516,10 +2547,12 @@ proc parseClass(p: var Parser; isStruct: bool;
         gp = tmpl
     else:
       gp = genericParams
-    if p.tok.xkind == pxSymbol and (p.tok.s == "friend" or p.tok.s == "using"):
+    if p.tok.xkind == pxSymbol and p.tok.s == "friend":
       # we skip friend declarations:
       while p.tok.xkind notin {pxEof, pxSemicolon}: getTok(p)
       eat(p, pxSemicolon)
+    elif p.tok.xkind == pxSymbol and p.tok.s == "using":
+      stmtList.add(usingStatement(p))
     elif p.tok.xkind == pxSymbol and p.tok.s == "enum":
       let x = enumSpecifier(p)
       if not private or pfKeepBodies in p.options.flags: stmtList.add(x)
@@ -2545,7 +2578,7 @@ proc parseClass(p: var Parser; isStruct: bool;
         getTok(p, stmtList)
         isStatic = true
       # skip constexpr for now
-      if p.tok.xkind == pxSymbol and p.tok.s == "constexpr":
+      if p.tok.xkind == pxSymbol and p.tok.s in ["constexpr", "consteval", "constinit"]:
         getTok(p, stmtList)
 
       parseCallConv(p, pragmas)
@@ -2752,10 +2785,7 @@ proc statement(p: var Parser): PNode =
         result = declarationOrStatement(p)
     of "using":
       if pfCpp in p.options.flags:
-        while p.tok.xkind notin {pxEof, pxSemicolon}: getTok(p)
-        eat(p, pxSemicolon)
-        result = newNodeP(nkCommentStmt, p)
-        result.comment = "using statement"
+        result = usingStatement(p)
       else:
         result = declarationOrStatement(p)
     else: result = declarationOrStatement(p)

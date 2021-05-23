@@ -471,9 +471,4 @@ not nested since the ``|}`` doesn't have to be on a line of its own:
 Limitations
 ===========
 
-* C's ``,`` operator (comma operator) is not supported.
-* C's ``union`` are translated to Nim's objects and only the first field
-  is included in the object type. This way there is a high chance that it is
-  binary compatible to the union.
-* The condition in a ``do while(condition)`` statement must be ``0``.
 * Lots of other small issues...
