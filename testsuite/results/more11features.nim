@@ -33,3 +33,7 @@ proc constructDouble*(bits_: bits_type): Double {.constructor.} =
 
 proc constructDouble*(value: value_type): Double {.constructor.} =
   discard
+
+proc main*(): cint =
+  var foo: vector[int64_t] = vector[int64_t](10)
+  return 0

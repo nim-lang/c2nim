@@ -25,3 +25,11 @@ struct Double
     explicit Double(value_type value) : bits(ReinterpretBits<bits_type>(value)) {}
 
 };
+
+#include <cstdint>
+#include <vector>
+
+int main(){
+  std::vector<int64_t> foo(10);
+  return 0;
+}

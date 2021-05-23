@@ -75,6 +75,7 @@ type
     header: string
     options: PParserOptions
     backtrack: seq[ref Token]
+    backtrackB: seq[ref Token] # like backtrack, but with the possibility to ignore errors
     inTypeDef: int
     scopeCounter: int
     hasDeadCodeElimPragma: bool
@@ -173,18 +174,26 @@ proc parMessage(p: Parser, msg: TMsgKind, arg = "") =
   lexMessage(p.lex, msg, arg)
 
 proc parError(p: Parser, arg = "") =
-  lexMessage(p.lex, errGenerated, arg)
+  if p.backtrackB.len == 0:
+    lexMessage(p.lex, errGenerated, arg)
+  else:
+    raise newException(ERetryParsing, arg)
 
 proc closeParser*(p: var Parser) = closeLexer(p.lex)
+
 proc saveContext(p: var Parser) = p.backtrack.add(p.tok)
 # EITHER call 'closeContext' or 'backtrackContext':
 proc closeContext(p: var Parser) = discard p.backtrack.pop()
 proc backtrackContext(p: var Parser) = p.tok = p.backtrack.pop()
 
+proc saveContextB(p: var Parser) = p.backtrackB.add(p.tok)
+proc closeContextB(p: var Parser) = discard p.backtrackB.pop()
+proc backtrackContextB(p: var Parser) = p.tok = p.backtrackB.pop()
+
 proc rawGetTok(p: var Parser) =
   if p.tok.next != nil:
     p.tok = p.tok.next
-  elif p.backtrack.len == 0:
+  elif p.backtrack.len == 0 and p.backtrackB.len == 0:
     p.tok.next = nil
     getTok(p.lex, p.tok[])
   else:
@@ -688,10 +697,19 @@ proc parseTypeSuffix(p: var Parser, typ: PNode, isParam: bool = false): PNode =
     var pragmas = newProcPragmas(p)
     var params = newNodeP(nkFormalParams, p)
     discard addReturnType(params, result)
-    parseFormalParams(p, params, pragmas)
-    addSon(procType, params)
-    addPragmas(procType, pragmas)
-    result = parseTypeSuffix(p, procType)
+    saveContextB(p)
+    try:
+      parseFormalParams(p, params, pragmas)
+      closeContextB(p)
+
+      addSon(procType, params)
+      addPragmas(procType, pragmas)
+      result = parseTypeSuffix(p, procType)
+
+    except ERetryParsing:
+      backtrackContextB(p)
+      result = typ
+
   else: discard
 
 proc typeDesc(p: var Parser): PNode = pointer(p, typeAtom(p))
@@ -1360,6 +1378,22 @@ proc addInitializer(p: var Parser, def: PNode) =
       addSon(def, emptyNode)
     else:
       addSon(def, constructorCall)
+  elif p.tok.xkind == pxParLe and pfCpp in p.options.flags:
+    template initExpr(p: untyped): untyped = expression(p, 11)
+
+    var constructorCall = newNodeP(nkCall, p)
+    constructorCall.add copyTree(def[^1])
+    getTok(p, constructorCall)
+    while p.tok.xkind notin {pxEof, pxParRi}:
+      addSon(constructorCall, initExpr(p))
+      opt(p, pxComma, nil)
+    eat(p, pxParRi, constructorCall)
+
+    if p.options.useHeader:
+      # for headers we ignore initializer lists:
+      addSon(def, emptyNode)
+    else:
+      addSon(def, constructorCall)
   else:
     addSon(def, emptyNode)
 
@@ -1480,11 +1514,20 @@ proc declaration(p: var Parser; genericParams: PNode = emptyNode): PNode =
   case p.tok.xkind
   of pxParLe:
     # really a function!
+    saveContextB(p)
+
     var name = mangledIdent(origName, p, skProc)
     var params = newNodeP(nkFormalParams, p)
     if addReturnType(params, rettyp):
       addDiscardable(origName, pragmas, p)
-    parseFormalParams(p, params, pragmas)
+    # unless it isn't, bug #146: std::vector<int64_t> foo(10);
+    try:
+      parseFormalParams(p, params, pragmas)
+      closeContextB(p)
+    except ERetryParsing:
+      backtrackContextB(p)
+      return parseVarDecl(p, baseTyp, rettyp, origName)
+
     if pfCpp in p.options.flags and p.tok.xkind == pxSymbol and
         p.tok.s == "const":
       addSon(pragmas, newIdentNodeP("noSideEffect", p))

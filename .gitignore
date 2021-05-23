@@ -1,5 +1,6 @@
 nimcache
 testsuite/tests/*.nim
+testsuite/cppkeepbodies/*.nim
 testsuite/tester
 *.exe
 /c2nim
