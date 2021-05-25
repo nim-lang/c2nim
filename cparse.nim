@@ -19,8 +19,6 @@
 
 # TODO
 # - implement syncronization points for the parser.
-# - implement C++ lambdas.
-# - implement C++ `-> returnType` syntax.
 ## - implement C++ `decltype`
 # - `if (init; expr)` / `switch (init; expr)` syntax (C++20 or something)
 # - implement handling of '::': function declarations
@@ -448,6 +446,7 @@ proc constantExpression(p: var Parser): PNode = expression(p, 40)
 proc assignmentExpression(p: var Parser): PNode = expression(p, 30)
 proc compoundStatement(p: var Parser; newScope=true): PNode
 proc statement(p: var Parser): PNode
+template initExpr(p: untyped): untyped = expression(p, 11)
 
 proc declKeyword(p: Parser, s: string): bool =
   # returns true if it is a keyword that introduces a declaration
@@ -1005,6 +1004,9 @@ proc parseFormalParams(p: var Parser, params, pragmas: PNode) =
     if p.tok.xkind != pxComma: break
     getTok(p, params)
   eat(p, pxParRi, params)
+  if p.tok.xkind == pxArrow and pfCpp in p.options.flags:
+    getTok(p, params)
+    params[0] = typeDesc(p)
 
 proc parseCallConv(p: var Parser, pragmas: PNode) =
   while p.tok.xkind == pxSymbol:
@@ -1367,8 +1369,6 @@ proc skipThrowSpecifier(p: var Parser) =
     parseFormalParams(p, pms, pgms) #ignore
 
 proc parseInitializer(p: var Parser; kind: TNodeKind; isArray: var bool): PNode =
-  template initExpr(p: untyped): untyped = expression(p, 11)
-
   case p.tok.xkind
   of pxCurlyLe:
     result = newNodeP(kind, p)
@@ -1388,13 +1388,16 @@ proc parseInitializer(p: var Parser; kind: TNodeKind; isArray: var bool): PNode 
     result.add initExpr(p)
   of pxBracketLe:
     # designated initializer?
-    result = newNodeP(nkExprColonExpr, p)
-    getTok(p)
-    result.add initExpr(p)
-    eat(p, pxBracketRi)
-    opt(p, pxAsgn, result[^1])
-    result.add initExpr(p)
-    isArray = true
+    if pfCpp notin p.options.flags:
+      result = newNodeP(nkExprColonExpr, p)
+      getTok(p)
+      result.add initExpr(p)
+      eat(p, pxBracketRi)
+      opt(p, pxAsgn, result[^1])
+      result.add initExpr(p)
+      isArray = true
+    else:
+      result = initExpr(p)
   else:
     result = initExpr(p)
 
@@ -1423,8 +1426,6 @@ proc addInitializer(p: var Parser, def: PNode) =
     else:
       addSon(def, constructorCall)
   elif p.tok.xkind == pxParLe and pfCpp in p.options.flags:
-    template initExpr(p: untyped): untyped = expression(p, 11)
-
     var constructorCall = newNodeP(nkCall, p)
     constructorCall.add copyTree(def[^1])
     getTok(p, constructorCall)
@@ -1707,6 +1708,63 @@ proc enumSpecifier(p: var Parser): PNode =
     parError(p, "expected '{'")
     result = emptyNode
 
+when false:
+  proc looksLikeLambda(p: var Parser): bool =
+    proc skipToParEnd(p: var Parser; closePar: Tokkind): bool =
+      var counter = 0
+      result = false
+      while p.tok.xkind != pxEof:
+        if p.tok.xkind == correspondingOpenPar(closePar):
+          inc counter
+        elif p.tok.xkind == closePar:
+          if counter == 0:
+            result = true
+            getTok(p)
+            break
+        else: discard
+        getTok(p)
+
+    saveContext(p)
+
+    # note: '[' token already skipped here.
+    if skipToParEnd(p, pxBracketRi):
+      if p.tok.xkind == pxParLe:
+        getTok(p)
+        if skipToParEnd(p, pxParRi):
+          if p.tok.xkind == pxArrow:
+            getTok(p)
+            discard typeDesc(p)
+          result = p.tok.xkind == pxCurlyLe
+      else:
+        result = p.tok.xkind == pxCurlyLe
+    closeContext(p)
+
+proc parseLambda(p: var Parser): PNode =
+  result = newNodeP(nkLambda, p)
+
+  # note: '[' token already skipped here.
+  while p.tok.xkind notin {pxEof, pxBracketRi}: getTok(p)
+  eat(p, pxBracketRi, result)
+
+  var pragmas = newProcPragmas(p)
+  var params = newNodeP(nkFormalParams, p)
+  discard addReturnType(params, newIdentNodeP("auto", p))
+  if p.tok.xkind == pxParLe:
+    # C++23: parameter list is entirely optional
+    parseFormalParams(p, params, pragmas)
+  elif p.tok.xkind == pxArrow:
+    params[0] = typeDesc(p)
+
+  while p.tok.xkind == pxSymbol and p.tok.s in ["mutable", "constexpr", "consteval", "noexcept"]:
+    getTok(p, result)
+
+  let body = compoundStatement(p)
+  addSon(result, emptyNode, emptyNode, emptyNode)
+  if pragmas.len == 0:
+    pragmas = newNodeP(nkEmpty, p)
+  addSon(result, params, pragmas, emptyNode) # no exceptions
+  addSon(result, body)
+
 # Expressions
 
 proc setBaseFlags(n: PNode, base: NumericalBase) =
@@ -1832,6 +1890,11 @@ proc startExpression(p: var Parser, tok: Token): PNode =
       if p.tok.xkind == pxComma: getTok(p, result[^1])
     eat(p, pxCurlyRi)
     if isArray: result.kind = nkBracket
+  of pxBracketLe:
+    if pfCpp in p.options.flags:
+      result = newTree(nkPar, parseLambda(p))
+    else:
+      raise newException(ERetryParsing, "did not expect " & $tok)
   else:
     # probably from a failed sub expression attempt, try a type cast
     raise newException(ERetryParsing, "did not expect " & $tok)

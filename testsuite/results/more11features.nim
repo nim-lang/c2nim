@@ -88,3 +88,56 @@ type
 proc constructQObjectData*(): QObjectData {.constructor.}
 proc destroyQObjectData*(this: var QObjectData)
 proc dynamicMetaObject*(this: QObjectData): ptr QMetaObject {.noSideEffect.}
+##  C++ lambdas
+
+var ex1*: auto = (proc (x: cint): auto =
+  cout shl x shl '\n')
+
+var ex2*: auto = (proc (): auto =
+  code)
+
+var ex3*: auto = (proc (f: cfloat; a: cint): auto =
+  return a * f)
+
+var ex4*: auto = (proc (t: MyClass): cint =
+  var a: auto = t.compute()
+  return a)
+
+var ex5*: auto = (proc (a: cint; b: cint): auto =
+  return a < b)
+
+var myLambda*: auto = (proc (a: cint): cdouble =
+  return 2.0 * a)
+
+var myLambda*: auto = (proc (a: cint): auto =
+  cout shl a)
+
+var baz*: auto = (proc (): auto =
+  var x: cint = 10
+  if x < 20:
+    return x * 1.1
+  else:
+    return x * 2.1
+  )
+
+var
+  x*: cint = 1
+  y*: cint = 1
+
+(proc (): auto =
+  inc(x)
+  inc(y))()
+##  <-- call ()
+
+proc main*(): cint =
+  var x: cint = 10
+  var y: cint = 11
+  ##  Captures With an Initializer
+  var foo: auto = (proc (): auto =
+    cout shl z shl '\n')
+  foo()
+  var p: unique_ptr[cint] = unique_ptr[cint](new(int(10)))
+  var foo: auto = (proc (): auto =
+    inc(x))
+  var bar: auto = (proc (): auto = discard )
+  var baz: auto = (proc (): auto = discard )

@@ -99,3 +99,42 @@ public:
     QBindingStorage bindingStorage;
     QMetaObject *dynamicMetaObject() const;
 };
+
+// C++ lambdas
+
+auto ex1 = [] (int x) { std::cout << x << '\n'; };
+
+auto ex2 = [] ()   { code; };
+
+auto ex3 = [](float f, int a) { return a*f; };
+auto ex4 = [](MyClass t) -> int { auto a = t.compute(); return a; };
+auto ex5 = [](int a, int b) { return a < b; };
+
+auto myLambda = [](int a) -> double { return 2.0 * a; };
+
+auto myLambda = [](int a) mutable { std::cout << a; };
+
+auto baz = [] () {
+    int x = 10;
+    if ( x < 20)
+        return x * 1.1;
+    else
+        return x * 2.1;
+};
+
+int x = 1, y = 1;
+[&]() { ++x; ++y; }(); // <-- call ()
+
+
+int main() {
+    int x = 10;
+    int y = 11;
+    // Captures With an Initializer
+    auto foo = [z = x+y]() { std::cout << z << '\n'; };
+    foo();
+
+    std::unique_ptr<int> p(new int{10});
+    auto foo = [x=10] () mutable { ++x; };
+    auto bar = [ptr=std::move(p)] {};
+    auto baz = [p=std::move(p)] {};
+}
