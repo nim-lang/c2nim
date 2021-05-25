@@ -141,3 +141,9 @@ proc main*(): cint =
     inc(x))
   var bar: auto = (proc (): auto = discard )
   var baz: auto = (proc (): auto = discard )
+
+##  decltype
+
+var i*: cint
+
+var j*: typeof(i + 3)

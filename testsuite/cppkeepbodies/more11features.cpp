@@ -138,3 +138,8 @@ int main() {
     auto bar = [ptr=std::move(p)] {};
     auto baz = [p=std::move(p)] {};
 }
+
+// decltype
+int i;
+
+decltype(i+3) j;

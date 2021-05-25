@@ -19,8 +19,9 @@
 
 # TODO
 # - implement syncronization points for the parser.
-## - implement C++ `decltype`
 # - `if (init; expr)` / `switch (init; expr)` syntax (C++20 or something)
+# - implement `using` inside `switch (C++)
+# - implement `class enum` (C++)
 # - implement handling of '::': function declarations
 # - support '#if' in classes
 
@@ -457,7 +458,7 @@ proc declKeyword(p: Parser, s: string): bool =
       "size_t", "short", "int", "long", "float", "double", "signed", "unsigned",
       "char":
     result = true
-  of "class", "mutable", "constexpr", "consteval", "constinit":
+  of "class", "mutable", "constexpr", "consteval", "constinit", "decltype":
     result = p.options.flags.contains(pfCpp)
   else: discard
 
@@ -569,6 +570,13 @@ proc typeAtom(p: var Parser; isTypeDef=false): PNode =
   of "struct", "union", "enum":
     getTok(p, nil)
     result = skipIdent(p, skType)
+  elif p.tok.s == "typeof" or (p.tok.s == "decltype" and pfCpp in p.options.flags):
+    result = newNodeP(nkCall, p)
+    result.add newIdentNodeP("typeof", p)
+    getTok(p, result)
+    eat(p, pxParLe, result)
+    result.add expression(p)
+    eat(p, pxParRi, result)
   elif isIntType(p.tok.s):
     var x = ""
     #getTok(p, nil)
