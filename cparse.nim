@@ -242,7 +242,7 @@ proc parseMacroArguments(p: var Parser): seq[seq[ref Token]] =
       if i[pxParLe] > 0: dec(i[pxParLe])
       result[L].add(p.tok)
     of pxBracketRi, pxCurlyRi:
-      kind = pred(kind, 3)
+      kind = correspondingOpenPar(kind)
       if i[kind] > 0: dec(i[kind])
       result[L].add(p.tok)
     of pxComma:

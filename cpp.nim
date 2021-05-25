@@ -91,6 +91,12 @@ proc parseDefine(p: var Parser; hasParams: bool): PNode =
         break
   assert result != nil
 
+proc dontTranslateToTemplateHeuristic(body: seq[ref Token]): bool =
+  body.len == 0 or body[0].s.startsWith("__") or
+    body[0].s in ["extern", "case", "else", "default"] or
+    body[0].xkind in {pxComma, pxColon, pxAsgn, pxEquals, pxDot,
+                      pxDotDotDot, pxLe, pxLt, pxGe, pxGt, pxNeq}
+
 proc parseDefBody(p: var Parser, m: var Macro, params: seq[string]): bool =
   # we return whether the body looked like a typical '#def' body. This is a
   # heuristic but it works well.
@@ -100,6 +106,8 @@ proc parseDefBody(p: var Parser, m: var Macro, params: seq[string]): bool =
   # put into a newly allocated TToken object. Thus we can just save a
   # reference to the token in the macro's body.
   saveContext(p)
+
+  var parentheses: array[pxParLe..pxCurlyLe, int]
   while p.tok.xkind notin {pxEof, pxNewLine, pxLineComment}:
     case p.tok.xkind
     of pxSymbol, pxDirective, pxDirectiveParLe:
@@ -113,6 +121,16 @@ proc parseDefBody(p: var Parser, m: var Macro, params: seq[string]): bool =
           tok.iNumber = i
           break
       m.body.add(tok)
+    of pxParLe, pxBracketLe, pxCurlyLe:
+      inc(parentheses[p.tok.xkind])
+      m.body.add(p.tok)
+    of pxParRi, pxBracketRi, pxCurlyRi:
+      let kind = correspondingOpenPar(p.tok.xkind)
+      if parentheses[kind] > 0: dec(parentheses[kind])
+      else:
+        # unpaired ')' or ']' or '}' --> enable "cannot translate to template heuristic"
+        result = true
+      m.body.add(p.tok)
     else:
       m.body.add(p.tok)
     # we do not want macro expansion here:
@@ -121,7 +139,7 @@ proc parseDefBody(p: var Parser, m: var Macro, params: seq[string]): bool =
   closeContext(p)
   # newline token might be overwritten, but this is not
   # part of the macro body, so it is safe.
-  if m.body.len == 0 or m.body[0].s.startsWith("__") or m.body[0].s == "extern":
+  if dontTranslateToTemplateHeuristic(m.body):
     result = true
 
 proc parseDef(p: var Parser, m: var Macro; hasParams: bool): bool =

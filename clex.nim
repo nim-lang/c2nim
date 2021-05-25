@@ -88,11 +88,14 @@ type
     pxFloatLit,
     pxParLe, pxBracketLe, pxCurlyLe, # this order is important
     pxParRi, pxBracketRi, pxCurlyRi, # for macro argument parsing!
+                                     # see also `correspondingOpenPar`
     pxComma, pxSemiColon, pxColon,
     pxAngleRi,                # '>' but determined to be the end of a
                               # template's angle bracket
     pxVerbatim                # #@ verbatim Nim code @#
   Tokkinds* = set[Tokkind]
+
+template correspondingOpenPar*(kind: Tokkind): Tokkind = pred(kind, 3)
 
 type
   NumericalBase* = enum base10, base2, base8, base16
