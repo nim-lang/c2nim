@@ -13,7 +13,7 @@ Introduction
   "We all make choices. But in the end our choices make us."
 
 
-c2nim is a tool to translate Ansi C code to Nim. The output is
+c2nim is a tool to translate ANSI C/C++ code to Nim. The output is
 human-readable Nim code that is meant to be tweaked by hand after the
 translation process. c2nim is no real compiler!
 
@@ -35,7 +35,7 @@ Is translated into:
 
 
 c2nim is meant to translate fragments of C code and thus does not follow
-include files. c2nim cannot parse all of Ansi C and many constructs cannot
+include files. c2nim cannot parse all of ANSI C/C++ and many constructs cannot
 be represented in Nim: for example `duff's device`:idx: cannot be translated
 to Nim.
 
@@ -78,14 +78,12 @@ Is translated into:
     template OUT*(x: expr): expr =
       printf("%s\x0A", x)
   else:
-    template OUT*(x: expr): stmt =
-      discard
+    discard
 
 As can be seen from the example, C's macros with parameters are mapped
 to Nim's templates. This mapping is the best one can do, but it is of course
 not accurate: Nim's templates operate on syntax trees whereas C's
-macros work on the token level. c2nim cannot translate any macro that contains
-the ``##`` token concatenation operator.
+macros work on the token level.
 
 c2nim's preprocessor supports special directives that affect how the output
 is generated. They should be put into a ``#ifdef C2NIM`` section so that
@@ -98,8 +96,8 @@ ordinary C compilers ignore them.
 used for the same purpose.
 
 By default, c2nim translates an ``#include`` that is not followed by ``<``
-(like in ``#include <stdlib>``) to a Nim ``import`` statement. This
-directive tells c2nim to just skip any ``#include``.
+(like in ``#include <stdlib>``) to a Nim ``import`` statement. With this
+directive enabled, c2nim skips any ``#include``.
 
 
 ``#stdcall`` and ``#cdecl`` directives
@@ -116,7 +114,7 @@ with the ``stdcall`` / ``cdecl`` calling convention.
 **Note**: There is also a ``--dynlib`` command line option that can be used for
 the same purpose.
 
-This directive tells c2nim that it should annotate every proc that resulted
+This directive enables that c2nim does annotate every proc that resulted
 from a C function prototype with the ``dynlib`` pragma:
 
 .. code-block:: C
@@ -158,7 +156,7 @@ in the generated Nim code.
 **Note**: There is also a ``--header`` command line option that can be used for
 the same purpose.
 
-The ``#header`` directive tells c2nim that it should annotate every proc that
+The ``#header`` directive enables that c2nim annotates every proc that
 resulted from a C function prototype and every exported variable and type with
 the ``header`` pragma:
 
