@@ -143,3 +143,5 @@ int main() {
 int i;
 
 decltype(i+3) j;
+
+typedef std::function<void(void)> Foo;

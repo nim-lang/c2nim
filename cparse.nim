@@ -544,6 +544,11 @@ proc optScope(p: var Parser, n: PNode; kind: TSymKind): PNode =
         result.add(mangledIdent(p.tok.s, p, kind))
       getTok(p, result)
 
+proc parseTypeSuffix(p: var Parser, typ: PNode, isParam: bool = false): PNode
+proc parseTemplateParamType(p: var Parser): PNode =
+  result = typeDesc(p)
+  result = parseTypeSuffix(p, result)
+
 proc optAngle(p: var Parser, n: PNode): PNode =
   if p.tok.xkind == pxLt and isTemplateAngleBracket(p):
     getTok(p)
@@ -551,7 +556,7 @@ proc optAngle(p: var Parser, n: PNode): PNode =
     result.add(n)
     inc p.inAngleBracket
     while true:
-      let a = if p.tok.xkind == pxSymbol: typeDesc(p)
+      let a = if p.tok.xkind == pxSymbol: parseTemplateParamType(p)
               else: assignmentExpression(p)
       if not a.isNil: result.add(a)
       if p.tok.xkind != pxComma: break
@@ -972,7 +977,7 @@ proc directDeclarator(p: var Parser, a: PNode, ident: ptr PNode): PNode =
       eat(p, pxParRi, result)
   else:
     discard
-  return parseTypeSuffix(p, a, true)
+  result = parseTypeSuffix(p, a, true)
 
 proc declarator(p: var Parser, a: PNode, ident: ptr PNode): PNode =
   directDeclarator(p, pointer(p, a), ident)

@@ -147,3 +147,6 @@ proc main*(): cint =
 var i*: cint
 
 var j*: typeof(i + 3)
+
+type
+  Foo* = function[proc ()]
