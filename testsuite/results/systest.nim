@@ -76,6 +76,13 @@ type
     buffer_height*: JDIMENSION
 
 
+##  bug #148
+
+type
+  jpeg_decompress_struct* {.bycopy.} = object
+    coef_bits*: ptr array[64, cint]
+
+
 ##  Test standalone structs:
 
 type

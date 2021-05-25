@@ -604,6 +604,22 @@ proc newPointerTy(p: Parser, typ: PNode): PNode =
     result = newNodeP(nkPtrTy, p)
   result.addSon(typ)
 
+proc pointersOf(p: Parser; a: PNode; count: int): PNode =
+  if count == 0:
+    result = a
+  elif a.kind == nkIdent and a.ident.s == "char":
+    if count >= 2:
+      result = newIdentNodeP("cstringArray", p)
+      for j in 1..count-2: result = newPointerTy(p, result)
+    elif count == 1: result = newIdentNodeP("cstring", p)
+  elif a.kind == nkNilLit and count > 0:
+    result = newIdentNodeP("pointer", p)
+    for j in 1..count-1: result = newPointerTy(p, result)
+  else:
+    result = a
+    for j in 1..count - ord(a.kind == nkProcTy):
+      result = newPointerTy(p, result)
+
 proc pointer(p: var Parser, a: PNode): PNode =
   result = a
   var i = 0
@@ -631,14 +647,8 @@ proc pointer(p: var Parser, a: PNode): PNode =
         result = newNodeP(nkVarTy, p)
         result.add(b)
     else: break
-  if a.kind == nkIdent and a.ident.s == "char":
-    if i >= 2:
-      result = newIdentNodeP("cstringArray", p)
-      for j in 1..i-2: result = newPointerTy(p, result)
-    elif i == 1: result = newIdentNodeP("cstring", p)
-  elif a.kind == nkNilLit and i > 0:
-    result = newIdentNodeP("pointer", p)
-    for j in 1..i-1: result = newPointerTy(p, result)
+  if i > 0:
+    result = pointersOf(p, a, i)
 
 proc newProcPragmas(p: Parser): PNode =
   result = newNodeP(nkPragma, p)
@@ -736,11 +746,13 @@ proc abstractDeclarator(p: var Parser, a: PNode): PNode =
 
 proc typeName(p: var Parser): PNode = abstractDeclarator(p, typeAtom(p))
 
-proc parseField(p: var Parser, kind: TNodeKind): PNode =
+proc parseField(p: var Parser, kind: TNodeKind; pointers: var int): PNode =
   if p.tok.xkind == pxParLe:
     getTok(p, nil)
-    while p.tok.xkind == pxStar: getTok(p, nil)
-    result = parseField(p, kind)
+    while p.tok.xkind == pxStar:
+      getTok(p, nil)
+      inc pointers
+    result = parseField(p, kind, pointers)
     eat(p, pxParRi, result)
   else:
     expectIdent(p)
@@ -844,8 +856,9 @@ proc parseStructBody(p: var Parser, stmtList: PNode,
     while true:
       var def = newNodeP(nkIdentDefs, p)
       var t = pointer(p, baseTyp)
-      var i = parseField(p, kind)
-      t = parseTypeSuffix(p, t)
+      var fieldPointers = 0
+      var i = parseField(p, kind, fieldPointers)
+      t = pointersOf(p, parseTypeSuffix(p, t), fieldPointers)
       if p.tok.xkind == pxColon:
         getTok(p)
         var bits = p.tok.iNumber
@@ -2695,7 +2708,8 @@ proc parseClass(p: var Parser; isStruct: bool;
               break
             origName = p.tok.s
 
-          var i = parseField(p, nkRecList)
+          var fieldPointers = 0
+          var i = parseField(p, nkRecList, fieldPointers)
           if origName.len > 0 and p.tok.xkind == pxParLe:
             let meth = parseMethod(p, origName, t, pragmas, isStatic, false,
                                    hasPointlessPar, gp, genericParams)
@@ -2703,7 +2717,7 @@ proc parseClass(p: var Parser; isStruct: bool;
               stmtList.add(meth)
           else:
             if hasPointlessPar: eat(p, pxParRi)
-            t = parseTypeSuffix(p, t)
+            t = pointersOf(p, parseTypeSuffix(p, t), fieldPointers)
             var value = emptyNode
             if p.tok.xkind == pxAsgn:
               getTok(p, def)

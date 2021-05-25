@@ -102,6 +102,12 @@ struct cjpeg_source_struct {
   JDIMENSION buffer_height;
 };
 
+// bug #148
+
+struct jpeg_decompress_struct {
+  int (*coef_bits)[64];
+};
+
 // Test standalone structs:
 
 union myunion {
