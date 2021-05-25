@@ -2709,6 +2709,153 @@ proc toVariableDecl(def: PNode; isConst: bool): PNode =
   result = newNodeI(if isConst: nkConstSection else: nkVarSection, def.info)
   result.add def
 
+proc parseVisibility(p: var Parser; result: PNode; private: var bool) =
+  # empty visibility sections are allowed and used extensively for wxWidgets:
+  while true:
+    if p.tok.xkind == pxSymbol and (p.tok.s == "private" or
+                                    p.tok.s == "protected"):
+      getTok(p, result)
+      eat(p, pxColon, result)
+      private = true
+    elif p.tok.xkind == pxSymbol and p.tok.s == "public":
+      getTok(p, result)
+      eat(p, pxColon, result)
+      private = false
+    elif p.tok.xkind == pxSemicolon:
+      getTok(p, result)
+    else:
+      break
+
+proc parseClassSnippet(p: var Parser; result, recList, stmtList, genericParams: PNode;
+                       pragmas: var PNode; private: bool) =
+  let tmpl = parseTemplate(p)
+  var gp: PNode
+  if tmpl.kind != nkEmpty:
+    if genericParams.kind != nkEmpty:
+      gp = genericParams.copyTree
+      for x in tmpl: gp.add x
+    else:
+      gp = tmpl
+  else:
+    gp = genericParams
+  if p.tok.xkind == pxSymbol and p.tok.s == "friend":
+    # we skip friend declarations:
+    while p.tok.xkind notin {pxEof, pxSemicolon}: getTok(p)
+    eat(p, pxSemicolon)
+  elif p.tok.xkind == pxSymbol and p.tok.s == "using":
+    stmtList.add(usingStatement(p))
+  elif p.tok.xkind == pxSymbol and p.tok.s == "enum":
+    let x = enumSpecifier(p)
+    if not private or pfKeepBodies in p.options.flags: stmtList.add(x)
+  elif p.tok.xkind == pxSymbol and p.tok.s == "typedef":
+    let x = parseTypeDef(p)
+    if not private or pfKeepBodies in p.options.flags: stmtList.add(x)
+  elif p.tok.xkind == pxSymbol and p.tok.s in ["struct", "class"]:
+    let x = parseStandaloneClass(p, isStruct=p.tok.s == "struct", gp)
+    if not private or pfKeepBodies in p.options.flags: stmtList.add(x)
+  elif p.tok.xkind == pxSymbol and p.tok.s == "union":
+    let x = parseStandaloneStruct(p, isUnion=true, gp)
+    if not private or pfKeepBodies in p.options.flags: stmtList.add(x)
+  elif p.tok.xkind == pxCurlyRi: discard
+  else:
+    if pragmas.len != 0: pragmas = newNodeP(nkPragma, p)
+    parseCallConv(p, pragmas)
+    var isStatic = false
+    if p.tok.xkind == pxSymbol and p.tok.s == "virtual":
+      getTok(p, stmtList)
+    if p.tok.xkind == pxSymbol and p.tok.s == "explicit":
+      getTok(p, stmtList)
+    if p.tok.xkind == pxSymbol and p.tok.s == "static":
+      getTok(p, stmtList)
+      isStatic = true
+    # skip constexpr for now
+    var isConst = false
+    if p.tok.xkind == pxSymbol and p.tok.s in ["constexpr", "consteval", "constinit"]:
+      getTok(p, stmtList)
+      isConst = true
+
+    parseCallConv(p, pragmas)
+    if p.tok.xkind == pxSymbol and p.tok.s == p.currentClassOrig and
+        followedByParLe(p):
+      # constructor
+      let cons = parseConstructor(p, pragmas, isDestructor=false,
+                                  gp, genericParams)
+      if not private or pfKeepBodies in p.options.flags: stmtList.add(cons)
+    elif p.tok.xkind == pxTilde:
+      # destructor
+      getTok(p, stmtList)
+      if p.tok.xkind == pxSymbol and p.tok.s == p.currentClassOrig:
+        let des = parseConstructor(p, pragmas, isDestructor=true,
+                                    gp, genericParams)
+        if not private or pfKeepBodies in p.options.flags: stmtList.add(des)
+      else:
+        parError(p, "invalid destructor")
+    elif p.tok.xkind == pxSymbol and p.tok.s == "operator":
+      let origName = getConverterCppType(p)
+      var baseTyp = typeAtom(p)
+      var t = pointer(p, baseTyp)
+      let meth = parseMethod(p, origName, t, pragmas, isStatic, true,
+                              false, gp, genericParams)
+      if not private or pfKeepBodies in p.options.flags:
+        meth.kind = nkConverterDef
+        # don't add trivial operators that Nim ends up using anyway:
+        if origName notin ["=", "!=", ">", ">="]:
+          stmtList.add(meth)
+    else:
+      # field declaration or method:
+      if p.tok.xkind == pxSemicolon:
+        getTok(p)
+        skipCom(p, stmtList)
+      var baseTyp = typeAtom(p)
+      while true:
+        var def = newNodeP(nkIdentDefs, p)
+        var t = pointer(p, baseTyp)
+        var hasPointlessPar = p.tok.xkind == pxParLe
+        if hasPointlessPar: getTok(p)
+        var origName: string
+        if p.tok.xkind == pxSymbol:
+          if p.tok.s == "operator":
+            origName = ""
+            var isConverter = parseOperator(p, origName)
+            let meth = parseMethod(p, origName, t, pragmas, isStatic, true,
+                                    false, gp, genericParams)
+            if not private or pfKeepBodies in p.options.flags:
+              if isConverter: meth.kind = nkConverterDef
+              # don't add trivial operators that Nim ends up using anyway:
+              if origName notin ["=", "!=", ">", ">="]:
+                stmtList.add(meth)
+            break
+          origName = p.tok.s
+
+        var fieldPointers = 0
+        var i = parseField(p, nkRecList, fieldPointers)
+        if origName.len > 0 and p.tok.xkind == pxParLe:
+          let meth = parseMethod(p, origName, t, pragmas, isStatic, false,
+                                  hasPointlessPar, gp, genericParams)
+          if not private or pfKeepBodies in p.options.flags:
+            stmtList.add(meth)
+        else:
+          if hasPointlessPar: eat(p, pxParRi)
+          t = pointersOf(p, parseTypeSuffix(p, t), fieldPointers)
+          i = parseBitfield(p, i)
+          var value = emptyNode
+          if p.tok.xkind == pxAsgn:
+            getTok(p, def)
+            value = assignmentExpression(p)
+          if not private or pfKeepBodies in p.options.flags:
+            addSon(def, i, t, value)
+          if not isStatic:
+            addSon(recList, def)
+          elif pfKeepBodies in p.options.flags:
+            addSon(stmtList, toVariableDecl(def, isConst))
+        if p.tok.xkind != pxComma: break
+        getTok(p, def)
+      if p.tok.xkind == pxSemicolon:
+        if recList.len > 0:
+          getTok(p, lastSon(recList))
+        else:
+          getTok(p, recList)
+
 proc parseClass(p: var Parser; isStruct: bool;
                 stmtList, genericParams: PNode): PNode =
   result = newNodeP(nkObjectTy, p)
@@ -2727,148 +2874,8 @@ proc parseClass(p: var Parser; isStruct: bool;
   var pragmas = newNodeP(nkPragma, p)
   while p.tok.xkind notin {pxEof, pxCurlyRi}:
     skipCom(p, stmtList)
-    # empty visibility sections are allowed and used extensively for wxWidgets:
-    while true:
-      if p.tok.xkind == pxSymbol and (p.tok.s == "private" or
-                                      p.tok.s == "protected"):
-        getTok(p, result)
-        eat(p, pxColon, result)
-        private = true
-      elif p.tok.xkind == pxSymbol and p.tok.s == "public":
-        getTok(p, result)
-        eat(p, pxColon, result)
-        private = false
-      elif p.tok.xkind == pxSemicolon:
-        getTok(p, result)
-      else:
-        break
-    let tmpl = parseTemplate(p)
-    var gp: PNode
-    if tmpl.kind != nkEmpty:
-      if genericParams.kind != nkEmpty:
-        gp = genericParams.copyTree
-        for x in tmpl: gp.add x
-      else:
-        gp = tmpl
-    else:
-      gp = genericParams
-    if p.tok.xkind == pxSymbol and p.tok.s == "friend":
-      # we skip friend declarations:
-      while p.tok.xkind notin {pxEof, pxSemicolon}: getTok(p)
-      eat(p, pxSemicolon)
-    elif p.tok.xkind == pxSymbol and p.tok.s == "using":
-      stmtList.add(usingStatement(p))
-    elif p.tok.xkind == pxSymbol and p.tok.s == "enum":
-      let x = enumSpecifier(p)
-      if not private or pfKeepBodies in p.options.flags: stmtList.add(x)
-    elif p.tok.xkind == pxSymbol and p.tok.s == "typedef":
-      let x = parseTypeDef(p)
-      if not private or pfKeepBodies in p.options.flags: stmtList.add(x)
-    elif p.tok.xkind == pxSymbol and p.tok.s in ["struct", "class"]:
-      let x = parseStandaloneClass(p, isStruct=p.tok.s == "struct", gp)
-      if not private or pfKeepBodies in p.options.flags: stmtList.add(x)
-    elif p.tok.xkind == pxSymbol and p.tok.s == "union":
-      let x = parseStandaloneStruct(p, isUnion=true, gp)
-      if not private or pfKeepBodies in p.options.flags: stmtList.add(x)
-    elif p.tok.xkind == pxCurlyRi: discard
-    else:
-      if pragmas.len != 0: pragmas = newNodeP(nkPragma, p)
-      parseCallConv(p, pragmas)
-      var isStatic = false
-      if p.tok.xkind == pxSymbol and p.tok.s == "virtual":
-        getTok(p, stmtList)
-      if p.tok.xkind == pxSymbol and p.tok.s == "explicit":
-        getTok(p, stmtList)
-      if p.tok.xkind == pxSymbol and p.tok.s == "static":
-        getTok(p, stmtList)
-        isStatic = true
-      # skip constexpr for now
-      var isConst = false
-      if p.tok.xkind == pxSymbol and p.tok.s in ["constexpr", "consteval", "constinit"]:
-        getTok(p, stmtList)
-        isConst = true
-
-      parseCallConv(p, pragmas)
-      if p.tok.xkind == pxSymbol and p.tok.s == p.currentClassOrig and
-          followedByParLe(p):
-        # constructor
-        let cons = parseConstructor(p, pragmas, isDestructor=false,
-                                    gp, genericParams)
-        if not private or pfKeepBodies in p.options.flags: stmtList.add(cons)
-      elif p.tok.xkind == pxTilde:
-        # destructor
-        getTok(p, stmtList)
-        if p.tok.xkind == pxSymbol and p.tok.s == p.currentClassOrig:
-          let des = parseConstructor(p, pragmas, isDestructor=true,
-                                     gp, genericParams)
-          if not private or pfKeepBodies in p.options.flags: stmtList.add(des)
-        else:
-          parError(p, "invalid destructor")
-      elif p.tok.xkind == pxSymbol and p.tok.s == "operator":
-        let origName = getConverterCppType(p)
-        var baseTyp = typeAtom(p)
-        var t = pointer(p, baseTyp)
-        let meth = parseMethod(p, origName, t, pragmas, isStatic, true,
-                                false, gp, genericParams)
-        if not private or pfKeepBodies in p.options.flags:
-          meth.kind = nkConverterDef
-          # don't add trivial operators that Nim ends up using anyway:
-          if origName notin ["=", "!=", ">", ">="]:
-            stmtList.add(meth)
-      else:
-        # field declaration or method:
-        if p.tok.xkind == pxSemicolon:
-          getTok(p)
-          skipCom(p, stmtList)
-        var baseTyp = typeAtom(p)
-        while true:
-          var def = newNodeP(nkIdentDefs, p)
-          var t = pointer(p, baseTyp)
-          var hasPointlessPar = p.tok.xkind == pxParLe
-          if hasPointlessPar: getTok(p)
-          var origName: string
-          if p.tok.xkind == pxSymbol:
-            if p.tok.s == "operator":
-              origName = ""
-              var isConverter = parseOperator(p, origName)
-              let meth = parseMethod(p, origName, t, pragmas, isStatic, true,
-                                     false, gp, genericParams)
-              if not private or pfKeepBodies in p.options.flags:
-                if isConverter: meth.kind = nkConverterDef
-                # don't add trivial operators that Nim ends up using anyway:
-                if origName notin ["=", "!=", ">", ">="]:
-                  stmtList.add(meth)
-              break
-            origName = p.tok.s
-
-          var fieldPointers = 0
-          var i = parseField(p, nkRecList, fieldPointers)
-          if origName.len > 0 and p.tok.xkind == pxParLe:
-            let meth = parseMethod(p, origName, t, pragmas, isStatic, false,
-                                   hasPointlessPar, gp, genericParams)
-            if not private or pfKeepBodies in p.options.flags:
-              stmtList.add(meth)
-          else:
-            if hasPointlessPar: eat(p, pxParRi)
-            t = pointersOf(p, parseTypeSuffix(p, t), fieldPointers)
-            i = parseBitfield(p, i)
-            var value = emptyNode
-            if p.tok.xkind == pxAsgn:
-              getTok(p, def)
-              value = assignmentExpression(p)
-            if not private or pfKeepBodies in p.options.flags:
-              addSon(def, i, t, value)
-            if not isStatic:
-              addSon(recList, def)
-            elif pfKeepBodies in p.options.flags:
-              addSon(stmtList, toVariableDecl(def, isConst))
-          if p.tok.xkind != pxComma: break
-          getTok(p, def)
-        if p.tok.xkind == pxSemicolon:
-          if recList.len > 0:
-            getTok(p, lastSon(recList))
-          else:
-            getTok(p, recList)
+    parseVisibility(p, result, private)
+    parseClassSnippet(p, result, recList, stmtList, genericParams, pragmas, private)
     opt(p, pxSemicolon, nil)
   eat(p, pxCurlyRi, result)
 
