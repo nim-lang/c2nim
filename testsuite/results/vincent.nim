@@ -14,7 +14,7 @@ proc main*(): cint =
     f: cfloat = 0.2
     g: cfloat = 2.0
     h: cfloat = 1.0 + rand()
-    i: cfloat = 1000.0
+    i: cfloat = 1.0e+3
   var
     j: cint
     a: cint

@@ -134,7 +134,7 @@ var
 ##  Test C2NIM skipping:
 
 template MASK*(x: untyped): untyped =
-  ((x) and 0x000000FF)
+  ((x) and 0xff)
 
 template CAST1*(x: untyped): untyped =
   ((int) and x)

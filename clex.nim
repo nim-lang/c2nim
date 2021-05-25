@@ -100,14 +100,12 @@ template correspondingOpenPar*(kind: Tokkind): Tokkind = pred(kind, 3)
 type
   NumericalBase* = enum base10, base2, base8, base16
   Token* = object
-    xkind*: Tokkind          # the type of the token
-    s*: string                # parsed symbol, char or string literal
-    iNumber*: BiggestInt      # the parsed integer literal;
-                              # if xkind == pxMacroParam: parameter's position
-    fNumber*: BiggestFloat    # the parsed floating point literal
-    base*: NumericalBase     # the numerical base; only valid for int
+    xkind*: Tokkind           # the type of the token
+    s*: string                # parsed symbol, char, number or string literal
+    position*: int            # if xkind == pxMacroParam: parameter's position
+    base*: NumericalBase      # the numerical base; only valid for int
                               # or float literals
-    next*: ref Token         # for C we need arbitrary look-ahead :-(
+    next*: ref Token          # for C we need arbitrary look-ahead :-(
 
   Lexer* = object of TBaseLexer
     fileIdx*: (when declared(FileIndex): FileIndex else: int32)
@@ -118,9 +116,8 @@ var
 
 proc fillToken(L: var Token) =
   L.xkind = pxInvalid
-  L.iNumber = 0
+  L.position = 0
   L.s = ""
-  L.fNumber = 0.0
   L.base = base10
 
 when declared(NimCompilerApiVersion):
@@ -233,9 +230,8 @@ proc tokKindToStr*(k: Tokkind): string =
 
 proc `$`*(tok: Token): string =
   case tok.xkind
-  of pxSymbol, pxInvalid, pxStarComment, pxLineComment, pxStrLit: result = tok.s
-  of pxIntLit, pxInt64Lit: result = $tok.iNumber
-  of pxFloatLit: result = $tok.fNumber
+  of pxIntLit, pxInt64Lit, pxFloatLit, pxSymbol, pxInvalid, pxStarComment, pxLineComment, pxStrLit:
+    result = tok.s
   else: result = tokKindToStr(tok.xkind)
 
 proc debugTok*(L: Lexer; tok: Token): string =
@@ -269,8 +265,8 @@ proc isFloatLiteral(s: string): bool =
 
 proc getNumber2(L: var Lexer, tok: var Token) =
   var pos = L.bufpos + 2 # skip 0b
+  tok.s.add "0b"
   tok.base = base2
-  var xi: BiggestInt = 0
   var bits = 0
   while true:
     case L.buf[pos]
@@ -282,23 +278,24 @@ proc getNumber2(L: var Lexer, tok: var Token) =
         lexMessage(L, errInvalidNumber)
       else:
         lexMessage(L, errGenerated, "invalid number")
+      tok.s.add L.buf[pos]
       inc(pos)
     of '_':
+      tok.s.add L.buf[pos]
       inc(pos)
     of '0', '1':
-      xi = `shl`(xi, 1) or (ord(L.buf[pos]) - ord('0'))
+      tok.s.add L.buf[pos]
       inc(pos)
       inc(bits)
     else: break
-  tok.iNumber = xi
   if (bits > 32): tok.xkind = pxInt64Lit
   else: tok.xkind = pxIntLit
   L.bufpos = pos
 
 proc getNumber8(L: var Lexer, tok: var Token) =
   var pos = L.bufpos + 1 # skip 0
+  tok.s.add "0o"
   tok.base = base8
-  var xi: BiggestInt = 0
   var bits = 0
   while true:
     case L.buf[pos]
@@ -314,19 +311,18 @@ proc getNumber8(L: var Lexer, tok: var Token) =
     of '_':
       inc(pos)
     of '0'..'7':
-      xi = `shl`(xi, 3) or (ord(L.buf[pos]) - ord('0'))
+      tok.s.add L.buf[pos]
       inc(pos)
       inc(bits)
     else: break
-  tok.iNumber = xi
   if (bits > 12): tok.xkind = pxInt64Lit
   else: tok.xkind = pxIntLit
   L.bufpos = pos
 
 proc getNumber16(L: var Lexer, tok: var Token) =
   var pos = L.bufpos + 2          # skip 0x
+  tok.s.add "0x"
   tok.base = base16
-  var xi: BiggestInt = 0
   var bits = 0
   while true:
     case L.buf[pos]
@@ -335,19 +331,18 @@ proc getNumber16(L: var Lexer, tok: var Token) =
       inc(pos)
     of '_', '\'': inc(pos)
     of '0'..'9':
-      xi = `shl`(xi, 4) or (ord(L.buf[pos]) - ord('0'))
+      tok.s.add L.buf[pos]
       inc(pos)
       inc(bits, 4)
     of 'a'..'f':
-      xi = `shl`(xi, 4) or (ord(L.buf[pos]) - ord('a') + 10)
+      tok.s.add L.buf[pos]
       inc(pos)
       inc(bits, 4)
     of 'A'..'F':
-      xi = `shl`(xi, 4) or (ord(L.buf[pos]) - ord('A') + 10)
+      tok.s.add L.buf[pos]
       inc(pos)
       inc(bits, 4)
     else: break
-  tok.iNumber = xi
   if bits > 32: tok.xkind = pxInt64Lit
   else: tok.xkind = pxIntLit
   L.bufpos = pos
@@ -361,6 +356,7 @@ proc getFloating(L: var Lexer, tok: var Token) =
       add(tok.s, L.buf[L.bufpos])
       inc(L.bufpos)
     matchUnderscoreChars(L, tok, {'0'..'9'})
+  if tok.s.endsWith('.'): tok.s.add '0'
 
 proc getNumber(L: var Lexer, tok: var Token) =
   tok.base = base10
@@ -375,20 +371,16 @@ proc getNumber(L: var Lexer, tok: var Token) =
         add(tok.s, L.buf[L.bufpos])
         inc(L.bufpos)
       getFloating(L, tok)
-  try:
-    if isFloatLiteral(tok.s):
-      tok.fnumber = parseFloat(tok.s)
-      tok.xkind = pxFloatLit
-    else:
-      tok.iNumber = parseBiggestInt(tok.s)
-      if (tok.iNumber < low(int32)) or (tok.iNumber > high(int32)):
-        tok.xkind = pxInt64Lit
-      else:
+  if isFloatLiteral(tok.s):
+    tok.xkind = pxFloatLit
+  else:
+    tok.xkind = pxInt64Lit
+    try:
+      let asInt = parseBiggestInt(tok.s)
+      if asInt >= low(int32) and asInt <= high(int32):
         tok.xkind = pxIntLit
-  except ValueError:
-    lexMessage(L, errGenerated, "invalid number: " & tok.s)
-  except OverflowDefect:
-    lexMessage(L, errGenerated, "number out of range: " & tok.s)
+    except ValueError, OverflowDefect:
+      discard
   # ignore type suffix:
   while L.buf[L.bufpos] in {'A'..'Z', 'a'..'z'}: inc(L.bufpos)
 

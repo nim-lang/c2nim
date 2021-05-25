@@ -118,7 +118,7 @@ proc parseDefBody(p: var Parser, m: var Macro, params: seq[string]): bool =
         if params[i] == p.tok.s:
           new(tok)
           tok.xkind = if isSymbol: pxMacroParam else: pxMacroParamToStr
-          tok.iNumber = i
+          tok.position = i
           break
       m.body.add(tok)
     of pxParLe, pxBracketLe, pxCurlyLe:

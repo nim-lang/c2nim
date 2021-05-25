@@ -327,33 +327,24 @@ proc atom(g: TSrcGen; n: PNode): string =
   of nkRStrLit: result = "r\"" & replace(n.strVal, "\"", "\"\"") & '\"'
   of nkTripleStrLit: result = "\"\"\"" & n.strVal & "\"\"\""
   of nkCharLit:
-    result = "\'"
-    result.addEscapedChar(chr(int(n.intVal)));
-    result.add '\''
-  of nkIntLit: result = litAux(g, n, n.intVal, 4)
-  of nkInt8Lit: result = litAux(g, n, n.intVal, 1) & "\'i8"
-  of nkInt16Lit: result = litAux(g, n, n.intVal, 2) & "\'i16"
-  of nkInt32Lit: result = litAux(g, n, n.intVal, 4) & "\'i32"
-  of nkInt64Lit: result = litAux(g, n, n.intVal, 8) & "\'i64"
-  of nkUIntLit: result = ulitAux(g, n, n.intVal, 4) & "\'u"
-  of nkUInt8Lit: result = ulitAux(g, n, n.intVal, 1) & "\'u8"
-  of nkUInt16Lit: result = ulitAux(g, n, n.intVal, 2) & "\'u16"
-  of nkUInt32Lit: result = ulitAux(g, n, n.intVal, 4) & "\'u32"
-  of nkUInt64Lit: result = ulitAux(g, n, n.intVal, 8) & "\'u64"
+    result = ""
+    result.addQuoted(n.strVal[0])
+  of nkIntLit: result = n.strVal
+  of nkInt8Lit: result = n.strVal & "\'i8"
+  of nkInt16Lit: result = n.strVal & "\'i16"
+  of nkInt32Lit: result = n.strVal & "\'i32"
+  of nkInt64Lit: result = n.strVal & "\'i64"
+  of nkUIntLit: result = n.strVal & "\'u"
+  of nkUInt8Lit: result = n.strVal & "\'u8"
+  of nkUInt16Lit: result = n.strVal & "\'u16"
+  of nkUInt32Lit: result = n.strVal & "\'u32"
+  of nkUInt64Lit: result = n.strVal & "\'u64"
   of nkFloatLit:
-    if n.flags * {nfBase2, nfBase8, nfBase16} == {}: result = $(n.floatVal)
-    else: result = litAux(g, n, (cast[PInt64](addr(n.floatVal)))[] , 8)
+    result = n.strVal
   of nkFloat32Lit:
-    if n.flags * {nfBase2, nfBase8, nfBase16} == {}:
-      result = $n.floatVal & "\'f32"
-    else:
-      f = n.floatVal.float32
-      result = litAux(g, n, (cast[PInt32](addr(f)))[], 4) & "\'f32"
+    result = n.strVal & "\'f32"
   of nkFloat64Lit:
-    if n.flags * {nfBase2, nfBase8, nfBase16} == {}:
-      result = $n.floatVal & "\'f64"
-    else:
-      result = litAux(g, n, (cast[PInt64](addr(n.floatVal)))[], 8) & "\'f64"
+    result = n.strVal & "\'f64"
   of nkNilLit: result = "nil"
   of nkType:
     if (n.typ != nil) and (n.typ.sym != nil): result = n.typ.sym.name.s

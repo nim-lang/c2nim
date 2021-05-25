@@ -1,6 +1,6 @@
 type
   vehicles* = enum
-    boat = 0x00000001, bicycle = 4, bobycar, car = 0x00000010, truck
+    boat = 0x01, bicycle = 4, bobycar, car = 0x10, truck
 
 const
   ship = boat

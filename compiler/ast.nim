@@ -714,11 +714,7 @@ type
     info*: TLineInfo
     flags*: TNodeFlags
     case kind*: TNodeKind
-    of nkCharLit..nkUInt64Lit:
-      intVal*: BiggestInt
-    of nkFloatLit..nkFloat128Lit:
-      floatVal*: BiggestFloat
-    of nkStrLit..nkTripleStrLit:
+    of nkCharLit..nkUInt64Lit, nkFloatLit..nkFloat128Lit, nkStrLit..nkTripleStrLit:
       strVal*: string
     of nkSym:
       sym*: PSym
@@ -1225,18 +1221,6 @@ proc newNodeIT*(kind: TNodeKind, info: TLineInfo, typ: PType): PNode =
   result.info = info
   result.typ = typ
 
-proc newIntNode*(kind: TNodeKind, intVal: BiggestInt): PNode =
-  result = newNode(kind)
-  result.intVal = intVal
-
-proc newIntTypeNode*(kind: TNodeKind, intVal: BiggestInt, typ: PType): PNode =
-  result = newIntNode(kind, intVal)
-  result.typ = typ
-
-proc newFloatNode*(kind: TNodeKind, floatVal: BiggestFloat): PNode =
-  result = newNode(kind)
-  result.floatVal = floatVal
-
 proc newStrNode*(kind: TNodeKind, strVal: string): PNode =
   result = newNode(kind)
   result.strVal = strVal
@@ -1493,11 +1477,10 @@ proc copyNode*(src: PNode): PNode =
     if result.id == nodeIdToDebug:
       echo "COMES FROM ", src.id
   case src.kind
-  of nkCharLit..nkUInt64Lit: result.intVal = src.intVal
-  of nkFloatLiterals: result.floatVal = src.floatVal
   of nkSym: result.sym = src.sym
   of nkIdent: result.ident = src.ident
-  of nkStrLit..nkTripleStrLit: result.strVal = src.strVal
+  of nkCharLit..nkUInt64Lit, nkStrLit..nkTripleStrLit, nkFloatLiterals:
+    result.strVal = src.strVal
   else: discard
 
 proc shallowCopy*(src: PNode): PNode =
@@ -1512,11 +1495,9 @@ proc shallowCopy*(src: PNode): PNode =
     if result.id == nodeIdToDebug:
       echo "COMES FROM ", src.id
   case src.kind
-  of nkCharLit..nkUInt64Lit: result.intVal = src.intVal
-  of nkFloatLiterals: result.floatVal = src.floatVal
   of nkSym: result.sym = src.sym
   of nkIdent: result.ident = src.ident
-  of nkStrLit..nkTripleStrLit: result.strVal = src.strVal
+  of nkCharLit..nkUInt64Lit, nkFloatLiterals, nkStrLit..nkTripleStrLit: result.strVal = src.strVal
   else: newSeq(result.sons, sonsLen(src))
 
 proc copyTree*(src: PNode): PNode =
@@ -1532,11 +1513,10 @@ proc copyTree*(src: PNode): PNode =
     if result.id == nodeIdToDebug:
       echo "COMES FROM ", src.id
   case src.kind
-  of nkCharLit..nkUInt64Lit: result.intVal = src.intVal
-  of nkFloatLiterals: result.floatVal = src.floatVal
   of nkSym: result.sym = src.sym
   of nkIdent: result.ident = src.ident
-  of nkStrLit..nkTripleStrLit: result.strVal = src.strVal
+  of nkCharLit..nkUInt64Lit, nkStrLit..nkTripleStrLit, nkFloatLiterals:
+    result.strVal = src.strVal
   else:
     newSeq(result.sons, sonsLen(src))
     for i in 0 ..< sonsLen(src):
@@ -1573,24 +1553,6 @@ proc hasSubnodeWith*(n: PNode, kind: TNodeKind): bool =
         return true
     result = false
 
-proc getInt*(a: PNode): BiggestInt =
-  case a.kind
-  of nkCharLit..nkUInt64Lit: result = a.intVal
-  else:
-    raiseRecoverableError("cannot extract number from invalid AST node")
-    #internalError(a.info, "getInt")
-    #doAssert false, "getInt"
-    #result = 0
-
-proc getFloat*(a: PNode): BiggestFloat =
-  case a.kind
-  of nkFloatLiterals: result = a.floatVal
-  else:
-    raiseRecoverableError("cannot extract number from invalid AST node")
-    #doAssert false, "getFloat"
-    #internalError(a.info, "getFloat")
-    #result = 0.0
-
 proc getStr*(a: PNode): string =
   case a.kind
   of nkStrLit..nkTripleStrLit: result = a.strVal
@@ -1608,8 +1570,7 @@ proc getStr*(a: PNode): string =
 
 proc getStrOrChar*(a: PNode): string =
   case a.kind
-  of nkStrLit..nkTripleStrLit: result = a.strVal
-  of nkCharLit..nkUInt64Lit: result = $chr(int(a.intVal))
+  of nkCharLit..nkUInt64Lit, nkStrLit..nkTripleStrLit: result = a.strVal
   else:
     raiseRecoverableError("cannot extract string from invalid AST node")
     #doAssert false, "getStrOrChar"

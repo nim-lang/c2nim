@@ -288,7 +288,7 @@ proc expandMacro(p: var Parser, m: Macro) =
         # #def foo(x) x x
         # Therefore we have to copy the token here to avoid wrong aliasing
         # that leads to an invalid token sequence:
-        for t in items(arguments[int(tok.iNumber)]):
+        for t in items(arguments[tok.position]):
           var newToken: ref Token
           new(newToken); newToken[] = t[]
           appendTok(newToken)
@@ -299,7 +299,7 @@ proc expandMacro(p: var Parser, m: Macro) =
         var newToken: ref Token
         new(newToken)
         newToken.xkind = pxStrLit; newToken.s = ""
-        for t in items(arguments[int(tok.iNumber)]):
+        for t in items(arguments[tok.position]):
           newToken.s &= $t[]
         appendTok(newToken)
       else:
@@ -369,14 +369,9 @@ proc addSon(father, a, b, c: PNode) =
 proc newNodeP(kind: TNodeKind, p: Parser): PNode =
   result = newNodeI(kind, getLineInfo(p.lex))
 
-proc newIntNodeP(kind: TNodeKind, intVal: BiggestInt, p: Parser): PNode =
+proc newNumberNodeP(kind: TNodeKind, number: string, p: Parser): PNode =
   result = newNodeP(kind, p)
-  result.intVal = intVal
-
-proc newFloatNodeP(kind: TNodeKind, floatVal: BiggestFloat,
-                   p: Parser): PNode =
-  result = newNodeP(kind, p)
-  result.floatVal = floatVal
+  result.strVal = number
 
 proc newStrNodeP(kind: TNodeKind, strVal: string, p: Parser): PNode =
   result = newNodeP(kind, p)
@@ -688,7 +683,7 @@ proc parseTypeSuffix(p: var Parser, typ: PNode, isParam: bool = false): PNode =
       var index = expression(p)
       # array type:
       result = newNodeP(nkBracketExpr, p)
-      if index.kind == nkIntLit and index.intVal == 0:
+      if index.kind == nkIntLit and index.strVal == "0":
         addSon(result, newIdentNodeP("UncheckedArray", p))
       else:
         addSon(result, newIdentNodeP("array", p))
@@ -861,12 +856,12 @@ proc parseStructBody(p: var Parser, stmtList: PNode,
       t = pointersOf(p, parseTypeSuffix(p, t), fieldPointers)
       if p.tok.xkind == pxColon:
         getTok(p)
-        var bits = p.tok.iNumber
+        var bits = p.tok.s
         eat(p, pxIntLit)
         var pragma = newNodeP(nkPragma, p)
         var bitsize = newNodeP(nkExprColonExpr, p)
         addSon(bitsize, newIdentNodeP("bitsize", p))
-        addSon(bitsize, newIntNodeP(nkIntLit, bits, p))
+        addSon(bitsize, newNumberNodeP(nkIntLit, bits, p))
         addSon(pragma, bitsize)
         var pragmaExpr = newNodeP(nkPragmaExpr, p)
         addSon(pragmaExpr, i)
@@ -1080,6 +1075,19 @@ proc createConst(name, typ, val: PNode, p: Parser): PNode =
   result = newNodeP(nkConstDef, p)
   addSon(result, name, typ, val)
 
+proc extractNumber(s: string): tuple[succ: bool, val: BiggestInt] =
+  try:
+    if s.startsWith("0x"):
+      result = (true, fromHex[BiggestInt](s))
+    elif s.startsWith("0o"):
+      result = (true, fromOct[BiggestInt](s))
+    elif s.startsWith("0b"):
+      result = (true, fromBin[BiggestInt](s))
+    else:
+      result = (true, parseBiggestInt(s))
+  except ValueError:
+    result = (false, 0'i64)
+
 proc exprToNumber(n: PNode): tuple[succ: bool, val: BiggestInt] =
   result = (false, 0.BiggestInt)
   case n.kind:
@@ -1088,16 +1096,21 @@ proc exprToNumber(n: PNode): tuple[succ: bool, val: BiggestInt] =
     if n.sons.len == 2 and n.sons[0].kind == nkIdent and n.sons[1].kind == nkIntLit:
       let pre = n.sons[0]
       let num = n.sons[1]
-      if pre.ident.s == "-": result = (true, -num.intVal)
-      elif pre.ident.s == "+": result = (true, num.intVal)
+      if pre.ident.s == "-":
+        result = extractNumber("-" & num.strVal)
+      elif pre.ident.s == "+":
+        result = extractNumber(num.strVal)
+  of nkIntLit..nkUInt64Lit:
+    result = extractNumber(n.strVal)
+  of nkCharLit:
+    result = (true, BiggestInt n.strVal[0])
   else: discard
 
-when not declared(sequtils.any):
-  template any(x, cond: untyped): untyped =
-    var result = false
-    for it {.inject.} in x:
-      if cond: result = true; break
-    result
+template any(x, cond: untyped): untyped =
+  var result = false
+  for it {.inject.} in x:
+    if cond: result = true; break
+  result
 
 proc getEnumIdent(n: PNode): PNode =
   if n.kind == nkEnumFieldDef: result = n[0]
@@ -1130,19 +1143,15 @@ proc enumFields(p: var Parser, constList: PNode): PNode =
       addSon(e, a, c)
       skipCom(p, e)
       field.value = c
-      if c.kind == nkIntLit:
-        i = c.intVal
+      var (success, number) = exprToNumber(c)
+      if success:
+        i = number
         field.kind = isNumber
+      elif any(fields,
+          c.kind == nkIdent and it.node.getEnumIdent.ident.s == c.ident.s):
+        field.kind = isAlias
       else:
-        var (success, number) = exprToNumber(c)
-        if success:
-          i = number
-          field.kind = isNumber
-        elif any(fields,
-            c.kind == nkIdent and it.node.getEnumIdent.ident.s == c.ident.s):
-          field.kind = isAlias
-        else:
-          field.kind = isNormal
+        field.kind = isNormal
     else:
       inc(i)
       field.kind = isNumber
@@ -1630,16 +1639,17 @@ proc enumSpecifier(p: var Parser): PNode =
       if p.tok.xkind == pxAsgn:
         getTok(p, name)
         val = constantExpression(p)
+        hasUnknown = true
         if val.kind == nkIntLit:
-          i = int(val.intVal)+1
-          hasUnknown = false
-        else:
-          hasUnknown = true
+          let (ok, ii) = extractNumber(val.strVal)
+          if ok:
+            i = int(ii)+1
+            hasUnknown = false
       else:
         if hasUnknown:
           parMessage(p, warnUser, "computed const value may be wrong: " &
             name.renderTree)
-        val = newIntNodeP(nkIntLit, i, p)
+        val = newNumberNodeP(nkIntLit, $i, p)
         inc(i)
       var c = createConst(name, emptyNode, val, p)
       addSon(result, c)
@@ -1732,13 +1742,13 @@ proc startExpression(p: var Parser, tok: Token): PNode =
       result = optAngle(p, result)
       result = optInitializer(p, result)
   of pxIntLit:
-    result = newIntNodeP(nkIntLit, tok.iNumber, p)
+    result = newNumberNodeP(nkIntLit, tok.s, p)
     setBaseFlags(result, tok.base)
   of pxInt64Lit:
-    result = newIntNodeP(nkInt64Lit, tok.iNumber, p)
+    result = newNumberNodeP(nkInt64Lit, tok.s, p)
     setBaseFlags(result, tok.base)
   of pxFloatLit:
-    result = newFloatNodeP(nkFloatLit, tok.fNumber, p)
+    result = newNumberNodeP(nkFloatLit, tok.s, p)
     setBaseFlags(result, tok.base)
   of pxStrLit:
     result = newStrNodeP(nkStrLit, tok.s, p)
@@ -1746,7 +1756,7 @@ proc startExpression(p: var Parser, tok: Token): PNode =
       add(result.strVal, p.tok.s)
       getTok(p, result)
   of pxCharLit:
-    result = newIntNodeP(nkCharLit, ord(tok.s[0]), p)
+    result = newNumberNodeP(nkCharLit, tok.s, p)
   of pxParLe:
     try:
       saveContext(p)
