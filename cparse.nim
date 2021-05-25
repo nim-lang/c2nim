@@ -458,7 +458,7 @@ proc declKeyword(p: Parser, s: string): bool =
       "restrict", "inline", "__inline", "__cdecl", "__stdcall", "__syscall",
       "__fastcall", "__safecall", "void", "struct", "union", "enum", "typedef",
       "size_t", "short", "int", "long", "float", "double", "signed", "unsigned",
-      "char":
+      "char", "__declspec":
     result = true
   of "class", "mutable", "constexpr", "consteval", "constinit", "decltype":
     result = p.options.flags.contains(pfCpp)
@@ -1036,6 +1036,10 @@ proc parseCallConv(p: var Parser, pragmas: PNode) =
     of "__syscall": addSon(pragmas, newIdentNodeP("syscall", p))
     of "__fastcall": addSon(pragmas, newIdentNodeP("fastcall", p))
     of "__safecall": addSon(pragmas, newIdentNodeP("safecall", p))
+    of "__declspec":
+      getTok(p, nil)
+      eat(p, pxParLe, nil)
+      while p.tok.xkind notin {pxEof, pxParRi}: getTok(p, nil)
     else: break
     getTok(p, nil)
 
