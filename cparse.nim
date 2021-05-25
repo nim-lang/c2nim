@@ -96,6 +96,7 @@ type
     inAngleBracket, inPreprocessorExpr: int
     lastConstType: PNode # another hack to be able to translate 'const Foo& foo'
                          # to 'foo: Foo' and not 'foo: var Foo'.
+    continueActions: seq[PNode]
 
   ReplaceTuple* = array[0..1, string]
 
@@ -2329,10 +2330,14 @@ proc parseFor(p: var Parser, result: PNode) =
   addSon(w, condition)
   var step = if p.tok.xkind != pxParRi: expression(p) else: emptyNode
   eat(p, pxParRi, step)
+  if step.kind != nkEmpty:
+    p.continueActions.add step
   var loopBody = nestedStatement(p)
   if step.kind != nkEmpty:
     loopBody = buildStmtList(loopBody)
     embedStmts(loopBody, step)
+  if step.kind != nkEmpty:
+    discard p.continueActions.pop()
   addSon(w, loopBody)
   addSon(result, w)
 
@@ -2966,6 +2971,20 @@ proc fullTemplate(p: var Parser): PNode =
   of "class": result = parseStandaloneClass(p, isStruct=false, tmpl)
   else: result = declaration(p, tmpl)
 
+proc parseContinue(p: var Parser): PNode =
+  var cont = newNodeP(nkContinueStmt, p)
+  getTok(p)
+  eat(p, pxSemicolon)
+  addSon(cont, emptyNode)
+
+  if p.continueActions.len > 0:
+    result = newNodeP(nkStmtList, p)
+    for i in countdown(high(p.continueActions), 0):
+      result.add copyTree(p.continueActions[i])
+    result.add cont
+  else:
+    result = cont
+
 proc statement(p: var Parser): PNode =
   case p.tok.xkind
   of pxSymbol:
@@ -2985,10 +3004,7 @@ proc statement(p: var Parser): PNode =
       addSon(result, skipIdent(p, skLabel))
       eat(p, pxSemicolon)
     of "continue":
-      result = newNodeP(nkContinueStmt, p)
-      getTok(p)
-      eat(p, pxSemicolon)
-      addSon(result, emptyNode)
+      result = parseContinue(p)
     of "break":
       result = newNodeP(nkBreakStmt, p)
       getTok(p)

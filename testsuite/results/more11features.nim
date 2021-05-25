@@ -150,3 +150,14 @@ var j*: typeof(i + 3)
 
 type
   Foo* = function[proc ()]
+
+##  bug #78
+
+var i*: cint = 0
+
+while i < 44:
+  if a[i]:
+    inc(i)
+    continue
+  print(a[i])
+  inc(i)

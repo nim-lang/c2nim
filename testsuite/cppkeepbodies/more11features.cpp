@@ -145,3 +145,9 @@ int i;
 decltype(i+3) j;
 
 typedef std::function<void(void)> Foo;
+
+// bug #78
+for (int i = 0; i < 44; i++) {
+  if (a[i]) continue;
+  print(a[i]);
+}
