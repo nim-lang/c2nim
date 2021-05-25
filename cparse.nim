@@ -18,7 +18,6 @@
 ## `> >` for C++ template support.
 
 # TODO
-# - implement syncronization points for the parser.
 # - `if (init; expr)` / `switch (init; expr)` syntax (C++20 or something)
 # - implement `using` inside `switch (C++)
 # - implement `class enum` (C++)
@@ -40,6 +39,8 @@ import pegs except Token, Tokkind
 
 type
   ParserFlag* = enum
+    pfPedantic,         ## do not use the "best effort" parsing approach
+                        ## with sync points.
     pfRefs,             ## use "ref" instead of "ptr" for C's typ*
     pfCDecl,            ## annotate procs with cdecl
     pfStdCall,          ## annotate procs with stdcall
@@ -134,6 +135,7 @@ proc newParserOptions*(): PParserOptions =
 proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   result = true
   case key.normalize
+  of "pedantic": incl(parserOptions.flags, pfPedantic)
   of "ref": incl(parserOptions.flags, pfRefs)
   of "dynlib": parserOptions.dynlibSym = val
   of "header":
@@ -166,8 +168,6 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "discardableprefix": parserOptions.discardablePrefixes.add(val)
   of "structstruct": incl(parserOptions.flags, pfStructStruct)
   else: result = false
-
-proc parseUnit*(p: var Parser): PNode
 
 proc openParser*(p: var Parser, filename: string,
                 inputStream: PLLStream, options = newParserOptions()) =
@@ -2342,8 +2342,9 @@ proc switchStatement(p: var Parser): PNode =
     else: discard
     addSon(result, statement(p))
   if sonsLen(result) == 0:
-    # translate empty statement list to Nim's ``nil`` statement
-    result = newNodeP(nkNilLit, p)
+    # translate empty statement list to Nim's ``discard`` statement
+    result = newNodeP(nkDiscardStmt, p)
+    result.add(emptyNode)
 
 proc rangeExpression(p: var Parser): PNode =
   # We support GCC's extension: ``case expr...expr:``
@@ -2401,14 +2402,48 @@ proc embedStmts(sl, a: PNode) =
     for i in 0..sonsLen(a)-1:
       if a[i].kind != nkEmpty: embedStmts(sl, a[i])
 
+proc skipToSemicolon(p: var Parser; err: string): PNode =
+  result = newNodeP(nkCommentStmt, p)
+  result.comment = "Ignored construct: "
+  var inCurly = 0
+  while p.tok.xkind != pxEof:
+    result.comment.add " "
+    result.comment.add $p.tok[]
+    case p.tok.xkind
+    of pxCurlyLe: inc inCurly
+    of pxCurlyRi: dec inCurly
+    of pxSemicolon:
+      if inCurly == 0:
+        getTok(p)
+        break
+    else: discard
+    getTok(p)
+  result.comment.add "\nError: " & err
+
 proc compoundStatement(p: var Parser; newScope=true): PNode =
   result = newNodeP(nkStmtList, p)
   eat(p, pxCurlyLe)
   if newScope: inc(p.scopeCounter)
-  while p.tok.xkind notin {pxEof, pxCurlyRi}:
-    var a = statement(p)
-    if a.kind == nkEmpty: break
-    embedStmts(result, a)
+
+  if pfPedantic in p.options.flags:
+    while p.tok.xkind notin {pxEof, pxCurlyRi}:
+      var a = statement(p)
+      if a.kind == nkEmpty: break
+      embedStmts(result, a)
+  else:
+    while p.tok.xkind notin {pxEof, pxCurlyRi}:
+      saveContextB(p)
+      try:
+        var a = statement(p)
+        closeContextB(p)
+        if a.kind == nkEmpty: break
+        embedStmts(result, a)
+      except ERetryParsing:
+        let m = getCurrentExceptionMsg()
+        backtrackContextB(p)
+        # skip to the next sync point (which is a not-nested ';')
+        result.add skipToSemicolon(p, m)
+
   if sonsLen(result) == 0:
     # translate ``{}`` to Nim's ``discard`` statement
     result = newNodeP(nkDiscardStmt, p)
@@ -2986,7 +3021,7 @@ proc statement(p: var Parser): PNode =
     result = expressionStatement(p)
   assert result != nil
 
-proc parseUnit(p: var Parser): PNode =
+proc parsePedantic(p: var Parser): PNode =
   try:
     result = newNodeP(nkStmtList, p)
     getTok(p) # read first token
@@ -2996,3 +3031,31 @@ proc parseUnit(p: var Parser): PNode =
   except ERetryParsing:
     parError(p, getCurrentExceptionMsg())
     #"Uncaught parsing exception raised")
+
+proc parseWithSyncPoints(p: var Parser): PNode =
+  result = newNodeP(nkStmtList, p)
+  getTok(p) # read first token
+  var useful = false
+  var firstError = ""
+  while p.tok.xkind != pxEof:
+    saveContextB(p)
+    try:
+      var s = statement(p)
+      if s.kind != nkEmpty:
+        useful = true
+        embedStmts(result, s)
+      closeContextB(p)
+    except ERetryParsing:
+      let err = getCurrentExceptionMsg()
+      if firstError.len == 0: firstError = err
+      backtrackContextB(p)
+      # skip to the next sync point (which is a not-nested ';')
+      result.add skipToSemicolon(p, err)
+  if not useful:
+    parError(p, firstError)
+
+proc parseUnit*(p: var Parser): PNode =
+  if pfPedantic in p.options.flags:
+    result = parsePedantic(p)
+  else:
+    result = parseWithSyncPoints(p)

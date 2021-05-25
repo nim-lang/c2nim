@@ -16,7 +16,7 @@ when declared(NimCompilerApiVersion):
   import compiler / [lineinfos, pathutils]
 
 const
-  Version = "0.9.14" # keep in sync with Nimble version. D'oh!
+  Version = "0.9.15" # keep in sync with Nimble version. D'oh!
   Usage = """
 c2nim - C to Nim source converter
   (c) 2016 Andreas Rumpf
@@ -25,6 +25,7 @@ Usage: c2nim [options] [optionfile(s)] inputfile(s) [options]
   other C files but produce no output file.
 Options:
   -o, --out:FILE         set output filename
+  --pedantic             do not produce an output file if an error occurred
   --cpp                  process C++ input file
   --dynlib:SYMBOL        import from dynlib: SYMBOL will be used for the import
   --header:HEADER_FILE   import from a HEADER_FILE (discouraged!)
