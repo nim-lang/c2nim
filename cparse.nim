@@ -7,11 +7,22 @@
 #    distribution, for details about the copyright.
 #
 
-## This module implements an Ansi C / C++ parser.
+## This module implements an ANSI C / C++ parser.
 ## It translates a C source file into a Nim AST. Then the renderer can be
 ## used to convert the AST to its text representation.
+##
+## The parser is a hand-written LL(infinity) parser. We accomplish this
+## by using exceptions to bail out of failed parsing attemps and via
+## backtracking. The tokens are stored in a singly linked list so we can
+## easily go back. The token list is patched so that `>>` is converted to
+## `> >` for C++ template support.
 
 # TODO
+# - implement syncronization points for the parser.
+# - implement C++ lambdas.
+# - implement C++ `-> returnType` syntax.
+## - implement C++ `decltype`
+# - `if (init; expr)` / `switch (init; expr)` syntax (C++20 or something)
 # - implement handling of '::': function declarations
 # - support '#if' in classes
 
@@ -1709,6 +1720,8 @@ proc startExpression(p: var Parser, tok: Token): PNode =
   case tok.xkind
   of pxSymbol:
     if tok.s == "NULL":
+      result = newNodeP(nkNilLit, p)
+    elif tok.s == "nullptr" and pfCpp in p.options.flags:
       result = newNodeP(nkNilLit, p)
     elif tok.s == "sizeof":
       result = newNodeP(nkCall, p)

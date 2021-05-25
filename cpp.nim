@@ -92,10 +92,20 @@ proc parseDefine(p: var Parser; hasParams: bool): PNode =
   assert result != nil
 
 proc dontTranslateToTemplateHeuristic(body: seq[ref Token]): bool =
-  body.len == 0 or body[0].s.startsWith("__") or
+  # we list all **binary** operators here too: As these cannot start an
+  # expression, we know the resulting #define cannot be a valid Nim template.
+  const InvalidAsPrefixOpr = {
+    pxComma, pxColon,
+    pxAmpAsgn, pxAmpAmpAsgn,
+    pxBar, pxBarBar, pxBarAsgn, pxBarBarAsgn,
+    pxPlusAsgn, pxMinusAsgn, pxMod, pxModAsgn,
+    pxSlash, pxSlashAsgn, pxStarAsgn, pxHat, pxHatAsgn,
+    pxAsgn, pxEquals, pxDot, pxDotDotDot,
+    pxLe, pxLt, pxGe, pxGt, pxNeq, pxShl, pxShlAsgn, pxShr, pxShrAsgn}
+
+  result = body.len == 0 or body[0].s.startsWith("__") or
     body[0].s in ["extern", "case", "else", "default"] or
-    body[0].xkind in {pxComma, pxColon, pxAsgn, pxEquals, pxDot,
-                      pxDotDotDot, pxLe, pxLt, pxGe, pxGt, pxNeq}
+    body[0].xkind in InvalidAsPrefixOpr
 
 proc parseDefBody(p: var Parser, m: var Macro, params: seq[string]): bool =
   # we return whether the body looked like a typical '#def' body. This is a
