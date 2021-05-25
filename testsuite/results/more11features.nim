@@ -64,3 +64,27 @@ when defined(DEBUG):
 
 else:
   discard
+##  bug #190
+
+type
+  QObjectData* {.bycopy.} = object
+    q_ptr*: ptr QObject
+    parent*: ptr QObject
+    children*: QObjectList
+    isWidget* {.bitsize: 1.}: uint
+    blockSig* {.bitsize: 1.}: uint
+    wasDeleted* {.bitsize: 1.}: uint
+    isDeletingChildren* {.bitsize: 1.}: uint
+    sendChildEvents* {.bitsize: 1.}: uint
+    receiveChildEvents* {.bitsize: 1.}: uint
+    isWindow* {.bitsize: 1.}: uint ##  for QWindow
+    deleteLaterCalled* {.bitsize: 1.}: uint
+    unused* {.bitsize: 24.}: uint
+    postedEvents*: cint
+    metaObject*: ptr QDynamicMetaObjectData
+    bindingStorage*: QBindingStorage
+
+
+proc constructQObjectData*(): QObjectData {.constructor.}
+proc destroyQObjectData*(this: var QObjectData)
+proc dynamicMetaObject*(this: QObjectData): ptr QMetaObject {.noSideEffect.}

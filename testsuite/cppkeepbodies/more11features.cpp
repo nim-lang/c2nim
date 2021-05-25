@@ -67,3 +67,35 @@ int MYCDECL test2() { int x = 2; return (x); }
 #  define OUT(x)
 #endif
 
+// bug #190
+
+#def Q_DISABLE_COPY(MyClass) \
+    MyClass(const MyClass &) = delete; \
+    MyClass &operator=(const MyClass &) = delete;
+
+#define Q_CORE_EXPORT
+
+class Q_CORE_EXPORT QObjectData
+{
+    Q_DISABLE_COPY(QObjectData)
+public:
+    QObjectData() = default;
+    virtual ~QObjectData() = 0;
+    QObject *q_ptr;
+    QObject *parent;
+    QObjectList children;
+
+    uint isWidget : 1;
+    uint blockSig : 1;
+    uint wasDeleted : 1;
+    uint isDeletingChildren : 1;
+    uint sendChildEvents : 1;
+    uint receiveChildEvents : 1;
+    uint isWindow : 1; // for QWindow
+    uint deleteLaterCalled : 1;
+    uint unused : 24;
+    int postedEvents;
+    QDynamicMetaObjectData *metaObject;
+    QBindingStorage bindingStorage;
+    QMetaObject *dynamicMetaObject() const;
+};

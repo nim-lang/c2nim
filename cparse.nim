@@ -805,6 +805,22 @@ proc parseInnerStruct(p: var Parser, stmtList: PNode,
              newStruct, emptyNode)
   addSon(stmtList, typeSection)
 
+proc parseBitfield(p: var Parser, i: PNode): PNode =
+  if p.tok.xkind == pxColon:
+    getTok(p)
+    var bits = p.tok.s
+    eat(p, pxIntLit)
+    var pragma = newNodeP(nkPragma, p)
+    var bitsize = newNodeP(nkExprColonExpr, p)
+    addSon(bitsize, newIdentNodeP("bitsize", p))
+    addSon(bitsize, newNumberNodeP(nkIntLit, bits, p))
+    addSon(pragma, bitsize)
+    result = newNodeP(nkPragmaExpr, p)
+    addSon(result, i)
+    addSon(result, pragma)
+  else:
+    result = i
+
 proc parseStructBody(p: var Parser, stmtList: PNode,
                      kind: TNodeKind = nkRecList): PNode =
   result = newNodeP(kind, p)
@@ -854,19 +870,7 @@ proc parseStructBody(p: var Parser, stmtList: PNode,
       var fieldPointers = 0
       var i = parseField(p, kind, fieldPointers)
       t = pointersOf(p, parseTypeSuffix(p, t), fieldPointers)
-      if p.tok.xkind == pxColon:
-        getTok(p)
-        var bits = p.tok.s
-        eat(p, pxIntLit)
-        var pragma = newNodeP(nkPragma, p)
-        var bitsize = newNodeP(nkExprColonExpr, p)
-        addSon(bitsize, newIdentNodeP("bitsize", p))
-        addSon(bitsize, newNumberNodeP(nkIntLit, bits, p))
-        addSon(pragma, bitsize)
-        var pragmaExpr = newNodeP(nkPragmaExpr, p)
-        addSon(pragmaExpr, i)
-        addSon(pragmaExpr, pragma)
-        i = pragmaExpr
+      i = parseBitfield(p, i)
       addSon(def, i, t, emptyNode)
       addSon(result, def)
       if p.tok.xkind != pxComma: break
@@ -2728,6 +2732,7 @@ proc parseClass(p: var Parser; isStruct: bool;
           else:
             if hasPointlessPar: eat(p, pxParRi)
             t = pointersOf(p, parseTypeSuffix(p, t), fieldPointers)
+            i = parseBitfield(p, i)
             var value = emptyNode
             if p.tok.xkind == pxAsgn:
               getTok(p, def)
