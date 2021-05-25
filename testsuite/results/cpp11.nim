@@ -41,3 +41,4 @@ proc implementedFunction*(this: var VirtClass) {.importcpp: "implementedFunction
     header: "cpp11.hpp".}
 proc concreteFunction*(this: var VirtClass) {.importcpp: "concreteFunction",
     header: "cpp11.hpp".}
+var my_var* {.importcpp: "VarNS::my_var", header: "cpp11.hpp".}: cint

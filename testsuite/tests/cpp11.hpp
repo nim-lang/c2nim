@@ -33,3 +33,8 @@ public:
   virtual void implementedFunction();
   void concreteFunction();
 };
+
+namespace VarNS
+{
+  const int my_var = 5;
+}
