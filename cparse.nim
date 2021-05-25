@@ -86,7 +86,7 @@ type
     header: string
     options: PParserOptions
     backtrack: seq[ref Token]
-    backtrackB: seq[ref Token] # like backtrack, but with the possibility to ignore errors
+    backtrackB: seq[(ref Token, bool)] # like backtrack, but with the possibility to ignore errors
     inTypeDef: int
     scopeCounter: int
     hasDeadCodeElimPragma: bool
@@ -187,6 +187,8 @@ proc parError(p: Parser, arg = "") =
   if p.backtrackB.len == 0:
     lexMessage(p.lex, errGenerated, arg)
   else:
+    if p.backtrackB[^1][1]:
+      lexMessage(p.lex, warnSyntaxError, arg)
     raise newException(ERetryParsing, arg)
 
 proc closeParser*(p: var Parser) = closeLexer(p.lex)
@@ -196,9 +198,9 @@ proc saveContext(p: var Parser) = p.backtrack.add(p.tok)
 proc closeContext(p: var Parser) = discard p.backtrack.pop()
 proc backtrackContext(p: var Parser) = p.tok = p.backtrack.pop()
 
-proc saveContextB(p: var Parser) = p.backtrackB.add(p.tok)
+proc saveContextB(p: var Parser; produceWarnings=false) = p.backtrackB.add((p.tok, produceWarnings))
 proc closeContextB(p: var Parser) = discard p.backtrackB.pop()
-proc backtrackContextB(p: var Parser) = p.tok = p.backtrackB.pop()
+proc backtrackContextB(p: var Parser) = p.tok = p.backtrackB.pop()[0]
 
 proc rawGetTok(p: var Parser) =
   if p.tok.next != nil:
@@ -2402,23 +2404,26 @@ proc embedStmts(sl, a: PNode) =
     for i in 0..sonsLen(a)-1:
       if a[i].kind != nkEmpty: embedStmts(sl, a[i])
 
-proc skipToSemicolon(p: var Parser; err: string): PNode =
+proc skipToSemicolon(p: var Parser; err: string; exitForCurlyRi=true): PNode =
   result = newNodeP(nkCommentStmt, p)
-  result.comment = "Ignored construct: "
+  result.comment = "!!!Ignored construct: "
   var inCurly = 0
   while p.tok.xkind != pxEof:
     result.comment.add " "
     result.comment.add $p.tok[]
     case p.tok.xkind
     of pxCurlyLe: inc inCurly
-    of pxCurlyRi: dec inCurly
+    of pxCurlyRi:
+      if inCurly == 0 and exitForCurlyRi:
+        break
+      dec inCurly
     of pxSemicolon:
       if inCurly == 0:
         getTok(p)
         break
     else: discard
     getTok(p)
-  result.comment.add "\nError: " & err
+  result.comment.add "\nError: " & err & "!!!"
 
 proc compoundStatement(p: var Parser; newScope=true): PNode =
   result = newNodeP(nkStmtList, p)
@@ -2432,7 +2437,7 @@ proc compoundStatement(p: var Parser; newScope=true): PNode =
       embedStmts(result, a)
   else:
     while p.tok.xkind notin {pxEof, pxCurlyRi}:
-      saveContextB(p)
+      saveContextB(p, true)
       try:
         var a = statement(p)
         closeContextB(p)
@@ -2872,11 +2877,28 @@ proc parseClass(p: var Parser; isStruct: bool;
   eat(p, pxCurlyLe, result)
   var private = not isStruct
   var pragmas = newNodeP(nkPragma, p)
-  while p.tok.xkind notin {pxEof, pxCurlyRi}:
-    skipCom(p, stmtList)
-    parseVisibility(p, result, private)
-    parseClassSnippet(p, result, recList, stmtList, genericParams, pragmas, private)
-    opt(p, pxSemicolon, nil)
+
+  if pfPedantic in p.options.flags:
+    while p.tok.xkind notin {pxEof, pxCurlyRi}:
+      skipCom(p, stmtList)
+      parseVisibility(p, result, private)
+      parseClassSnippet(p, result, recList, stmtList, genericParams, pragmas, private)
+      opt(p, pxSemicolon, nil)
+  else:
+    while p.tok.xkind notin {pxEof, pxCurlyRi}:
+      saveContextB(p, true)
+      try:
+        skipCom(p, stmtList)
+        parseVisibility(p, result, private)
+        parseClassSnippet(p, result, recList, stmtList, genericParams, pragmas, private)
+        opt(p, pxSemicolon, nil)
+        closeContextB(p)
+      except ERetryParsing:
+        let err = getCurrentExceptionMsg()
+        backtrackContextB(p)
+        # skip to the next sync point (which is a not-nested ';')
+        stmtList.add skipToSemicolon(p, err)
+
   eat(p, pxCurlyRi, result)
 
 proc parseStandaloneClass(p: var Parser, isStruct: bool;
@@ -3045,7 +3067,7 @@ proc parseWithSyncPoints(p: var Parser): PNode =
   var useful = false
   var firstError = ""
   while p.tok.xkind != pxEof:
-    saveContextB(p)
+    saveContextB(p, true)
     try:
       var s = statement(p)
       if s.kind != nkEmpty:
@@ -3057,7 +3079,7 @@ proc parseWithSyncPoints(p: var Parser): PNode =
       if firstError.len == 0: firstError = err
       backtrackContextB(p)
       # skip to the next sync point (which is a not-nested ';')
-      result.add skipToSemicolon(p, err)
+      result.add skipToSemicolon(p, err, exitForCurlyRi=false)
   if not useful:
     parError(p, firstError)
 
