@@ -33,3 +33,37 @@ int main(){
   std::vector<int64_t> foo(10);
   return 0;
 }
+
+#define MYIGNORE
+#define MYCDECL   __cdecl
+
+int test1() { int x = 1; return (x); }
+int MYCDECL test2() { int x = 2; return (x); }
+
+#if defined(MYIGNORE)
+  int myVar;
+
+  MYIGNORE int test3() {
+    myVar = test1();
+	myVar = myVar + test2();
+	return(myVar);
+  }
+
+#endif
+
+#ifdef MYIGNORE
+
+  MYIGNORE int test4() {
+    myVar = test1();
+	myVar = myVar + test2();
+	return(myVar);
+  }
+
+#endif
+
+#ifdef DEBUG
+#  define OUT(x) printf("%s\n", x)
+#else
+#  define OUT(x)
+#endif
+

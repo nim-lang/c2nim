@@ -110,8 +110,8 @@ proc myRenderModule(tree: PNode; filename: string) =
       f.write(ch)
     elif ch == ' ':
       let j = i
-      while b[i] == ' ': inc i
-      if b[i] == '\L':
+      while i < L and b[i] == ' ': inc i
+      if i < L and b[i] == '\L':
         f.write('\L')
       else:
         for ii in j..i-1:

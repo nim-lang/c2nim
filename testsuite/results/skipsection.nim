@@ -1,6 +1,6 @@
-when defined(skipme1):
-  const
-    thisShouldNotBeSkipped* = 1
+const
+  thisShouldNotBeSkipped* = 1
+
 when defined(skipme) or defined(somethingelse):
   const
     thisShouldBePresent* = 1

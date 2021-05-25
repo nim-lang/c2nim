@@ -37,3 +37,30 @@ proc constructDouble*(value: value_type): Double {.constructor.} =
 proc main*(): cint =
   var foo: vector[int64_t] = vector[int64_t](10)
   return 0
+
+proc test1*(): cint =
+  var x: cint = 1
+  return x
+
+proc test2*(): cint {.cdecl.} =
+  var x: cint = 2
+  return x
+
+var myVar*: cint
+
+proc test3*(): cint =
+  myVar = test1()
+  myVar = myVar + test2()
+  return myVar
+
+proc test4*(): cint =
+  myVar = test1()
+  myVar = myVar + test2()
+  return myVar
+
+when defined(DEBUG):
+  template OUT*(x: untyped): untyped =
+    printf("%s\n", x)
+
+else:
+  discard

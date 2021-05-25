@@ -230,9 +230,7 @@ when defined(DEBUG):
     printf("%s\n", x)
 
 else:
-  template OUT*(x: untyped): void =
-    nil
-
+  discard
 ##  parses now!
 
 proc f*(): cint {.cdecl, importc: "f", dynlib: iupdll.}

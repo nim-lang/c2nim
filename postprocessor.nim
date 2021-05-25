@@ -10,11 +10,14 @@
 ## Postprocessor. For now only fixes identifiers that ended up producing a
 ## Nim keyword. It rewrites that to the backticks notation.
 
-import compiler/ast, compiler/renderer, compiler/idents
+import compiler/[ast, renderer, idents]
 
 import clex
 
 template emptyNode: untyped = newNode(nkEmpty)
+
+proc isEmptyStmtList(n: PNode): bool =
+  result = n.kind == nkStmtList and n.len == 1 and n[0].kind == nkEmpty
 
 proc pp(n: var PNode, stmtList: PNode = nil, idx: int = -1) =
   case n.kind
@@ -40,6 +43,15 @@ proc pp(n: var PNode, stmtList: PNode = nil, idx: int = -1) =
       delete(n.sons, i)
       insert(stmtList.sons, c, idx)
 
+  of nkElifBranch:
+    if n[1].len == 0 or isEmptyStmtList(n[1]):
+      n[1] = newTree(nkStmtList, newTree(nkDiscardStmt, emptyNode))
+    pp(n[0], stmtList, idx)
+    pp(n[1], stmtList, idx)
+  of nkElse:
+    if n[0].len == 0 or isEmptyStmtList(n[0]):
+      n[0] = newTree(nkStmtList, newTree(nkDiscardStmt, emptyNode))
+    pp(n[0], stmtList, idx)
   else:
     for i in 0 ..< n.safeLen: pp(n.sons[i], stmtList, idx)
 

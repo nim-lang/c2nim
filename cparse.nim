@@ -82,7 +82,7 @@ type
     currentClass: PNode   # type that needs to be added as 'this' parameter
     currentClassOrig: string # original class name
     currentNamespace: string
-    inAngleBracket: int
+    inAngleBracket, inPreprocessorExpr: int
     lastConstType: PNode # another hack to be able to translate 'const Foo& foo'
                          # to 'foo: Foo' and not 'foo: var Foo'.
 
@@ -311,7 +311,7 @@ proc getTok(p: var Parser) =
   rawGetTok(p)
   while p.tok.xkind == pxSymbol:
     var idx = findMacro(p)
-    if idx >= 0:
+    if idx >= 0 and p.inPreprocessorExpr == 0:
       expandMacro(p, p.options.macros[idx])
     else:
       break
