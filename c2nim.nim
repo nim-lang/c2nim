@@ -16,7 +16,7 @@ when declared(NimCompilerApiVersion):
   import compiler / [lineinfos, pathutils]
 
 const
-  Version = "0.9.15" # keep in sync with Nimble version. D'oh!
+  Version = "0.9.16" # keep in sync with Nimble version. D'oh!
   Usage = """
 c2nim - C to Nim source converter
   (c) 2016 Andreas Rumpf
