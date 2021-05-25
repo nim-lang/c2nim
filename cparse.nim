@@ -554,7 +554,7 @@ proc optAngle(p: var Parser, n: PNode): PNode =
   else:
     result = n
 
-proc typeAtom(p: var Parser): PNode =
+proc typeAtom(p: var Parser; isTypeDef=false): PNode =
   var isConst = skipConst(p)
   expectIdent(p)
   case p.tok.s
@@ -568,17 +568,24 @@ proc typeAtom(p: var Parser): PNode =
     var x = ""
     #getTok(p, nil)
     var isUnsigned = false
+    var isSigned = false
     var isSizeT = false
     while p.tok.xkind == pxSymbol and (isIntType(p.tok.s) or p.tok.s == "char"):
       if p.tok.s == "unsigned":
         isUnsigned = true
       elif p.tok.s == "size_t":
         isSizeT = true
-      elif p.tok.s == "signed" or p.tok.s == "int":
+      elif p.tok.s == "signed":
+        isSigned = true
+      elif p.tok.s == "int":
         discard
       else:
         add(x, p.tok.s)
       getTok(p, nil)
+      if (isSigned or isUnsigned) and p.tok.xkind == pxSymbol and isTypeDef:
+        add(x, p.tok.s)
+        getTok(p, nil)
+
       if skipConst(p): isConst = true
     if x.len == 0: x = "int"
     let xx = if isSizeT: "csize_t" elif isUnsigned: "cu" & x else: "c" & x
@@ -1280,7 +1287,7 @@ proc parseTypeBody(p: var Parser; result, typeSection, afterStatements: PNode) =
       var t = typeAtom(p)
       otherTypeDef(p, typeSection, t)
   else:
-    var t = typeAtom(p)
+    var t = typeAtom(p, true)
     otherTypeDef(p, typeSection, t)
   eat(p, pxSemicolon)
   dec(p.inTypeDef)

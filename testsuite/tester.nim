@@ -3,10 +3,12 @@
 import strutils, os, parseopt
 
 const
-  c2nimCmd = "c2nim $#"
-  cpp2nimCmd = "c2nim --cpp $#"
-  cpp2nimCmdKeepBodies = "c2nim --cpp --keepBodies $#"
-  hpp2nimCmd = "c2nim --cpp --header $#"
+  dotslash = when defined(posix): "./" else: ""
+
+  c2nimCmd = dotslash & "c2nim $#"
+  cpp2nimCmd = dotslash & "c2nim --cpp $#"
+  cpp2nimCmdKeepBodies = dotslash & "c2nim --cpp --keepBodies $#"
+  hpp2nimCmd = dotslash & "c2nim --cpp --header $#"
   dir = "testsuite/"
   usage = """
 c2nim test runner
@@ -42,11 +44,14 @@ for kind, key, val in getopt():
   else:
     stdout.writeLine("[Error] unknown option: " & key)
 
+proc exec(cmd: string) =
+  if execShellCmd(cmd) != 0: quit("FAILURE: " & cmd)
+
 proc test(t, cmd, origin: string) =
   let (_, name, _) = splitFile(t)
   if infiles.len() > 0 and not (name in infiles):
     return
-  if execShellCmd(cmd % t) != 0: quit("FAILURE")
+  exec(cmd % t)
   let nimFile = name & ".nim"
   if readFile(dir & origin / nimFile) != readFile(dir & "results" / nimFile):
     echo "FAILURE: files differ: ", nimFile
@@ -58,6 +63,7 @@ proc test(t, cmd, origin: string) =
     echo "SUCCESS: files identical: ", nimFile
 
 if not exitEarly:
+  exec("nim c c2nim.nim")
   for t in walkFiles(dir & "tests/*.c"):
     test(t, c2nimCmd, "tests")
   for t in walkFiles(dir & "tests/*.h"):

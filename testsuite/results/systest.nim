@@ -21,6 +21,11 @@ proc aw_callback_set*(c: AW_CALLBACK; callback: callback_t): cint
 proc aw_instance_callback_set*(c: AW_CALLBACK; callback: callback_t): cint
 var wawa*: culong
 
+##  bug #110
+
+type
+  uint16* = cu__int16
+
 template MAX*(x, y: untyped): untyped =
   (if (x) < (y): (y) else: (x))
 
