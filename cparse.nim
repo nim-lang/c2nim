@@ -1373,7 +1373,7 @@ proc parseInitializer(p: var Parser; kind: TNodeKind; isArray: var bool): PNode 
     result = newNodeP(nkExprColonExpr, p)
     getTok(p)
     result.add skipIdent(p, skField)
-    eat(p, pxAsgn)
+    opt(p, pxAsgn, result[^1])
     result.add initExpr(p)
   of pxBracketLe:
     # designated initializer?
@@ -1381,7 +1381,7 @@ proc parseInitializer(p: var Parser; kind: TNodeKind; isArray: var bool): PNode 
     getTok(p)
     result.add initExpr(p)
     eat(p, pxBracketRi)
-    eat(p, pxAsgn)
+    opt(p, pxAsgn, result[^1])
     result.add initExpr(p)
     isArray = true
   else:
