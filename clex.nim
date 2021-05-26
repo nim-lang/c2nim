@@ -415,7 +415,7 @@ proc escape(L: var Lexer, tok: var Token, allowEmpty=false) =
     add(tok.s, '"')
     inc(L.bufpos)
   of '\\':
-    add(tok.s, '\b')
+    add(tok.s, '\\')
     inc(L.bufpos)
   of '0'..'7':
     var xi = ord(L.buf[L.bufpos]) - ord('0')
