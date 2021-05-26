@@ -8,13 +8,13 @@ type
   bits_type* = uint64_t
 
 const
-  SignificandSize*: int32_t = digits
+  SignificandSize*: int32_t = digits[value_type]
 
 const
-  ExponentBias*: int32_t = max_exponent - 1 + (SignificandSize - 1)
+  ExponentBias*: int32_t = max_exponent[value_type] - 1 + (SignificandSize - 1)
 
 const
-  MaxIeeeExponent*: bits_type = bits_type(2 * max_exponent - 1)
+  MaxIeeeExponent*: bits_type = bits_type(2 * max_exponent[value_type] - 1)
 
 const
   HiddenBit*: bits_type = bits_type(1) shl (SignificandSize - 1)
