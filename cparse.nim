@@ -535,13 +535,13 @@ proc isTemplateAngleBracket(p: var Parser): bool =
         insertAngleRi(p.tok)
         result = true
         break
-      if angles > 1: dec(angles, )
+      if angles > 1: dec(angles)
     of pxLt: inc(angles)
     of pxParRi, pxBracketRi, pxCurlyRi:
       let kind = pred(kind, 3)
       if i[kind] > 0: dec(i[kind])
       else: break
-    of pxSemicolon: break
+    of pxSemicolon, pxBarBar, pxAmpAmp: break
     else: discard
     getTok(p, nil)
   backtrackContext(p)
