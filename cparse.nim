@@ -1827,6 +1827,15 @@ proc startExpression(p: var Parser, tok: Token): PNode =
         eat(p, pxParRi, result)
       else:
         addSon(result, expression(p, 139))
+    elif p.inPreprocessorExpr > 0 and tok.s == "defined":
+      result = newNodeP(nkCall, p)
+      addSon(result, newIdentNodeP(tok.s, p))
+      if p.tok.xkind == pxParLe:
+        getTok(p, result)
+        addSon(result, skipIdent(p, skConditional))
+        eat(p, pxParRi, result)
+      else:
+        addSon(result, skipIdent(p, skConditional))
     else:
       let kind = if p.inAngleBracket > 0: skType else: skProc
       if kind == skProc and p.options.classes.hasKey(tok.s):
