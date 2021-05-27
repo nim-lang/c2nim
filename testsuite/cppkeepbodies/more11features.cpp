@@ -151,3 +151,18 @@ for (int i = 0; i < 44; i++) {
   if (a[i]) continue;
   print(a[i]);
 }
+
+// smart def vs define heuristic:
+#define for_each(x) for(int i = 0; i < x; ++i)
+
+#define other(x) for(int i = 0; i < x; ++i) printf(i);
+
+template <typename T>
+class Foo {
+public:
+        Foo(){
+          for_each(89) printf(i);
+          other(13);
+
+        };
+};

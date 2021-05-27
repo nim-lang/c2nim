@@ -91,7 +91,7 @@ proc parseDefine(p: var Parser; hasParams: bool): PNode =
         break
   assert result != nil
 
-proc dontTranslateToTemplateHeuristic(body: seq[ref Token]): bool =
+proc dontTranslateToTemplateHeuristic(body: seq[ref Token]; closedParentheses: int): bool =
   # we list all **binary** operators here too: As these cannot start an
   # expression, we know the resulting #define cannot be a valid Nim template.
   const InvalidAsPrefixOpr = {
@@ -105,7 +105,10 @@ proc dontTranslateToTemplateHeuristic(body: seq[ref Token]): bool =
 
   result = body.len == 0 or body[0].s.startsWith("__") or
     body[0].s in ["extern", "case", "else", "default"] or
-    body[0].xkind in InvalidAsPrefixOpr
+    body[0].xkind in InvalidAsPrefixOpr or (
+      body.len >= 3 and closedParentheses == 1 and
+      body[0].s in ["if", "for", "switch", "while"] and body[^1].xkind == pxParRi
+    )
 
 proc parseDefBody(p: var Parser, m: var Macro, params: seq[string]): bool =
   # we return whether the body looked like a typical '#def' body. This is a
@@ -118,6 +121,7 @@ proc parseDefBody(p: var Parser, m: var Macro, params: seq[string]): bool =
   saveContext(p)
 
   var parentheses: array[pxParLe..pxCurlyLe, int]
+  var closedParentheses = 0
   while p.tok.xkind notin {pxEof, pxNewLine, pxLineComment}:
     case p.tok.xkind
     of pxSymbol, pxDirective, pxDirectiveParLe:
@@ -136,7 +140,10 @@ proc parseDefBody(p: var Parser, m: var Macro, params: seq[string]): bool =
       m.body.add(p.tok)
     of pxParRi, pxBracketRi, pxCurlyRi:
       let kind = correspondingOpenPar(p.tok.xkind)
-      if parentheses[kind] > 0: dec(parentheses[kind])
+      if parentheses[kind] > 0:
+        dec(parentheses[kind])
+        if parentheses[kind] == 0 and kind == pxParLe:
+          inc closedParentheses
       else:
         # unpaired ')' or ']' or '}' --> enable "cannot translate to template heuristic"
         result = true
@@ -149,7 +156,7 @@ proc parseDefBody(p: var Parser, m: var Macro, params: seq[string]): bool =
   closeContext(p)
   # newline token might be overwritten, but this is not
   # part of the macro body, so it is safe.
-  if dontTranslateToTemplateHeuristic(m.body):
+  if dontTranslateToTemplateHeuristic(m.body, closedParentheses):
     result = true
 
 proc parseDef(p: var Parser, m: var Macro; hasParams: bool): bool =

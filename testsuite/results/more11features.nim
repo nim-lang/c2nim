@@ -161,3 +161,21 @@ while i < 44:
     continue
   print(a[i])
   inc(i)
+##  smart def vs define heuristic:
+
+template other*(x: untyped): void =
+  var i*: cint = 0
+  while i < x:
+    printf(i)
+    inc(i)
+
+type
+  Foo*[T] {.bycopy.} = object
+
+
+proc constructFoo*[T](): Foo[T] {.constructor.} =
+  var i: cint = 0
+  while i < 89:
+    printf(i)
+    inc(i)
+  other(13)
