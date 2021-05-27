@@ -17,9 +17,6 @@
 ## easily go back. The token list is patched so that `>>` is converted to
 ## `> >` for C++ template support.
 
-# TODO
-# - `if (init; expr)` / `switch (init; expr)` syntax (C++20 or something)
-
 import
   os, compiler/llstream, compiler/renderer, clex, compiler/idents, strutils,
   pegs, compiler/ast, compiler/msgs,
@@ -2328,15 +2325,45 @@ proc expressionStatement(p: var Parser): PNode =
     elif semicolonRequired: parError(p, "expected ';'")
   assert result != nil
 
+proc declarationOrStatement(p: var Parser): PNode
+proc semicolonedExpression(p: var Parser): PNode =
+  if p.tok.xkind != pxSymbol:
+    result = expression(p)
+  else:
+    saveContext(p)
+    var parOpen = 0
+    var hasSemicolon = false
+    while true:
+      case p.tok.xkind
+      of pxEof: break
+      of pxParLe: inc parOpen
+      of pxParRi:
+        if parOpen == 0:
+          break
+        dec parOpen
+      of pxSemicolon:
+        hasSemicolon = true
+      else: discard
+      getTok(p)
+    backtrackContext(p)
+    if hasSemicolon:
+      let decl = declarationOrStatement(p)
+      let a = expression(p)
+      result = newTree(nkStmtListExpr, decl, a)
+    else:
+      result = expression(p)
+
 proc parseIf(p: var Parser): PNode =
   # we parse additional "else if"s too here for better Nim code
   result = newNodeP(nkIfStmt, p)
   while true:
     getTok(p) # skip ``if``
+    if p.tok.xkind == pxSymbol and p.tok.s == "constexpr" and pfCpp in p.options.flags:
+      getTok(p)
     var branch = newNodeP(nkElifBranch, p)
     skipCom(p, branch)
     eat(p, pxParLe, branch)
-    addSon(branch, expression(p))
+    addSon(branch, semicolonedExpression(p))
     eat(p, pxParRi, branch)
     addSon(branch, nestedStatement(p))
     addSon(result, branch)
@@ -2356,7 +2383,7 @@ proc parseWhile(p: var Parser): PNode =
   result = newNodeP(nkWhileStmt, p)
   getTok(p, result)
   eat(p, pxParLe, result)
-  addSon(result, expression(p))
+  addSon(result, semicolonedExpression(p))
   eat(p, pxParRi, result)
   addSon(result, nestedStatement(p))
 
@@ -2369,7 +2396,7 @@ proc parseDoWhile(p: var Parser): PNode =
   var stm = nestedStatement(p)
   eat(p, "while", result)
   eat(p, pxParLe, result)
-  var exp = expression(p)
+  var exp = semicolonedExpression(p)
   eat(p, pxParRi, result)
   if p.tok.xkind == pxSemicolon: getTok(p)
 
@@ -2559,7 +2586,7 @@ proc parseSwitch(p: var Parser): PNode =
   result = newNodeP(nkCaseStmt, p)
   getTok(p, result)
   eat(p, pxParLe, result)
-  addSon(result, expression(p))
+  addSon(result, semicolonedExpression(p))
   eat(p, pxParRi, result)
   eat(p, pxCurlyLe, result)
   var b: PNode

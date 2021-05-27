@@ -201,4 +201,7 @@ proc warning*(this: var MyClass; a2: cstring): pointer {.varargs.} =
     bodyHere = 123
   of blue:
     ## ignored statement
-  
+  if (
+    var f: auto = (5 + 6)
+    f != 0):
+    printf("I love syntactic sugar!\n")

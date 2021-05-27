@@ -187,5 +187,8 @@ void* MyClass::warning(const char*, ...) {
       bodyHere = 123;
     case blue: ;
   }
-}
 
+  if (auto f = (5+6); f != 0) {
+    printf("I love syntactic sugar!\n");
+  }
+}
