@@ -177,3 +177,12 @@ proc constructFoo*[T](): Foo[T] {.constructor.} =
     printf(i)
     inc(i)
   other(13)
+
+##  bug #59
+
+type
+  failClass* {.bycopy.} = object
+    warning*: proc (a1: cstring) {.varargs.} ##  <- this fails!!
+
+
+proc warning*(this: var failClass; a2: cstring): pointer {.varargs.}

@@ -22,7 +22,6 @@
 # - implement `using` inside `switch (C++)
 # - implement `class enum` (C++)
 # - implement handling of '::': function declarations
-# - support '#if' in classes
 
 import
   os, compiler/llstream, compiler/renderer, clex, compiler/idents, strutils,
@@ -1700,7 +1699,7 @@ when false:
       getTok(p)
 
 proc parseMethod(p: var Parser, origName: string, rettyp, pragmas: PNode,
-                 isStatic, isOperator, hasPointlessPar: bool;
+                 isStatic, isOperator: bool;
                  genericParams, genericParamsThis: PNode): PNode
 
 proc declaration(p: var Parser; genericParams: PNode = emptyNode): PNode =
@@ -1730,7 +1729,7 @@ proc declaration(p: var Parser; genericParams: PNode = emptyNode): PNode =
     origName = ""
     var isConverter = parseOperator(p, origName)
     result = parseMethod(p, origName, rettyp, pragmas, true, true,
-                         false, emptyNode, emptyNode)
+                         emptyNode, emptyNode)
     if isConverter: result.kind = nkConverterDef
     # don't add trivial operators that Nim ends up using anyway:
     if origName in ["=", "!=", ">", ">="]:
@@ -1807,7 +1806,7 @@ proc declaration(p: var Parser; genericParams: PNode = emptyNode): PNode =
       p.currentClass = mangledIdent(p.currentClassOrig, p, skType)
 
     result = parseMethod(p, origFnName, rettyp, pragmas,
-                         isStatic, false, false, emptyNode, emptyNode)
+                         isStatic, false, emptyNode, emptyNode)
     if not isStatic:
       p.currentClass = oldClass
       p.currentClassOrig = oldClassOrig
@@ -2739,7 +2738,7 @@ proc parseConstructor(p: var Parser, pragmas: PNode, isDestructor: bool;
     result.sons[pragmasPos] = emptyNode
 
 proc parseMethod(p: var Parser, origName: string, rettyp, pragmas: PNode,
-                 isStatic, isOperator, hasPointlessPar: bool;
+                 isStatic, isOperator: bool;
                  genericParams, genericParamsThis: PNode): PNode =
   result = newNodeP(nkProcDef, p)
   var params = newNodeP(nkFormalParams, p)
@@ -2753,7 +2752,6 @@ proc parseMethod(p: var Parser, origName: string, rettyp, pragmas: PNode,
     params.add(thisDef)
 
   parseFormalParams(p, params, pragmas)
-  if hasPointlessPar: eat(p, pxParRi)
   if p.tok.xkind == pxSymbol and p.tok.s == "const":
     addSon(pragmas, newIdentNodeP("noSideEffect", p))
     getTok(p, result)
@@ -2993,7 +2991,7 @@ proc parseClassEntity(p: var Parser; genericParams: PNode; private: bool): PNode
       var baseTyp = typeAtom(p)
       var t = pointer(p, baseTyp)
       let meth = parseMethod(p, origName, t, pragmas, isStatic, true,
-                              false, gp, genericParams)
+                              gp, genericParams)
       if not private or pfKeepBodies in p.options.flags:
         meth.kind = nkConverterDef
         # don't add trivial operators that Nim ends up using anyway:
@@ -3008,15 +3006,13 @@ proc parseClassEntity(p: var Parser; genericParams: PNode; private: bool): PNode
       while true:
         var def = newNodeP(nkIdentDefs, p)
         var t = pointer(p, baseTyp)
-        var hasPointlessPar = p.tok.xkind == pxParLe
-        if hasPointlessPar: getTok(p)
         var origName: string
         if p.tok.xkind == pxSymbol:
           if p.tok.s == "operator":
             origName = ""
             var isConverter = parseOperator(p, origName)
             let meth = parseMethod(p, origName, t, pragmas, isStatic, true,
-                                    false, gp, genericParams)
+                                   gp, genericParams)
             if not private or pfKeepBodies in p.options.flags:
               if isConverter: meth.kind = nkConverterDef
               # don't add trivial operators that Nim ends up using anyway:
@@ -3029,11 +3025,10 @@ proc parseClassEntity(p: var Parser; genericParams: PNode; private: bool): PNode
         var i = parseField(p, nkRecList, fieldPointers)
         if origName.len > 0 and p.tok.xkind == pxParLe:
           let meth = parseMethod(p, origName, t, pragmas, isStatic, false,
-                                  hasPointlessPar, gp, genericParams)
+                                 gp, genericParams)
           if not private or pfKeepBodies in p.options.flags:
             result.add(meth)
         else:
-          if hasPointlessPar: eat(p, pxParRi)
           t = pointersOf(p, parseTypeSuffix(p, t), fieldPointers)
           i = parseBitfield(p, i)
           var value = emptyNode

@@ -166,3 +166,10 @@ public:
 
         };
 };
+
+// bug #59
+class failClass {
+public:
+  void (*warning)(const char*, ...);    // <- this fails!!
+  void *warning(const char*, ...);
+};
