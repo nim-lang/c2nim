@@ -168,8 +168,16 @@ public:
 };
 
 // bug #59
-class failClass {
+
+class MyClass {
 public:
   void (*warning)(const char*, ...);    // <- this fails!!
   void *warning(const char*, ...);
 };
+
+
+void* MyClass::warning(const char*, ...) {
+  int bodyHere;
+}
+
+enum class Color { red, green = 20, blue };

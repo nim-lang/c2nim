@@ -20,8 +20,6 @@
 # TODO
 # - `if (init; expr)` / `switch (init; expr)` syntax (C++20 or something)
 # - implement `using` inside `switch (C++)
-# - implement `class enum` (C++)
-# - implement handling of '::': function declarations
 
 import
   os, compiler/llstream, compiler/renderer, clex, compiler/idents, strutils,
@@ -604,6 +602,10 @@ proc optAngle(p: var Parser, n: PNode): PNode =
   else:
     result = n
 
+proc skipClassAfterEnum(p: var Parser, n: PNode) =
+  if p.tok.xkind == pxSymbol and p.tok.s in ["struct", "class"] and pfCpp in p.options.flags:
+    getTok(p, n)
+
 proc typeAtom(p: var Parser; isTypeDef=false): PNode =
   var isConst = skipConst(p)
   expectIdent(p)
@@ -611,9 +613,13 @@ proc typeAtom(p: var Parser; isTypeDef=false): PNode =
   of "void":
     result = newNodeP(nkNilLit, p) # little hack
     getTok(p, nil)
-  of "struct", "union", "enum":
+  of "struct", "union":
     getTok(p, nil)
     result = skipIdent(p, skType)
+  of "enum":
+    getTok(p, nil)
+    result = skipIdent(p, skType)
+    skipClassAfterEnum(p, result)
   elif p.tok.s == "typeof" or (p.tok.s == "decltype" and pfCpp in p.options.flags):
     result = newNodeP(nkCall, p)
     result.add newIdentNodeP("typeof", p)
@@ -1406,6 +1412,7 @@ proc parseTypedefStruct(p: var Parser, result, stmtList: PNode,
 
 proc parseTypedefEnum(p: var Parser, result, constSection, stmtList: PNode) =
   getTok(p, result)
+  skipClassAfterEnum(p, result)
   if p.tok.xkind == pxCurlyLe:
     getTok(p, result)
     var t = enumFields(p, constSection, stmtList)
@@ -1818,6 +1825,7 @@ proc declaration(p: var Parser; genericParams: PNode = emptyNode): PNode =
 proc enumSpecifier(p: var Parser; stmtList: PNode): PNode =
   saveContext(p)
   getTok(p, nil) # skip "enum"
+  skipClassAfterEnum(p, nil)
   case p.tok.xkind
   of pxCurlyLe:
     closeContext(p)

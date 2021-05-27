@@ -181,8 +181,15 @@ proc constructFoo*[T](): Foo[T] {.constructor.} =
 ##  bug #59
 
 type
-  failClass* {.bycopy.} = object
+  MyClass* {.bycopy.} = object
     warning*: proc (a1: cstring) {.varargs.} ##  <- this fails!!
 
 
-proc warning*(this: var failClass; a2: cstring): pointer {.varargs.}
+proc warning*(this: var MyClass; a2: cstring): pointer {.varargs.}
+proc warning*(this: var MyClass; a2: cstring): pointer {.varargs.} =
+  var bodyHere: cint
+
+type
+  Color* = enum
+    red, green = 20, blue
+
