@@ -80,6 +80,11 @@ type
 
   PParserOptions* = ref ParserOptions
 
+  Section* = ref object # used for "parseClassSnippet"
+    genericParams: PNode
+    pragmas: PNode
+    private: bool
+
   Parser* = object
     lex: Lexer
     tok: ref Token       # current token
@@ -99,6 +104,7 @@ type
     lastConstType: PNode # another hack to be able to translate 'const Foo& foo'
                          # to 'foo: Foo' and not 'foo: var Foo'.
     continueActions: seq[PNode]
+    currentSection: Section # can be nil
 
   ReplaceTuple* = array[0..1, string]
 
@@ -2918,8 +2924,8 @@ proc parseVisibility(p: var Parser; result: PNode; private: var bool) =
     else:
       break
 
-proc parseClassSnippet(p: var Parser; result, recList, stmtList, genericParams: PNode;
-                       pragmas: var PNode; private: bool) =
+proc parseClassEntity(p: var Parser; genericParams: PNode; private: bool): PNode =
+  result = newNodeP(nkStmtList, p)
   let tmpl = parseTemplate(p)
   var gp: PNode
   if tmpl.kind != nkEmpty:
@@ -2935,35 +2941,35 @@ proc parseClassSnippet(p: var Parser; result, recList, stmtList, genericParams: 
     while p.tok.xkind notin {pxEof, pxSemicolon}: getTok(p)
     eat(p, pxSemicolon)
   elif p.tok.xkind == pxSymbol and p.tok.s == "using":
-    stmtList.add(usingStatement(p))
+    result = usingStatement(p)
   elif p.tok.xkind == pxSymbol and p.tok.s == "enum":
-    let x = enumSpecifier(p, stmtList)
-    if not private or pfKeepBodies in p.options.flags: stmtList.add(x)
+    let x = enumSpecifier(p, result)
+    if not private or pfKeepBodies in p.options.flags: result.add x
   elif p.tok.xkind == pxSymbol and p.tok.s == "typedef":
     let x = parseTypeDef(p)
-    if not private or pfKeepBodies in p.options.flags: stmtList.add(x)
+    if not private or pfKeepBodies in p.options.flags: result = x
   elif p.tok.xkind == pxSymbol and p.tok.s in ["struct", "class"]:
     let x = parseStandaloneClass(p, isStruct=p.tok.s == "struct", gp, tmpl)
-    if not private or pfKeepBodies in p.options.flags: stmtList.add(x)
+    if not private or pfKeepBodies in p.options.flags: result = x
   elif p.tok.xkind == pxSymbol and p.tok.s == "union":
     let x = parseStandaloneStruct(p, isUnion=true, gp)
-    if not private or pfKeepBodies in p.options.flags: stmtList.add(x)
+    if not private or pfKeepBodies in p.options.flags: result = x
   elif p.tok.xkind == pxCurlyRi: discard
   else:
-    if pragmas.len != 0: pragmas = newNodeP(nkPragma, p)
+    var pragmas = newNodeP(nkPragma, p)
     parseCallConv(p, pragmas)
     var isStatic = false
     if p.tok.xkind == pxSymbol and p.tok.s == "virtual":
-      getTok(p, stmtList)
+      getTok(p, result)
     if p.tok.xkind == pxSymbol and p.tok.s == "explicit":
-      getTok(p, stmtList)
+      getTok(p, result)
     if p.tok.xkind == pxSymbol and p.tok.s == "static":
-      getTok(p, stmtList)
+      getTok(p, result)
       isStatic = true
     # skip constexpr for now
     var isConst = false
     if p.tok.xkind == pxSymbol and p.tok.s in ["constexpr", "consteval", "constinit"]:
-      getTok(p, stmtList)
+      getTok(p, result)
       isConst = true
 
     parseCallConv(p, pragmas)
@@ -2972,14 +2978,14 @@ proc parseClassSnippet(p: var Parser; result, recList, stmtList, genericParams: 
       # constructor
       let cons = parseConstructor(p, pragmas, isDestructor=false,
                                   gp, genericParams)
-      if not private or pfKeepBodies in p.options.flags: stmtList.add(cons)
+      if not private or pfKeepBodies in p.options.flags: result.add(cons)
     elif p.tok.xkind == pxTilde:
       # destructor
-      getTok(p, stmtList)
+      getTok(p, result)
       if p.tok.xkind == pxSymbol and p.tok.s == p.currentClassOrig:
         let des = parseConstructor(p, pragmas, isDestructor=true,
                                     gp, genericParams)
-        if not private or pfKeepBodies in p.options.flags: stmtList.add(des)
+        if not private or pfKeepBodies in p.options.flags: result.add(des)
       else:
         parError(p, "invalid destructor")
     elif p.tok.xkind == pxSymbol and p.tok.s == "operator":
@@ -2992,12 +2998,12 @@ proc parseClassSnippet(p: var Parser; result, recList, stmtList, genericParams: 
         meth.kind = nkConverterDef
         # don't add trivial operators that Nim ends up using anyway:
         if origName notin ["=", "!=", ">", ">="]:
-          stmtList.add(meth)
+          result.add(meth)
     else:
       # field declaration or method:
       if p.tok.xkind == pxSemicolon:
         getTok(p)
-        skipCom(p, stmtList)
+        skipCom(p, result)
       var baseTyp = typeAtom(p)
       while true:
         var def = newNodeP(nkIdentDefs, p)
@@ -3015,7 +3021,7 @@ proc parseClassSnippet(p: var Parser; result, recList, stmtList, genericParams: 
               if isConverter: meth.kind = nkConverterDef
               # don't add trivial operators that Nim ends up using anyway:
               if origName notin ["=", "!=", ">", ">="]:
-                stmtList.add(meth)
+                result.add(meth)
             break
           origName = p.tok.s
 
@@ -3025,7 +3031,7 @@ proc parseClassSnippet(p: var Parser; result, recList, stmtList, genericParams: 
           let meth = parseMethod(p, origName, t, pragmas, isStatic, false,
                                   hasPointlessPar, gp, genericParams)
           if not private or pfKeepBodies in p.options.flags:
-            stmtList.add(meth)
+            result.add(meth)
         else:
           if hasPointlessPar: eat(p, pxParRi)
           t = pointersOf(p, parseTypeSuffix(p, t), fieldPointers)
@@ -3037,16 +3043,77 @@ proc parseClassSnippet(p: var Parser; result, recList, stmtList, genericParams: 
           if not private or pfKeepBodies in p.options.flags:
             addSon(def, i, t, value)
           if not isStatic:
-            addSon(recList, def)
+            addSon(result, def)
           elif pfKeepBodies in p.options.flags:
-            addSon(stmtList, toVariableDecl(def, isConst))
+            addSon(result, toVariableDecl(def, isConst))
         if p.tok.xkind != pxComma: break
         getTok(p, def)
       if p.tok.xkind == pxSemicolon:
-        if recList.len > 0:
-          getTok(p, lastSon(recList))
+        if result.len > 0:
+          getTok(p, lastSon(result))
         else:
-          getTok(p, recList)
+          getTok(p, result)
+
+proc parseClassEntityPp(p: var Parser; genericParams: PNode;
+                       private: bool): PNode =
+  # like `parseClassEntity` but with preprocessor support.
+  proc parseClassEntityWrapper(p: var Parser): PNode {.nimcall.} =
+    assert p.currentSection != nil
+    result = parseClassEntity(p, p.currentSection.genericParams,
+      p.currentSection.private)
+
+  if p.tok.xkind == pxDirective or p.tok.xkind == pxDirectiveParLe:
+    let oldCurrentSection = p.currentSection
+    p.currentSection = Section(genericParams: genericParams, private: private)
+    result = parseDir(p, parseClassEntityWrapper)
+    p.currentSection = oldCurrentSection
+  else:
+    result = parseClassEntity(p, genericParams, private)
+
+proc unpackClassSnippet(p: var Parser; snippet, recList, stmtList, condition: PNode) =
+  case snippet.kind
+  of nkStmtList:
+    for ch in snippet:
+      unpackClassSnippet(p, ch, recList, stmtList, condition)
+  of nkWhenStmt:
+    # most complex case: append fields to the recList and everything else
+    # to the stmtList but duplicate the 'when' condition:
+    var prevConditions = condition
+    for branch in snippet:
+      var thisCondition = prevConditions
+      if branch.kind == nkElifBranch:
+        if thisCondition == nil:
+          thisCondition = branch[0]
+        else:
+          thisCondition = newTree(nkInfix, newIdentNodeP("and", p), prevConditions, thisCondition)
+      unpackClassSnippet(p, lastSon(branch), recList, stmtList, thisCondition)
+      if branch.kind == nkElifBranch:
+        let notExpr = newTree(nkPrefix, newIdentNodeP("not", p), branch[0])
+        if prevConditions == nil:
+          prevConditions = notExpr
+        else:
+          prevConditions = newTree(nkInfix, newIdentNodeP("and", p), prevConditions, notExpr)
+  of nkRecList:
+    if condition != nil:
+      recList.add newTree(nkWhenStmt, newTree(nkElifBranch, condition, snippet))
+    else:
+      for ch in snippet:
+        recList.add ch
+  of nkIdentDefs:
+    if condition != nil:
+      recList.add newTree(nkWhenStmt, newTree(nkElifBranch, condition, snippet))
+    else:
+      recList.add snippet
+  else:
+    if condition != nil:
+      stmtList.add newTree(nkWhenStmt, newTree(nkElifBranch, condition, snippet))
+    else:
+      stmtList.add snippet
+
+proc parseClassSnippet(p: var Parser; recList, stmtList: PNode; genericParams: PNode; private: bool) =
+  # recList and stmtList are appended to.
+  let entity = parseClassEntityPp(p, genericParams, private)
+  unpackClassSnippet(p, entity, recList, stmtList, nil)
 
 proc parseClass(p: var Parser; isStruct: bool;
                 stmtList, genericParams: PNode): PNode =
@@ -3063,13 +3130,12 @@ proc parseClass(p: var Parser; isStruct: bool;
     return nil
   eat(p, pxCurlyLe, result)
   var private = not isStruct
-  var pragmas = newNodeP(nkPragma, p)
 
   if pfPedantic in p.options.flags:
     while p.tok.xkind notin {pxEof, pxCurlyRi}:
       skipCom(p, stmtList)
       parseVisibility(p, result, private)
-      parseClassSnippet(p, result, recList, stmtList, genericParams, pragmas, private)
+      parseClassSnippet(p, recList, stmtList, genericParams, private)
       opt(p, pxSemicolon, nil)
   else:
     while p.tok.xkind notin {pxEof, pxCurlyRi}:
@@ -3077,7 +3143,7 @@ proc parseClass(p: var Parser; isStruct: bool;
       try:
         skipCom(p, stmtList)
         parseVisibility(p, result, private)
-        parseClassSnippet(p, result, recList, stmtList, genericParams, pragmas, private)
+        parseClassSnippet(p, recList, stmtList, genericParams, private)
         opt(p, pxSemicolon, nil)
         closeContextB(p)
       except ERetryParsing:

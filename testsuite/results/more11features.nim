@@ -1,13 +1,11 @@
 type
   Double* {.bycopy.} = object
-    bits*: bits_type           ##  = p   (includes the hidden bit)
-                   ##  = 2^(p-1)
-                   ##  = 2^(p-1) - 1
+    bits*: bits_type
 
   value_type* = cdouble
   bits_type* = uint64_t
 
-const
+const                         ##  = p   (includes the hidden bit)
   SignificandSize*: int32_t = digits[value_type]
 
 const
@@ -16,10 +14,10 @@ const
 const
   MaxIeeeExponent*: bits_type = bits_type(2 * max_exponent[value_type] - 1)
 
-const
+const                         ##  = 2^(p-1)
   HiddenBit*: bits_type = bits_type(1) shl (SignificandSize - 1)
 
-const
+const                         ##  = 2^(p-1) - 1
   SignificandMask*: bits_type = HiddenBit - 1
 
 const
