@@ -414,7 +414,7 @@ proc newIdentStrLitPair(a, b: string, p: Parser): PNode =
   addSon(result, newIdentNodeP(a, p))
   addSon(result, newStrNodeP(nkStrLit, b, p))
 
-include rules
+include mangler
 
 proc newBinary(opr: string, a, b: PNode, p: Parser): PNode =
   result = newNodeP(nkInfix, p)
