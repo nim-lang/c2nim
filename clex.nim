@@ -347,31 +347,51 @@ proc getNumber16(L: var Lexer, tok: var Token) =
   else: tok.xkind = pxIntLit
   L.bufpos = pos
 
-proc getFloating(L: var Lexer, tok: var Token) =
-  matchUnderscoreChars(L, tok, {'0'..'9'})
-  if L.buf[L.bufpos] in {'e', 'E'}:
-    add(tok.s, L.buf[L.bufpos])
-    inc(L.bufpos)
-    if L.buf[L.bufpos] in {'+', '-'}:
-      add(tok.s, L.buf[L.bufpos])
-      inc(L.bufpos)
-    matchUnderscoreChars(L, tok, {'0'..'9'})
+proc getNumber(L: var Lexer, tok: var Token) =
+  # "Formally, preprocessing numbers begin with an optional period,
+  # a required decimal digit, and then continue with any sequence of
+  # letters, digits, underscores, periods, and exponents. Exponents
+  # are the two-character sequences e+, e-, E+, E-, p+, p-, P+, and P-.
+  var pos = L.bufpos
+  var buf = L.buf
+  var dots = 0
+  if buf[pos] == '.':
+    add(tok.s, "0.")
+    inc(pos)
+    inc dots
+
+  if buf[pos] in {'0'..'9'}:
+    add(tok.s, buf[pos])
+    inc(pos)
+
+    while true:
+      case buf[pos]
+      of '\'':
+        # Later versions of C++ support numbers like 100'000
+        add(tok.s, '_')
+        inc pos
+      of '0'..'9', 'a'..'z', 'A'..'Z', '_':
+        add(tok.s, buf[pos])
+        inc(pos)
+      of '+', '-':
+        if pos > 0 and buf[pos-1] in {'e', 'E', 'p', 'P'}:
+          add(tok.s, buf[pos])
+          inc(pos)
+        else:
+          break
+      of '.':
+        add(tok.s, buf[pos])
+        inc(pos)
+        inc dots
+      else:
+        break
+  L.bufPos = pos
   if tok.s.endsWith('.'): tok.s.add '0'
 
-proc getNumber(L: var Lexer, tok: var Token) =
   tok.base = base10
-  if L.buf[L.bufpos] == '.':
-    add(tok.s, "0.")
-    inc(L.bufpos)
-    getFloating(L, tok)
-  else:
-    matchUnderscoreChars(L, tok, {'0'..'9'})
-    if L.buf[L.bufpos] in {'.','e','E'}:
-      if L.buf[L.bufpos] == '.':
-        add(tok.s, L.buf[L.bufpos])
-        inc(L.bufpos)
-      getFloating(L, tok)
-  if isFloatLiteral(tok.s):
+  if dots > 1:
+    tok.xkind = pxInvalid
+  elif isFloatLiteral(tok.s):
     tok.xkind = pxFloatLit
   else:
     tok.xkind = pxInt64Lit
@@ -381,8 +401,6 @@ proc getNumber(L: var Lexer, tok: var Token) =
         tok.xkind = pxIntLit
     except ValueError, OverflowDefect:
       discard
-  # ignore type suffix:
-  while L.buf[L.bufpos] in {'A'..'Z', 'a'..'z'}: inc(L.bufpos)
 
 proc handleCRLF(L: var Lexer, pos: int): int =
   case L.buf[pos]

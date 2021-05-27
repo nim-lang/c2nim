@@ -3,6 +3,8 @@
 ##  Another comment line.
 ##
 
+##  bug #127
+
 template interrupts*(): untyped =
   sei()
 

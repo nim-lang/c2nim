@@ -148,6 +148,9 @@ proc parseDefBody(p: var Parser, m: var Macro, params: seq[string]): bool =
         # unpaired ')' or ']' or '}' --> enable "cannot translate to template heuristic"
         result = true
       m.body.add(p.tok)
+    of pxInvalid:
+      m.body.add(p.tok)
+      result = true
     else:
       m.body.add(p.tok)
     # we do not want macro expansion here:

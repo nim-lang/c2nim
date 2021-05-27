@@ -9,6 +9,9 @@ extern "C" {
 #  endif
 #endif
 
+// bug #127
+#define VERSION 0.1.0
+
 #define interrupts() sei()
 
 enum
