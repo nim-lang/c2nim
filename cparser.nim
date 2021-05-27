@@ -18,7 +18,7 @@
 ## `> >` for C++ template support.
 
 import
-  os, compiler/llstream, compiler/renderer, clex, compiler/idents, strutils,
+  os, compiler/llstream, compiler/renderer, clexer, compiler/idents, strutils,
   pegs, compiler/ast, compiler/msgs,
   strtabs, hashes, algorithm, compiler/nversion
 
@@ -1230,7 +1230,7 @@ proc getEnumIdent(n: PNode): PNode =
 
 proc buildStmtList(a: PNode): PNode
 
-include cpp
+include preprocessor
 
 proc enumFields(p: var Parser, constList, stmtList: PNode): PNode =
   type EnumFieldKind = enum isNormal, isNumber, isAlias

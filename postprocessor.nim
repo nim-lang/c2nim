@@ -12,7 +12,7 @@
 
 import compiler/[ast, renderer, idents]
 
-import clex
+import clexer
 
 template emptyNode: untyped = newNode(nkEmpty)
 

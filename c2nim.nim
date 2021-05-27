@@ -10,7 +10,7 @@
 import
   strutils, os, times, parseopt, compiler/llstream, compiler/ast,
   compiler/renderer, compiler/options, compiler/msgs,
-  clex, cparse, postprocessor, compiler/nversion
+  clexer, cparser, postprocessor, compiler/nversion
 
 when declared(NimCompilerApiVersion):
   import compiler / [lineinfos, pathutils]
