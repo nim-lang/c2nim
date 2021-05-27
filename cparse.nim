@@ -19,7 +19,6 @@
 
 # TODO
 # - `if (init; expr)` / `switch (init; expr)` syntax (C++20 or something)
-# - implement `using` inside `switch (C++)
 
 import
   os, compiler/llstream, compiler/renderer, clex, compiler/idents, strutils,
@@ -2576,6 +2575,13 @@ proc parseSwitch(p: var Parser): PNode =
         getTok(p, b)
         addSon(b, rangeExpression(p))
         eat(p, pxColon, b)
+    of "using":
+      if pfCpp in p.options.flags:
+        while p.tok.xkind notin {pxEof, pxSemicolon}: getTok(p)
+        eat(p, pxSemicolon)
+        continue
+      else:
+        parError(p, "'case' expected")
     else:
       parError(p, "'case' expected")
     addSon(b, switchStatement(p))

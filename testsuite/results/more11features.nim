@@ -181,15 +181,24 @@ proc constructFoo*[T](): Foo[T] {.constructor.} =
 ##  bug #59
 
 type
+  Color* = enum
+    red, green = 20, blue
+
+
+type
   MyClass* {.bycopy.} = object
+    color*: Color
     warning*: proc (a1: cstring) {.varargs.} ##  <- this fails!!
 
 
 proc warning*(this: var MyClass; a2: cstring): pointer {.varargs.}
 proc warning*(this: var MyClass; a2: cstring): pointer {.varargs.} =
   var bodyHere: cint
-
-type
-  Color* = enum
-    red, green = 20, blue
-
+  case this.color
+  of red:
+    ## ignored statement
+  of green:
+    bodyHere = 123
+  of blue:
+    ## ignored statement
+  

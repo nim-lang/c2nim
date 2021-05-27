@@ -169,15 +169,23 @@ public:
 
 // bug #59
 
+enum class Color { red, green = 20, blue };
+
 class MyClass {
+  Color color;
 public:
   void (*warning)(const char*, ...);    // <- this fails!!
   void *warning(const char*, ...);
 };
 
-
 void* MyClass::warning(const char*, ...) {
   int bodyHere;
+  switch (this->color) {
+    using enum Color;
+    case red: ;
+    case green:
+      bodyHere = 123;
+    case blue: ;
+  }
 }
 
-enum class Color { red, green = 20, blue };
