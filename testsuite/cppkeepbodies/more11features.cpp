@@ -97,7 +97,7 @@ public:
     int postedEvents;
     QDynamicMetaObjectData *metaObject;
     QBindingStorage bindingStorage;
-    QMetaObject *dynamicMetaObject() const;
+    QMetaObject *dynamicMetaObject() const override final;
 };
 
 // C++ lambdas

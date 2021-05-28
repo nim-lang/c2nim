@@ -1547,11 +1547,17 @@ proc skipDeclarationSpecifiers(p: var Parser) =
     else: break
 
 proc skipThrowSpecifier(p: var Parser) =
-  if p.tok.xkind == pxSymbol and p.tok.s == "throw":
-    getTok(p)
-    var pms = newNodeP(nkFormalParams, p)
-    var pgms = newNodeP(nkPragma, p)
-    parseFormalParams(p, pms, pgms) #ignore
+  while p.tok.xkind == pxSymbol:
+    case p.tok.s
+    of "throw":
+      getTok(p)
+      var pms = newNodeP(nkFormalParams, p)
+      var pgms = newNodeP(nkPragma, p)
+      parseFormalParams(p, pms, pgms) #ignore
+    of "override", "final":
+      getTok(p)
+    else:
+      break
 
 proc parseInitializer(p: var Parser; kind: TNodeKind; isArray: var bool): PNode =
   case p.tok.xkind
