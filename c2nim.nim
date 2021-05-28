@@ -25,7 +25,7 @@ Usage: c2nim [options] [optionfile(s)] inputfile(s) [options]
   other C files but produce no output file.
 Options:
   -o, --out:FILE         set output filename
-  --pedantic             do not produce an output file if an error occurred
+  --strict               do not produce an output file if an error occurred
   --cpp                  process C++ input file
   --dynlib:SYMBOL        import from dynlib: SYMBOL will be used for the import
   --header:HEADER_FILE   import from a HEADER_FILE (discouraged!)

@@ -32,7 +32,7 @@ import pegs except Token, Tokkind
 
 type
   ParserFlag* = enum
-    pfPedantic,         ## do not use the "best effort" parsing approach
+    pfStrict,         ## do not use the "best effort" parsing approach
                         ## with sync points.
     pfRefs,             ## use "ref" instead of "ptr" for C's typ*
     pfCDecl,            ## annotate procs with cdecl
@@ -140,7 +140,7 @@ proc newParserOptions*(): PParserOptions =
 proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   result = true
   case key.normalize
-  of "pedantic": incl(parserOptions.flags, pfPedantic)
+  of "strict": incl(parserOptions.flags, pfStrict)
   of "ref": incl(parserOptions.flags, pfRefs)
   of "dynlib": parserOptions.dynlibSym = val
   of "header":
@@ -1662,7 +1662,6 @@ proc parseVarDecl(p: var Parser, baseTyp, typ: PNode,
     addSon(def, parseTypeSuffix(p, t))
     addInitializer(p, def)
     addSon(result, def)
-  eat(p, pxSemicolon)
 
 proc parseOperator(p: var Parser, origName: var string): bool =
   getTok(p) # skip 'operator' keyword
@@ -1711,7 +1710,7 @@ proc parseMethod(p: var Parser, origName: string, rettyp, pragmas: PNode,
                  isStatic, isOperator: bool;
                  genericParams, genericParamsThis: PNode): PNode
 
-proc declaration(p: var Parser; genericParams: PNode = emptyNode): PNode =
+proc declarationWithoutSemicolon(p: var Parser; genericParams: PNode = emptyNode): PNode =
   result = newNodeP(nkProcDef, p)
   var pragmas = newNodeP(nkPragma, p)
 
@@ -1728,9 +1727,7 @@ proc declaration(p: var Parser; genericParams: PNode = emptyNode): PNode =
   if p.tok.xkind == pxParLe:
     # Function pointer declaration: This is of course only a heuristic, but the
     # best we can do here.
-    result = parseFunctionPointerDecl(p, rettyp)
-    eat(p, pxSemicolon)
-    return
+    return parseFunctionPointerDecl(p, rettyp)
 
   expectIdent(p)
   var origName = p.tok.s
@@ -1823,6 +1820,11 @@ proc declaration(p: var Parser; genericParams: PNode = emptyNode): PNode =
   else:
     result = parseVarDecl(p, baseTyp, rettyp, origName)
   assert result != nil
+
+proc declaration(p: var Parser; genericParams: PNode = emptyNode): PNode =
+  result = declarationWithoutSemicolon(p, genericParams)
+  if result.kind != nkProcDef:
+    eat(p, pxSemicolon)
 
 proc enumSpecifier(p: var Parser; stmtList: PNode): PNode =
   saveContext(p)
@@ -2529,30 +2531,79 @@ proc parseStandaloneStruct(p: var Parser, isUnion: bool;
     backtrackContext(p)
     result = declaration(p)
 
+proc varDeclOrStatement(p: var Parser): PNode =
+  case p.tok.xkind
+  of pxSemicolon:
+    result = newNodeP(nkEmpty, p)
+  of pxSymbol:
+    saveContext(p)
+    getTok(p) # skip identifier to look ahead
+
+    if pfCpp in p.options.flags and p.tok.xkind == pxScope:
+      # match qualified identifier eg. `std::ostream`
+      backtrackContext(p)
+      saveContext(p)
+      let retType = typeAtom(p)
+      discard pointer(p, retType)
+
+    case p.tok.xkind
+    of pxSymbol, pxStar, pxLt, pxAmp, pxAmpAmp:
+      # we parse
+      # a b
+      # a * b
+      # always as declarations! This is of course not correct, but good
+      # enough for most real world C code out there.
+      backtrackContext(p)
+      result = declarationWithoutSemicolon(p)
+    else:
+      backtrackContext(p)
+      result = expression(p)
+  else:
+    result = expression(p)
+
 proc parseFor(p: var Parser, result: PNode) =
   # 'for' '(' expression_statement expression_statement expression? ')'
   #   statement
   getTok(p, result)
   eat(p, pxParLe, result)
-  var initStmt = declarationOrStatement(p)
-  if initStmt.kind != nkEmpty:
-    embedStmts(result, initStmt)
-  var w = newNodeP(nkWhileStmt, p)
-  var condition = expressionStatement(p)
-  if condition.kind == nkEmpty: condition = newIdentNodeP("true", p)
-  addSon(w, condition)
-  var step = if p.tok.xkind != pxParRi: expression(p) else: emptyNode
-  eat(p, pxParRi, step)
-  if step.kind != nkEmpty:
-    p.continueActions.add step
-  var loopBody = nestedStatement(p)
-  if step.kind != nkEmpty:
-    loopBody = buildStmtList(loopBody)
-    embedStmts(loopBody, step)
-  if step.kind != nkEmpty:
-    discard p.continueActions.pop()
-  addSon(w, loopBody)
-  addSon(result, w)
+  var initStmt = varDeclOrStatement(p)
+  if p.tok.xkind == pxColon:
+    var w = newNodeP(nkForStmt, p)
+    getTok(p, w)
+    # C++ 'for each' loop
+    if initStmt.kind != nkEmpty:
+      for i in 0..<initStmt.len:
+        for j in 0..<initStmt[i].len-2:
+          w.add initStmt[i][j]
+    else:
+      parError(p, "declaration expected")
+    let iter = expression(p)
+    eat(p, pxParRi, iter)
+    w.add iter
+    addSon(w, nestedStatement(p))
+    addSon(result, w)
+  else:
+    if p.tok.xkind == pxSemicolon:
+      getTok(p, initStmt)
+    if initStmt.kind != nkEmpty:
+      embedStmts(result, initStmt)
+    # classical 'for' loop
+    var w = newNodeP(nkWhileStmt, p)
+    var condition = expressionStatement(p)
+    if condition.kind == nkEmpty: condition = newIdentNodeP("true", p)
+    addSon(w, condition)
+    var step = if p.tok.xkind != pxParRi: expression(p) else: emptyNode
+    eat(p, pxParRi, step)
+    if step.kind != nkEmpty:
+      p.continueActions.add step
+    var loopBody = nestedStatement(p)
+    if step.kind != nkEmpty:
+      loopBody = buildStmtList(loopBody)
+      embedStmts(loopBody, step)
+    if step.kind != nkEmpty:
+      discard p.continueActions.pop()
+    addSon(w, loopBody)
+    addSon(result, w)
 
 proc switchStatement(p: var Parser): PNode =
   result = newNodeP(nkStmtList, p)
@@ -2664,7 +2715,7 @@ proc compoundStatement(p: var Parser; newScope=true): PNode =
   eat(p, pxCurlyLe)
   if newScope: inc(p.scopeCounter)
 
-  if pfPedantic in p.options.flags:
+  if pfStrict in p.options.flags:
     while p.tok.xkind notin {pxEof, pxCurlyRi}:
       var a = statement(p)
       if a.kind == nkEmpty: break
@@ -3173,7 +3224,7 @@ proc parseClass(p: var Parser; isStruct: bool;
   eat(p, pxCurlyLe, result)
   var private = not isStruct
 
-  if pfPedantic in p.options.flags:
+  if pfStrict in p.options.flags:
     while p.tok.xkind notin {pxEof, pxCurlyRi}:
       skipCom(p, stmtList)
       parseVisibility(p, result, private)
@@ -3381,7 +3432,7 @@ proc statement(p: var Parser): PNode =
     result = expressionStatement(p)
   assert result != nil
 
-proc parsePedantic(p: var Parser): PNode =
+proc parseStrict(p: var Parser): PNode =
   try:
     result = newNodeP(nkStmtList, p)
     getTok(p) # read first token
@@ -3415,7 +3466,7 @@ proc parseWithSyncPoints(p: var Parser): PNode =
     parError(p, firstError)
 
 proc parseUnit*(p: var Parser): PNode =
-  if pfPedantic in p.options.flags:
-    result = parsePedantic(p)
+  if pfStrict in p.options.flags:
+    result = parseStrict(p)
   else:
     result = parseWithSyncPoints(p)
