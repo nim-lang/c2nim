@@ -184,7 +184,7 @@ for kind, key, val in getopt():
       parserOptions.exportPrefix = val
     else:
       if not parserOptions.setOption(key, val):
-        stdout.writeLine("[Error] unknown option: " & key)
+        quit("[Error] unknown option: " & key)
   of cmdEnd: assert(false)
 if infiles.len == 0:
   # no filename has been given, so we show the help:
