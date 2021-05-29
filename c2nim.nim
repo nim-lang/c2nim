@@ -7,16 +7,23 @@
 #    distribution, for details about the copyright.
 #
 
-import
-  strutils, os, times, parseopt, compiler/llstream, compiler/ast,
-  compiler/renderer, compiler/options, compiler/msgs,
-  clexer, cparser, postprocessor, compiler/nversion
+import std / [strutils, os, times, parseopt, strscans]
+
+import compiler/ [llstream, ast, renderer, options, msgs, nversion]
+
+import clexer, cparser, postprocessor
 
 when declared(NimCompilerApiVersion):
   import compiler / [lineinfos, pathutils]
 
+proc extractVersion(): string {.compileTime.} =
+  let nimbleFile = staticRead("c2nim.nimble")
+  for line in splitLines(nimbleFile):
+    if scanf(line, "version$s=$s\"$+\"", result): break
+  assert '.' in result
+
 const
-  Version = "0.9.17" # keep in sync with Nimble version. D'oh!
+  Version = extractVersion()
   Usage = """
 c2nim - C to Nim source converter
   (c) 2016 Andreas Rumpf
