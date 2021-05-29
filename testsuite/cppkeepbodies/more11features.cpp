@@ -197,3 +197,12 @@ void* MyClass::warning(const char*, ...) {
     printf("I love syntactic sugar!\n");
   }
 }
+
+
+typedef struct {
+  int x, y, z;
+} Coord;
+
+constexpr Coord arr[3] = {
+  {1, 2, 3}, {4, 5, 6}, {7, 8, 9}
+};

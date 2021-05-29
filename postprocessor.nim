@@ -7,8 +7,13 @@
 #    distribution, for details about the copyright.
 #
 
-## Postprocessor. For now only fixes identifiers that ended up producing a
-## Nim keyword. It rewrites that to the backticks notation.
+## Postprocessor. Things it does:
+## - Fixes identifiers that ended up producing a Nim keyword.
+##   It rewrites that to the backticks notation.
+## - Fixes some empty statement sections.
+## - Tries to rewrite braced initializers to be more accurate.
+
+import std / tables
 
 import compiler/[ast, renderer, idents]
 
@@ -19,7 +24,78 @@ template emptyNode: untyped = newNode(nkEmpty)
 proc isEmptyStmtList(n: PNode): bool =
   result = n.kind == nkStmtList and n.len == 1 and n[0].kind == nkEmpty
 
-proc pp(n: var PNode, stmtList: PNode = nil, idx: int = -1) =
+type
+  Context = object
+    typedefs: Table[string, PNode]
+
+proc getName(n: PNode): PNode =
+  result = n
+  if result.kind == nkPragmaExpr:
+    result = result[0]
+  if result.kind == nkPostFix:
+    result = result[1]
+
+proc skipColon(n: PNode): PNode =
+  if n.kind == nkExprColonExpr: result = n[1]
+  else: result = n
+
+proc rememberTypedef(c: var Context; n: PNode) =
+  let name = getName(n[0])
+  if name.kind == nkIdent and n.len >= 2:
+    c.typedefs[name.ident.s] = n.lastSon
+
+proc ithFieldName(t: PNode; position: var int): PNode =
+  result = nil
+  case t.kind
+  of nkObjectTy:
+    result = ithFieldName(t.lastSon, position)
+  of nkRecList:
+    for j in 0..<t.len:
+      result = ithFieldName(t[j], position)
+      if result != nil: return result
+  of nkIdentDefs:
+    for j in 0..<t.len-2:
+      if position == 0:
+        return getName(t[j])
+      dec position
+  else:
+    discard
+
+const
+  Initializers = {nkBracket, nkTupleConstr}
+
+proc patchBracket(c: Context; t: PNode; n: var PNode) =
+  if n.kind notin Initializers: return
+  let obj = t
+  var t = t
+  var attempts = 10
+  while t.kind == nkIdent and attempts >= 0:
+    let t2 = c.typedefs.getOrDefault(t.ident.s)
+    if t2 != nil:
+      t = t2
+    else:
+      break
+    dec attempts
+
+  if t.kind == nkBracketExpr and t.len == 3 and t[0].kind == nkIdent and t[0].ident.s == "array":
+    for i in 0..<n.len:
+      patchBracket(c, t[2], n.sons[i])
+    if n.kind == nkTupleConstr: n.kind = nkBracket
+
+  elif t.kind == nkObjectTy and obj.kind == nkIdent:
+    var nn = newTree(nkObjConstr, obj)
+    var success = true
+    for i in 0..<n.len:
+      var ii = i
+      let name = ithFieldName(t, ii)
+      if name == nil:
+        success = true
+      else:
+        nn.add newTree(nkExprColonExpr, name, n[i].skipColon)
+    if success:
+      n = nn
+
+proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
   case n.kind
   of nkIdent:
     if renderer.isKeyword(n.ident):
@@ -27,37 +103,50 @@ proc pp(n: var PNode, stmtList: PNode = nil, idx: int = -1) =
       m.add n
       n = m
   of nkInfix, nkPrefix, nkPostfix:
-    for i in 1 ..< n.safeLen: pp(n.sons[i], stmtList, idx)
+    for i in 1 ..< n.safeLen: pp(c, n.sons[i], stmtList, idx)
   of nkAccQuoted: discard
 
   of nkStmtList:
-    for i in 0 ..< n.safeLen: pp(n.sons[i], n, i)
+    for i in 0 ..< n.safeLen: pp(c, n.sons[i], n, i)
   of nkRecList:
     var consts: seq[int] = @[]
     for i in 0 ..< n.safeLen:
-      pp(n.sons[i], stmtList, idx)
+      pp(c, n.sons[i], stmtList, idx)
       if n.sons[i].kind == nkConstSection:
         consts.insert(i)
     for i in consts:
-      var c = n.sons[i]
+      var cst = n.sons[i]
       delete(n.sons, i)
-      insert(stmtList.sons, c, idx)
+      insert(stmtList.sons, cst, idx)
 
   of nkElifBranch:
     if n[1].len == 0 or isEmptyStmtList(n[1]):
       n[1] = newTree(nkStmtList, newTree(nkDiscardStmt, emptyNode))
-    pp(n[0], stmtList, idx)
-    pp(n[1], stmtList, idx)
+    pp(c, n[0], stmtList, idx)
+    pp(c, n[1], stmtList, idx)
   of nkElse:
     if n[0].len == 0 or isEmptyStmtList(n[0]):
       n[0] = newTree(nkStmtList, newTree(nkDiscardStmt, emptyNode))
-    pp(n[0], stmtList, idx)
+    pp(c, n[0], stmtList, idx)
+  of nkIdentDefs:
+    let L = n.len
+    for i in 0 ..< L: pp(c, n.sons[i], stmtList, idx)
+    if L > 2 and n[L-2].kind != nkEmpty and n[L-1].kind in Initializers:
+      patchBracket(c, n[L-2], n[L-1])
+
+  of nkTypeSection:
+    for i in 0 ..< n.len:
+      if n[i].kind == nkTypeDef:
+        rememberTypedef(c, n[i])
+      pp(c, n.sons[i], stmtList, idx)
+
   else:
-    for i in 0 ..< n.safeLen: pp(n.sons[i], stmtList, idx)
+    for i in 0 ..< n.safeLen: pp(c, n.sons[i], stmtList, idx)
 
 proc postprocess*(n: PNode): PNode =
+  var c = Context(typedefs: initTable[string, PNode]())
   result = n
-  pp(result)
+  pp(c, result)
 
 proc newIdentNode(s: string; n: PNode): PNode =
   when declared(identCache):
