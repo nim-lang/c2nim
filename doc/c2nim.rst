@@ -40,6 +40,15 @@ be represented in Nim: for example `duff's device`:idx: cannot be translated
 to Nim.
 
 
+Notes for developers
+====================
+
+To add support for a new C/C++ syntactic construct, it's usually a good idea
+to start where the current parser fails: `c2nim --debug --strict file.cpp`
+produces a useful stack trace that points at the source location that is to be
+changed.
+
+
 Preprocessor support
 ====================
 
