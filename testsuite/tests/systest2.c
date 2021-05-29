@@ -49,3 +49,7 @@ static inline void bcf_float_set(float *ptr, uint32_t value)
     u.i = value;
     *ptr = u.f;
 }
+
+#isarray a
+
+void sort(int* a, int len);

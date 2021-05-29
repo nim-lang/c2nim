@@ -36,3 +36,6 @@ proc bcf_float_set*(`ptr`: ptr cfloat; value: uint32_t) {.inline, cdecl.} =
   var u: INNER_C_UNION_systest2_48
   u.i = value
   `ptr`[] = u.f
+
+proc sort*(a: ptr UncheckedArray[cint]; len: cint) {.cdecl, importc: "sort",
+    header: "iup.h".}

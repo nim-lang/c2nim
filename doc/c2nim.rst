@@ -15,7 +15,7 @@ Introduction
 
 c2nim is a tool to translate ANSI C/C++ code to Nim. The output is
 human-readable Nim code that is meant to be tweaked by hand after the
-translation process. c2nim is no real compiler!
+translation process. c2nim is not a real compiler!
 
 c2nim is preliminary meant to translate C header files. Because of this, the
 preprocessor is part of the parser. For example:
@@ -38,6 +38,13 @@ c2nim is meant to translate fragments of C code and thus does not follow
 include files. c2nim cannot parse all of ANSI C/C++ and many constructs cannot
 be represented in Nim: for example `duff's device`:idx: cannot be translated
 to Nim.
+
+Standard Nim Style Guide
+========================
+
+You're strongly adviced to always use the `--nep1` command line switch;
+with this switch enabled, c2nim generates Nim names that follow Nim's official
+style guide.
 
 
 Notes for developers
@@ -304,6 +311,8 @@ ignore comments and not copy them into the generated Nim file.
 **Note**: There is also a ``--typeprefixes`` command line option that can be
 used for the same purpose.
 
+**Note**: Instead you should use the ``--nep1`` command line option.
+
 The ``#typeprefixes`` directive can be put into the C code to make c2nim
 generate the ``T`` or ``P`` prefix for every defined type.
 
@@ -392,6 +401,26 @@ the ``#pp`` directive accomplishes:
 
 In the example c2nim treats the declaration of ``DECLARE_NO_COPY_CLASS`` as
 if it has been defined via ``#def``.
+
+
+``#isarray`` directive
+----------------------
+
+C conflates pointers with arrays, Nim does not. To turn a pointer parameter's
+type into Nim's ``ptr UncheckedArray`` type, use the ``#isarray`` directive:
+
+.. code-block:: C
+
+  #isarray a
+
+  void sort(int* a, int len);
+
+
+  Produces:
+
+.. code-block:: Nim
+
+  proc sort*(a: ptr UncheckedArray[cint]; len: cint)
 
 
 ``#discardableprefix`` directive

@@ -70,6 +70,7 @@ type
     constructor, destructor, importcLit: string
     exportPrefix*: string
     paramPrefix*: string
+    isArray: StringTableRef
 
   PParserOptions* = ref ParserOptions
 
@@ -135,7 +136,8 @@ proc newParserOptions*(): PParserOptions =
     destructor: "destroy",
     importcLit: "importc",
     exportPrefix: "",
-    paramPrefix: "a")
+    paramPrefix: "a",
+    isArray: newStringTable(modeCaseSensitive))
 
 proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   result = true
@@ -172,6 +174,7 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "assumeifistrue": incl(parserOptions.flags, pfAssumeIfIsTrue)
   of "discardableprefix": parserOptions.discardablePrefixes.add(val)
   of "structstruct": incl(parserOptions.flags, pfStructStruct)
+  of "isarray": parserOptions.isArray[val] = "true"
   else: result = false
 
 proc openParser*(p: var Parser, filename: string,
@@ -1032,23 +1035,30 @@ proc parseStruct(p: var Parser, stmtList: PNode): PNode =
   else:
     addSon(result, newNodeP(nkRecList, p))
 
-proc declarator(p: var Parser, a: PNode, ident: ptr PNode): PNode
+proc declarator(p: var Parser, a: PNode, ident: ptr PNode; origName: var string): PNode
 
-proc directDeclarator(p: var Parser, a: PNode, ident: ptr PNode): PNode =
+proc directDeclarator(p: var Parser, a: PNode, ident: ptr PNode; origName: var string): PNode =
   case p.tok.xkind
   of pxSymbol:
+    origName = p.tok.s
     ident[] = skipIdent(p, skParam)
   of pxParLe:
     getTok(p, a)
     if p.tok.xkind in {pxStar, pxAmp, pxAmpAmp, pxSymbol}:
-      result = declarator(p, a, ident)
+      result = declarator(p, a, ident, origName)
       eat(p, pxParRi, result)
   else:
     discard
   result = parseTypeSuffix(p, a, true)
 
-proc declarator(p: var Parser, a: PNode, ident: ptr PNode): PNode =
-  directDeclarator(p, pointer(p, a), ident)
+proc declarator(p: var Parser, a: PNode, ident: ptr PNode; origName: var string): PNode =
+  directDeclarator(p, pointer(p, a), ident, origName)
+
+proc makeUncheckedArray(p: Parser; t: PNode): PNode =
+  assert t.kind == nkPtrTy
+  result = newTree(nkPtrTy,
+    newTree(nkBracketExpr,
+      newIdentNodeP("UncheckedArray", p), t[0]))
 
 # parameter-declaration
 #   declaration-specifiers declarator
@@ -1058,10 +1068,14 @@ proc parseParam(p: var Parser, params: PNode) =
   # support for ``(void)`` parameter list:
   if typ.kind == nkNilLit and p.tok.xkind == pxParRi: return
   var name: PNode
-  typ = declarator(p, typ, addr name)
+  var origName = ""
+  typ = declarator(p, typ, addr name, origName)
   if name == nil:
     var idx = sonsLen(params)
     name = newIdentNodeP(p.options.paramPrefix & $idx, p)
+  elif p.options.isArray.hasKey(origName) and typ.kind == nkPtrTy:
+    typ = makeUncheckedArray(p, typ)
+
   var x = newNodeP(nkIdentDefs, p)
   addSon(x, name, typ)
   if p.tok.xkind == pxAsgn:
