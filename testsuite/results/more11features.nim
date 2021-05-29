@@ -192,6 +192,9 @@ type
 
 
 proc warning*(this: var MyClass; a2: cstring): pointer {.varargs.}
+proc value*(this: var MyClass): var T
+proc value*(this: var MyClass): var T
+proc value*(this: MyClass): T {.noSideEffect.}
 proc warning*(this: var MyClass; a2: cstring): pointer {.varargs.} =
   var bodyHere: cint
   case this.color

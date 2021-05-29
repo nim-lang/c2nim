@@ -1547,14 +1547,21 @@ proc skipDeclarationSpecifiers(p: var Parser) =
     else: break
 
 proc skipThrowSpecifier(p: var Parser) =
-  while p.tok.xkind == pxSymbol:
-    case p.tok.s
-    of "throw":
-      getTok(p)
-      var pms = newNodeP(nkFormalParams, p)
-      var pgms = newNodeP(nkPragma, p)
-      parseFormalParams(p, pms, pgms) #ignore
-    of "override", "final":
+  while true:
+    case p.tok.xkind
+    of pxSymbol:
+      case p.tok.s
+      of "throw":
+        getTok(p)
+        var pms = newNodeP(nkFormalParams, p)
+        var pgms = newNodeP(nkPragma, p)
+        parseFormalParams(p, pms, pgms) #ignore
+      of "override", "final":
+        getTok(p)
+      else:
+        break
+    of pxAmp, pxAmpAmp:
+      # ref qualifiers, see http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2007/n2439.htm
       getTok(p)
     else:
       break

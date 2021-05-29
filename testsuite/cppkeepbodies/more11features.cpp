@@ -176,6 +176,11 @@ class MyClass {
 public:
   void (*warning)(const char*, ...);    // <- this fails!!
   void *warning(const char*, ...);
+
+
+  T&       value() &;
+  T&&      value() &&;
+  T const& value() const&;
 };
 
 void* MyClass::warning(const char*, ...) {
