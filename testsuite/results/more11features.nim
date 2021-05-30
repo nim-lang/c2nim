@@ -207,7 +207,8 @@ proc warning*(this: var MyClass; a2: cstring): pointer {.varargs.} =
   if (
     var f: auto = (5 + 6)
     f != 0):
-    printf("I love syntactic sugar!\n")
+    printf("(I love syntactic sugar!\\n")
+    printf("(I love syntactic sugar!\\n")
 
 type
   Coord* {.bycopy.} = object

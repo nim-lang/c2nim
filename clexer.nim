@@ -511,6 +511,50 @@ proc getString(L: var Lexer, tok: var Token) =
   L.bufpos = pos
   tok.xkind = pxStrLit
 
+proc endsWith(x: cstring; pos: int; delim: string): bool =
+  for i in 0..<delim.len:
+    if x[pos+i] != delim[i]: return false
+  return true
+
+proc getRawString(L: var Lexer, tok: var Token) =
+  var pos = L.bufPos + 1          # skip "
+  var buf = L.buf                 # put `buf` in a register
+  var line = L.linenumber         # save linenumber for better error message
+  var delim = ""
+  # A character sequence made of any source character but parentheses,
+  # backslash and spaces (can be empty, and at most 16 characters long)
+  const delimEnds = {'\0', ' ', '\t', '\v', '\f', '\n', '\r', '(', ')', '\\'}
+  while buf[pos] notin delimEnds:
+    delim.add buf[pos]
+    inc pos
+  delim.add '"'
+
+  while true:
+    case buf[pos]
+    of ')':
+      inc(pos)
+      if endsWith(buf, pos, delim):
+        inc pos, delim.len
+        break
+      add(tok.s, ')')
+    of CR:
+      pos = nimlexbase.handleCR(L, pos)
+      buf = L.buf
+    of LF:
+      pos = nimlexbase.handleLF(L, pos)
+      buf = L.buf
+    of nimlexbase.EndOfFile:
+      var line2 = L.linenumber
+      L.lineNumber = line
+      lexMessagePos(L, errGenerated, L.lineStart, "closing \" expected, but end of file reached")
+      L.lineNumber = line2
+      break
+    else:
+      add(tok.s, buf[pos])
+      inc(pos)
+  L.bufpos = pos
+  tok.xkind = pxStrLit
+
 proc getSymbol(L: var Lexer, tok: var Token) =
   var pos = L.bufpos
   var buf = L.buf
@@ -705,8 +749,12 @@ proc getTok*(L: var Lexer, tok: var Token) =
   if c in SymStartChars:
     getSymbol(L, tok)
     if L.buf[L.bufpos] == '"':
-      setLen tok.s, 0
-      getString(L, tok)
+      if tok.s[^1] == 'R':
+        setLen tok.s, 0
+        getRawString(L, tok)
+      else:
+        setLen tok.s, 0
+        getString(L, tok)
   elif c == '0':
     case L.buf[L.bufpos+1]
     of 'x', 'X': getNumber16(L, tok)

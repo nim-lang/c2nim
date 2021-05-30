@@ -194,7 +194,8 @@ void* MyClass::warning(const char*, ...) {
   }
 
   if (auto f = (5+6); f != 0) {
-    printf("I love syntactic sugar!\n");
+    printf(R"(I love syntactic sugar!\n)");
+    printf(R"xxx(I love syntactic sugar!\n)xxx");
   }
 }
 
