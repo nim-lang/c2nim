@@ -3176,6 +3176,8 @@ proc parseClassEntity(p: var Parser; genericParams: PNode; private: bool): PNode
           if p.tok.xkind == pxAsgn:
             getTok(p, def)
             value = assignmentExpression(p)
+          elif p.tok.xkind == pxCurlyLe:
+            value = parseInitializer(p, nkTupleConstr, discardVarParam(bool))
           if not private or pfKeepBodies in p.options.flags:
             addSon(def, i, t, value)
           if not isStatic:
