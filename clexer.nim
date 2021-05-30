@@ -704,6 +704,9 @@ proc getTok*(L: var Lexer, tok: var Token) =
   var c = L.buf[L.bufpos]
   if c in SymStartChars:
     getSymbol(L, tok)
+    if L.buf[L.bufpos] == '"':
+      setLen tok.s, 0
+      getString(L, tok)
   elif c == '0':
     case L.buf[L.bufpos+1]
     of 'x', 'X': getNumber16(L, tok)
