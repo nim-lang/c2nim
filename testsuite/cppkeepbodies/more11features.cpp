@@ -207,3 +207,10 @@ typedef struct {
 constexpr Coord arr[3] = {
   {1, 2, 3}, {4, 5, 6}, {7, 8, 9}
 };
+
+// test 'noexcept':
+
+void stuff() noexcept(x = x + 1);
+
+int raisesNothing() noexcept {
+}

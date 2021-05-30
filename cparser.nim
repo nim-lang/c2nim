@@ -1572,7 +1572,8 @@ proc skipDeclarationSpecifiers(p: var Parser; varKind: var TNodeKind) =
         getTok(p, nil)
     else: break
 
-proc skipThrowSpecifier(p: var Parser) =
+proc skipThrowSpecifier(p: var Parser; pragmas: PNode) =
+  if pfCpp notin p.options.flags: return
   while true:
     case p.tok.xkind
     of pxSymbol:
@@ -1582,6 +1583,14 @@ proc skipThrowSpecifier(p: var Parser) =
         var pms = newNodeP(nkFormalParams, p)
         var pgms = newNodeP(nkPragma, p)
         parseFormalParams(p, pms, pgms) #ignore
+      of "noexcept":
+        getTok(p)
+        if p.tok.xkind == pxParLe:
+          getTok(p)
+          discard expression(p)
+          eat(p, pxParRi)
+        else:
+          pragmas.add(newTree(nkExprColonExpr, newIdentNodeP("raises", p), newTree(nkBracket)))
       of "override", "final":
         getTok(p)
       else:
@@ -1808,7 +1817,7 @@ proc declarationWithoutSemicolon(p: var Parser; genericParams: PNode = emptyNode
     # no pattern, no exceptions:
     addSon(result, exportSym(p, name, origName), emptyNode, genericParams)
     addSon(result, params, pragmas, emptyNode) # no exceptions
-    skipThrowSpecifier(p)
+    skipThrowSpecifier(p, pragmas)
     case p.tok.xkind
     of pxSemicolon:
       getTok(p)
@@ -2833,7 +2842,7 @@ proc parseConstructor(p: var Parser, pragmas: PNode, isDestructor: bool;
   addSon(result, exportSym(p, name, origName), emptyNode, genericParams)
   addSon(result, params, pragmas, emptyNode) # no exceptions
   addSon(result, emptyNode) # no body
-  skipThrowSpecifier(p)
+  skipThrowSpecifier(p, pragmas)
   case p.tok.xkind
   of pxSemicolon: getTok(p)
   of pxCurlyLe:
@@ -2904,7 +2913,7 @@ proc parseMethod(p: var Parser, origName: string, rettyp, pragmas: PNode,
          emptyNode, genericParams)
   addSon(result, params, pragmas, emptyNode) # no exceptions
   addSon(result, emptyNode) # no body
-  skipThrowSpecifier(p)
+  skipThrowSpecifier(p, pragmas)
   case p.tok.xkind
   of pxSemicolon: getTok(p)
   of pxCurlyLe:
