@@ -216,5 +216,6 @@ type
     z*: cint
 
 
-var arr*: array[3, Coord] = [Coord(x: 1, y: 2, z: 3), Coord(x: 4, y: 5, z: 6),
-                        Coord(x: 7, y: 8, z: 9)]
+const
+  arr*: array[3, Coord] = [Coord(x: 1, y: 2, z: 3), Coord(x: 4, y: 5, z: 6),
+    Coord(x: 7, y: 8, z: 9)]

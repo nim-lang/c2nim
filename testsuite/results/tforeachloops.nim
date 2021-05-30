@@ -8,7 +8,7 @@ proc main*(): cint =
   for i in v:                    ##  access by forwarding reference, the type of i is int&
     cout shl i shl ' '
   cout shl '\n'
-  var cv: var auto = v
+  let cv: var auto = v
   for i in cv:                   ##  access by f-d reference, the type of i is const int&
     cout shl i shl ' '
   cout shl '\n'

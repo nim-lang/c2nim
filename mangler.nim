@@ -115,9 +115,10 @@ proc exportSym(p: Parser, i: PNode, origName: string): PNode =
   else:
     result = i
 
-proc varIdent(ident: string, p: Parser): PNode =
+proc varIdent(ident: string, p: Parser; section: TNodeKind): PNode =
   result = exportSym(p, mangledIdent(ident, p, skVar), ident)
-  if p.scopeCounter > 0: return
+  # a 'const' cannot be importcpp'ed:
+  if p.scopeCounter > 0 or section == nkConstSection: return
   if p.options.dynlibSym.len > 0 or p.options.useHeader:
     var a = result
     result = newNodeP(nkPragmaExpr, p)

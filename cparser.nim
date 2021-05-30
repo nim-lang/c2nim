@@ -1542,15 +1542,27 @@ proc parseTypeDef(p: var Parser): PNode =
   for s in afterStatements:
     addSon(result, s)
 
-proc skipDeclarationSpecifiers(p: var Parser) =
+proc skipDeclarationSpecifiers(p: var Parser; varKind: var TNodeKind) =
   while p.tok.xkind == pxSymbol:
     case p.tok.s
-    of "static", "register", "const", "volatile":
+    of "const":
+      getTok(p, nil)
+      varKind = nkLetSection
+    of "static", "register", "volatile":
       getTok(p, nil)
     of "auto":
       if pfCpp notin p.options.flags: getTok(p, nil)
       else: break
-    of "constexpr", "mutable", "consteval", "constinit":
+    of "constexpr", "consteval", "constinit":
+      if pfCpp in p.options.flags:
+        getTok(p, nil)
+        if p.options.useHeader:
+          varKind = nkLetSection
+        else:
+          varKind = nkConstSection
+      else:
+        break
+    of "mutable":
       if pfCpp in p.options.flags: getTok(p, nil)
       else: break
     of "extern":
@@ -1665,10 +1677,10 @@ proc optInitializer(p: var Parser; n: PNode): PNode =
     result = n
 
 proc parseVarDecl(p: var Parser, baseTyp, typ: PNode,
-                  origName: string): PNode =
-  result = newNodeP(nkVarSection, p)
+                  origName: string; varKind: TNodeKind): PNode =
+  result = newNodeP(varKind, p)
   var def = newNodeP(nkIdentDefs, p)
-  addSon(def, varIdent(origName, p))
+  addSon(def, varIdent(origName, p, varKind))
   addSon(def, parseTypeSuffix(p, typ))
   addInitializer(p, def)
   addSon(result, def)
@@ -1678,7 +1690,7 @@ proc parseVarDecl(p: var Parser, baseTyp, typ: PNode,
     var t = pointer(p, baseTyp)
     expectIdent(p)
     def = newNodeP(nkIdentDefs, p)
-    addSon(def, varIdent(p.tok.s, p))
+    addSon(def, varIdent(p.tok.s, p, varKind))
     getTok(p, def)
     addSon(def, parseTypeSuffix(p, t))
     addInitializer(p, def)
@@ -1735,15 +1747,16 @@ proc declarationWithoutSemicolon(p: var Parser; genericParams: PNode = emptyNode
   result = newNodeP(nkProcDef, p)
   var pragmas = newNodeP(nkPragma, p)
 
-  skipDeclarationSpecifiers(p)
+  var varKind = nkVarSection
+  skipDeclarationSpecifiers(p, varKind)
   parseCallConv(p, pragmas)
-  skipDeclarationSpecifiers(p)
+  skipDeclarationSpecifiers(p, varKind)
   expectIdent(p)
   var baseTyp = typeAtom(p)
   var rettyp = pointer(p, baseTyp)
-  skipDeclarationSpecifiers(p)
+  skipDeclarationSpecifiers(p, varKind)
   parseCallConv(p, pragmas)
-  skipDeclarationSpecifiers(p)
+  skipDeclarationSpecifiers(p, varKind)
 
   if p.tok.xkind == pxParLe:
     # Function pointer declaration: This is of course only a heuristic, but the
@@ -1780,7 +1793,7 @@ proc declarationWithoutSemicolon(p: var Parser; genericParams: PNode = emptyNode
       closeContextB(p)
     except ERetryParsing:
       backtrackContextB(p)
-      return parseVarDecl(p, baseTyp, rettyp, origName)
+      return parseVarDecl(p, baseTyp, rettyp, origName, varKind)
 
     if pfCpp in p.options.flags and p.tok.xkind == pxSymbol and
         p.tok.s == "const":
@@ -1839,7 +1852,7 @@ proc declarationWithoutSemicolon(p: var Parser; genericParams: PNode = emptyNode
       p.currentClassOrig = oldClassOrig
 
   else:
-    result = parseVarDecl(p, baseTyp, rettyp, origName)
+    result = parseVarDecl(p, baseTyp, rettyp, origName, varKind)
   assert result != nil
 
 proc declaration(p: var Parser; genericParams: PNode = emptyNode): PNode =
@@ -2509,7 +2522,7 @@ proc parseTrailingDefinedIdents(p: var Parser, result, baseTyp: PNode) =
     var t = pointer(p, baseTyp)
     expectIdent(p)
     var def = newNodeP(nkIdentDefs, p)
-    addSon(def, varIdent(p.tok.s, p))
+    addSon(def, varIdent(p.tok.s, p, nkVarSection))
     getTok(p, def)
     addSon(def, parseTypeSuffix(p, t))
     addInitializer(p, def)
