@@ -2410,7 +2410,7 @@ proc parseIf(p: var Parser): PNode =
     addSon(branch, nestedStatement(p))
     addSon(result, branch)
     skipCom(p, branch)
-    if p.tok.s == "else":
+    if p.tok.xkind == pxSymbol and p.tok.s == "else":
       getTok(p, result)
       if p.tok.s != "if":
         # ordinary else part:

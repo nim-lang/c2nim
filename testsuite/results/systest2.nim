@@ -39,3 +39,11 @@ proc bcf_float_set*(`ptr`: ptr cfloat; value: uint32_t) {.inline, cdecl.} =
 
 proc sort*(a: ptr UncheckedArray[cint]; len: cint) {.cdecl, importc: "sort",
     header: "iup.h".}
+##  bug #32
+
+proc x*(): cint {.cdecl.} =
+  when fii:
+    if 1:
+      discard
+  else:
+    return 1

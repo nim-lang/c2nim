@@ -53,3 +53,14 @@ static inline void bcf_float_set(float *ptr, uint32_t value)
 #isarray a
 
 void sort(int* a, int len);
+
+// bug #32
+
+int x(){
+#if fii
+    if(1) {
+    }
+#else
+    return 1;
+#endif
+}
