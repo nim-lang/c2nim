@@ -47,3 +47,9 @@ proc x*(): cint {.cdecl.} =
       discard
   else:
     return 1
+
+const
+  someU64* = 12333'u64
+  someU32* = 12333'u32
+  someI64* = 12333'i64
+  someI32* = 12333'i32

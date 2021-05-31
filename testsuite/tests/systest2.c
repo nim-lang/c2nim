@@ -64,3 +64,10 @@ int x(){
     return 1;
 #endif
 }
+
+
+#define someU64 12333ull
+
+#define someU32 12333ul
+#define someI64 12333LL
+#define someI32 12333l

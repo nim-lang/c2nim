@@ -2013,6 +2013,27 @@ proc setBaseFlags(n: PNode, base: NumericalBase) =
   of base8: incl(n.flags, nfBase8)
   of base16: incl(n.flags, nfBase16)
 
+proc endsWithIgnoreCase(s: string; suffix: string): bool =
+  if s.len < suffix.len: return false
+  for i in 0..<suffix.len:
+    if toLowerAscii(s[s.len - suffix.len + i]) != toLowerAscii(suffix[i]): return false
+  return true
+
+proc translateNumber(s: string; p: var Parser): PNode =
+  template t(s, suffix, nimSuffix) =
+    if s.endsWithIgnoreCase(suffix):
+      return newNumberNodeP(nkIntLit, s[0..^(suffix.len+1)] & nimSuffix, p)
+
+  if s[^1] in {'A'..'Z', 'a'..'z'}:
+    t(s, "ull", "'u64")
+    t(s, "ul", "'u32")
+    t(s, "u", "'u")
+    t(s, "ll", "'i64")
+    t(s, "l", "'i32")
+    result = newNumberNodeP(nkIntLit, s, p)
+  else:
+    result = newNumberNodeP(nkInt64Lit, s, p)
+
 proc startExpression(p: var Parser, tok: Token): PNode =
   case tok.xkind
   of pxSymbol:
@@ -2068,7 +2089,7 @@ proc startExpression(p: var Parser, tok: Token): PNode =
     result = newNumberNodeP(nkIntLit, tok.s, p)
     setBaseFlags(result, tok.base)
   of pxInt64Lit:
-    result = newNumberNodeP(nkInt64Lit, tok.s, p)
+    result = translateNumber(tok.s, p)
     setBaseFlags(result, tok.base)
   of pxFloatLit:
     result = newNumberNodeP(nkFloatLit, tok.s, p)
