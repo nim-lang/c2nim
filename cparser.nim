@@ -2030,9 +2030,15 @@ proc translateNumber(s: string; p: var Parser): PNode =
     t(s, "u", "'u")
     t(s, "ll", "'i64")
     t(s, "l", "'i32")
-    result = newNumberNodeP(nkIntLit, s, p)
+    if s.startsWith("0x") or s.startsWith("0X"):
+      result = newNumberNodeP(nkIntLit, s & "'u", p)
+    else:
+      result = newNumberNodeP(nkIntLit, s, p)
   else:
-    result = newNumberNodeP(nkInt64Lit, s, p)
+    if s.startsWith("0x") or s.startsWith("0X"):
+      result = newNumberNodeP(nkIntLit, s & "'u", p)
+    else:
+      result = newNumberNodeP(nkInt64Lit, s, p)
 
 proc startExpression(p: var Parser, tok: Token): PNode =
   case tok.xkind
