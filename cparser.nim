@@ -904,14 +904,18 @@ proc parseBitfield(p: var Parser, i: PNode): PNode =
     getTok(p)
     var bits = p.tok.s
     eat(p, pxIntLit)
-    var pragma = newNodeP(nkPragma, p)
     var bitsize = newNodeP(nkExprColonExpr, p)
     addSon(bitsize, newIdentNodeP("bitsize", p))
     addSon(bitsize, newNumberNodeP(nkIntLit, bits, p))
-    addSon(pragma, bitsize)
-    result = newNodeP(nkPragmaExpr, p)
-    addSon(result, i)
-    addSon(result, pragma)
+    if i.kind == nkPragmaExpr:
+      result = i
+      addSon(result[1], bitsize)
+    else:
+      var pragma = newNodeP(nkPragma, p)
+      addSon(pragma, bitsize)
+      result = newNodeP(nkPragmaExpr, p)
+      addSon(result, i)
+      addSon(result, pragma)
   else:
     result = i
 
