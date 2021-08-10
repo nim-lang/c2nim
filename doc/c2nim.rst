@@ -244,6 +244,8 @@ too, there is no need to quote them:
   #mangle ssize_t  int
   // is short for:
   #mangle "'ssize_t'" "int"
+  
+To fix leading/trailing/underscore identifiers in C code use `#mangle "^'_'*{@}('_'*$)" "$1"`
 
 ``#assumedef`` and ``#assumendef`` directives
 ----------------------------------------------
