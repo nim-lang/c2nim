@@ -99,6 +99,7 @@ type
                          # to 'foo: Foo' and not 'foo: var Foo'.
     continueActions: seq[PNode]
     currentSection: Section # can be nil
+    anoTypeCount: int
 
   ReplaceTuple* = array[0..1, string]
 
@@ -867,13 +868,14 @@ proc structPragmas(p: Parser, name: PNode, origName: string,
   if isUnion: pragmas.add newIdentNodeP("union", p)
   result.add pragmas
 
-proc hashPosition(p: Parser): string =
+proc hashPosition(p: var Parser): string =
   let lineInfo = parLineInfo(p)
   when declared(gConfig):
     let fileInfo = toFilename(gConfig, lineInfo.fileIndex).splitFile.name
   else:
     let fileInfo = toFilename(lineInfo.fileIndex).splitFile.name
-  result = fileInfo & "_" & $lineInfo.line
+  result = fileInfo & "_" & $p.anoTypeCount
+  inc(p.anoTypeCount)
 
 proc parseInnerStruct(p: var Parser, stmtList: PNode,
                       isUnion: bool, name: string): PNode =
