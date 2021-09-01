@@ -146,7 +146,7 @@ type
       previousToken: TLineInfo
     config*: ConfigRef
 
-when not compiles(OverflowDefect):
+when not declared(OverflowDefect):
   type OverflowDefect = OverflowError
 
 proc getLineInfo*(L: TLexer, tok: TToken): TLineInfo {.inline.} =
