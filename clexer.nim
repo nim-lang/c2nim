@@ -111,7 +111,7 @@ type
     fileIdx*: (when declared(FileIndex): FileIndex else: int32)
     inDirective, debugMode*: bool
 
-when not compiles(OverflowDefect):
+when not declared(OverflowDefect):
   type OverflowDefect = OverflowError
 
 var
