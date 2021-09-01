@@ -146,6 +146,9 @@ type
       previousToken: TLineInfo
     config*: ConfigRef
 
+when not declared(OverflowDefect):
+  type OverflowDefect = OverflowError
+
 proc getLineInfo*(L: TLexer, tok: TToken): TLineInfo {.inline.} =
   result = newLineInfo(L.fileIdx, tok.line, tok.col)
   when defined(nimpretty):
