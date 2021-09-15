@@ -84,8 +84,6 @@ proc parseDefine(p: var Parser; hasParams: bool): PNode =
     addSon(result, emptyNode)
     var kind = parseDefineBody(p, result)
     params.sons[0] = newIdentNodeP(kind, p)
-    echo "parseDefine: kind: ", $kind
-    echo "parseDefine: params: ", $params.sons[0]
     eatNewLine(p, result)
   else:
     # a macro without parameters:
@@ -186,7 +184,6 @@ proc parseDef(p: var Parser, m: var Macro; hasParams: bool): bool =
   if hasParams:
     eat(p, pxParLe)
     while p.tok.xkind != pxParRi:
-      echo "parseDef: ", $p.tok.xkind
       if p.tok.xkind == pxDotDotDot:
         # addSon(pragmas, newIdentNodeP("varargs", p))
         getTok(p)
