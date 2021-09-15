@@ -54,7 +54,12 @@ proc parseDefine(p: var Parser; hasParams: bool): PNode =
     addSon(params, emptyNode)
     if p.tok.xkind != pxParRi:
       var identDefs = newNodeP(nkIdentDefs, p)
+      var isVariable = false
       while p.tok.xkind != pxParRi:
+        if p.tok.xkind == pxDotDotDot:
+          isVariable = true
+          getTok(p)
+          break
         addSon(identDefs, skipIdent(p, skParam))
         skipStarCom(p, nil)
         if p.tok.xkind != pxComma: break
@@ -62,6 +67,15 @@ proc parseDefine(p: var Parser; hasParams: bool): PNode =
       addSon(identDefs, newIdentNodeP("untyped", p))
       addSon(identDefs, emptyNode)
       addSon(params, identDefs)
+      if isVariable:
+        var vdefs = newNodeP(nkExprColonExpr, p)
+        addSon(vdefs, newIdentNodeP("xargs", p))
+        var vdecl =
+          newTree(nkBracketExpr, 
+            newIdentNodeP("varargs", p),
+            newIdentNodeP("untyped", p))
+        addSon(vdefs, vdecl)
+        addSon(params, vdefs)
     eat(p, pxParRi)
 
     addSon(result, emptyNode) # no generic parameters
@@ -70,6 +84,8 @@ proc parseDefine(p: var Parser; hasParams: bool): PNode =
     addSon(result, emptyNode)
     var kind = parseDefineBody(p, result)
     params.sons[0] = newIdentNodeP(kind, p)
+    echo "parseDefine: kind: ", $kind
+    echo "parseDefine: params: ", $params.sons[0]
     eatNewLine(p, result)
   else:
     # a macro without parameters:
@@ -170,6 +186,11 @@ proc parseDef(p: var Parser, m: var Macro; hasParams: bool): bool =
   if hasParams:
     eat(p, pxParLe)
     while p.tok.xkind != pxParRi:
+      echo "parseDef: ", $p.tok.xkind
+      if p.tok.xkind == pxDotDotDot:
+        # addSon(pragmas, newIdentNodeP("varargs", p))
+        getTok(p)
+        break
       expectIdent(p)
       params.add(p.tok.s)
       getTok(p)
