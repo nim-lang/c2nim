@@ -105,6 +105,83 @@ proc parseDefine(p: var Parser; hasParams: bool): PNode =
         break
   assert result != nil
 
+proc parseDefineAsDecls(p: var Parser; hasParams: bool): PNode =
+  if hasParams:
+    # a macro with parameters:
+    var origName = p.tok.s
+    result = newNodeP(nkProcDef, p)
+    var name = skipIdentExport(p, skTemplate)
+    addSon(result, name)
+    addSon(result, emptyNode)
+    eat(p, pxParLe)
+    var params = newNodeP(nkFormalParams, p)
+    # return type; not known yet:
+    addSon(params, emptyNode)
+    if p.tok.xkind != pxParRi:
+      var identDefs = newNodeP(nkIdentDefs, p)
+      var isVariable = false
+      while p.tok.xkind != pxParRi:
+        if p.tok.xkind == pxDotDotDot:
+          isVariable = true
+          getTok(p)
+          break
+
+        var vdefs = newNodeP(nkExprColonExpr, p)
+        addSon(vdefs, skipIdent(p, skParam))
+        addSon(vdefs, newIdentNodeP("untyped", p))
+        addSon(identDefs, vdefs)
+
+        skipStarCom(p, nil)
+        if p.tok.xkind != pxComma: break
+        getTok(p)
+      addSon(identDefs, emptyNode)
+      addSon(params, identDefs)
+      if isVariable:
+        var vdefs = newNodeP(nkExprColonExpr, p)
+        addSon(vdefs, newIdentNodeP("xargs", p))
+        var vdecl =
+          newTree(nkBracketExpr, 
+            newIdentNodeP("varargs", p),
+            newIdentNodeP("untyped", p))
+        addSon(vdefs, vdecl)
+        addSon(params, vdefs)
+    eat(p, pxParRi)
+
+    var pragmas = newNodeP(nkPragma, p)
+    let iname = cppImportName(p, origName)
+    addSon(pragmas,
+      newIdentStrLitPair(p.options.importcLit, iname, p),
+      getHeaderPair(p))
+
+    addSon(result, emptyNode) # no generic parameters
+    addSon(result, params)
+    addSon(result, pragmas) 
+    addSon(result, emptyNode)
+
+    skipLine(p)
+    addSon(result, emptyNode)
+
+  else:
+    # a macro without parameters:
+    result = newNodeP(nkConstSection, p)
+    while true:
+      var c = newNodeP(nkConstDef, p)
+      addSon(c, skipIdentExport(p, skConst))
+      addSon(c, emptyNode)
+      skipStarCom(p, c)
+
+      if p.tok.xkind in {pxLineComment, pxNewLine, pxEof}:
+        addSon(c, newIdentNodeP("true", p))
+      else:
+        addSon(c, expression(p))
+      addSon(result, c)
+      eatNewLine(p, c)
+      if p.tok.xkind == pxDirective and p.tok.s == "define":
+        getTok(p)
+      else:
+        break
+  assert result != nil
+
 proc dontTranslateToTemplateHeuristic(body: seq[ref Token]; closedParentheses: int): bool =
   # we list all **binary** operators here too: As these cannot start an
   # expression, we know the resulting #define cannot be a valid Nim template.
@@ -185,7 +262,6 @@ proc parseDef(p: var Parser, m: var Macro; hasParams: bool): bool =
     eat(p, pxParLe)
     while p.tok.xkind != pxParRi:
       if p.tok.xkind == pxDotDotDot:
-        # addSon(pragmas, newIdentNodeP("varargs", p))
         getTok(p)
         break
       expectIdent(p)
@@ -524,7 +600,11 @@ proc parseDir(p: var Parser; sectionParser: SectionParser): PNode =
     if not parseDef(p, p.options.macros[L], hasParams) and not isDefOverride:
       setLen(p.options.macros, L)
       backtrackContext(p)
-      result = parseDefine(p, hasParams)
+      if p.options.definesAsDecls:
+        result = parseDefineAsDecls(p, hasParams)
+      else:
+        result = parseDefine(p, hasParams)
+      echo "def done"
     else:
       closeContext(p)
 
