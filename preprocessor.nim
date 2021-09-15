@@ -117,37 +117,36 @@ proc parseDefineAsDecls(p: var Parser; hasParams: bool): PNode =
     var params = newNodeP(nkFormalParams, p)
     # return type; not known yet:
     addSon(params, emptyNode)
-    if p.tok.xkind != pxParRi:
-      var identDefs = newNodeP(nkIdentDefs, p)
-      var isVariable = false
-      while p.tok.xkind != pxParRi:
-        if p.tok.xkind == pxDotDotDot:
-          isVariable = true
-          getTok(p)
-          break
-
-        var vdefs = newNodeP(nkExprColonExpr, p)
-        addSon(vdefs, skipIdent(p, skParam))
-        addSon(vdefs, newIdentNodeP("untyped", p))
-        addSon(identDefs, vdefs)
-
-        skipStarCom(p, nil)
-        if p.tok.xkind != pxComma: break
-        getTok(p)
-      addSon(identDefs, emptyNode)
-      addSon(params, identDefs)
-      if isVariable:
-        var vdefs = newNodeP(nkExprColonExpr, p)
-        addSon(vdefs, newIdentNodeP("xargs", p))
-        var vdecl =
-          newTree(nkBracketExpr, 
-            newIdentNodeP("varargs", p),
-            newIdentNodeP("untyped", p))
-        addSon(vdefs, vdecl)
-        addSon(params, vdefs)
-    eat(p, pxParRi)
 
     var pragmas = newNodeP(nkPragma, p)
+
+    if p.tok.xkind == pxDotDotDot: # handle varargs
+      addSon(pragmas, newIdentNodeP("varargs", p))
+      getTok(p)
+    elif p.tok.xkind != pxParRi:
+      # var identDefs = newNodeP(nkIdentDefs, p)
+
+      while p.tok.xkind != pxParRi:
+        if p.tok.xkind == pxDotDotDot: # handle varargs
+          getTok(p)
+          addSon(pragmas, newIdentNodeP("varargs", p))
+          break
+        else:
+          var vdefs = newTree(nkExprColonExpr,
+            skipIdent(p, skParam),
+            newIdentNodeP("untyped", p))
+          addSon(params, vdefs)
+
+          skipStarCom(p, nil)
+          if p.tok.xkind != pxComma:
+            break
+          getTok(p)
+
+      # if sonsLen(params) > 0:
+        # addSon(identDefs, emptyNode)
+        # addSon(params, identDefs)
+    eat(p, pxParRi)
+
     let iname = cppImportName(p, origName)
     addSon(pragmas,
       newIdentStrLitPair(p.options.importcLit, iname, p),
@@ -600,11 +599,10 @@ proc parseDir(p: var Parser; sectionParser: SectionParser): PNode =
     if not parseDef(p, p.options.macros[L], hasParams) and not isDefOverride:
       setLen(p.options.macros, L)
       backtrackContext(p)
-      if p.options.definesAsDecls:
+      if p.options.importdefines:
         result = parseDefineAsDecls(p, hasParams)
       else:
         result = parseDefine(p, hasParams)
-      echo "def done"
     else:
       closeContext(p)
 

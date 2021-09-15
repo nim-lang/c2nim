@@ -66,7 +66,7 @@ type
     toPreprocess: StringTableRef
     inheritable: StringTableRef
     debugMode, followNep1: bool
-    useHeader, definesAsDecls: bool
+    useHeader, importdefines: bool
     discardablePrefixes: seq[string]
     constructor, destructor, importcLit: string
     exportPrefix*: string
@@ -150,8 +150,8 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "header":
     parserOptions.useHeader = true
     if val.len > 0: parserOptions.headerOverride = val
-  of "definesasdecls":
-    parserOptions.definesAsDecls = true
+  of "importdefines":
+    parserOptions.importdefines = true
   of "cdecl": incl(parserOptions.flags, pfCdecl)
   of "stdcall": incl(parserOptions.flags, pfStdCall)
   of "importc": incl(parserOptions.flags, pfImportc)
