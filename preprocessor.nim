@@ -106,9 +106,9 @@ proc parseDefine(p: var Parser; hasParams: bool): PNode =
   assert result != nil
 
 proc parseDefineAsDecls(p: var Parser; hasParams: bool): PNode =
+  var origName = p.tok.s
   if hasParams:
     # a macro with parameters:
-    var origName = p.tok.s
     result = newNodeP(nkProcDef, p)
     var name = skipIdentExport(p, skTemplate)
     addSon(result, name)
@@ -120,12 +120,7 @@ proc parseDefineAsDecls(p: var Parser; hasParams: bool): PNode =
 
     var pragmas = newNodeP(nkPragma, p)
 
-    if p.tok.xkind == pxDotDotDot: # handle varargs
-      addSon(pragmas, newIdentNodeP("varargs", p))
-      getTok(p)
-    elif p.tok.xkind != pxParRi:
-      # var identDefs = newNodeP(nkIdentDefs, p)
-
+    if p.tok.xkind != pxParRi:
       while p.tok.xkind != pxParRi:
         if p.tok.xkind == pxDotDotDot: # handle varargs
           getTok(p)
@@ -142,9 +137,6 @@ proc parseDefineAsDecls(p: var Parser; hasParams: bool): PNode =
             break
           getTok(p)
 
-      # if sonsLen(params) > 0:
-        # addSon(identDefs, emptyNode)
-        # addSon(params, identDefs)
     eat(p, pxParRi)
 
     let iname = cppImportName(p, origName)
@@ -162,19 +154,32 @@ proc parseDefineAsDecls(p: var Parser; hasParams: bool): PNode =
 
   else:
     # a macro without parameters:
-    result = newNodeP(nkConstSection, p)
-    while true:
-      var c = newNodeP(nkConstDef, p)
-      addSon(c, skipIdentExport(p, skConst))
-      addSon(c, emptyNode)
-      skipStarCom(p, c)
+    # result = newNodeP(nkVarSection, p)
+    result = newNodeP(nkExprColonExpr, p)
 
-      if p.tok.xkind in {pxLineComment, pxNewLine, pxEof}:
-        addSon(c, newIdentNodeP("true", p))
-      else:
-        addSon(c, expression(p))
+    while true:
+      var origName = p.tok.s
+      # var varKind = nkVarSection
+      var c = newNodeP(nkVarSection, p)
+      # skipDeclarationSpecifiers(p, varKind)
+      # parseCallConv(p, pragmas)
+      addSon(c, skipIdentExport(p, skConst))
+
+      let iname = cppImportName(p, origName)
+      var pragmas = newNodeP(nkPragma, p)
+      addSon(pragmas, newIdentStrLitPair(p.options.importcLit, iname, p))
+      addSon(pragmas, getHeaderPair(p))
+      addSon(c, pragmas)
+
+      skipStarCom(p, c)
       addSon(result, c)
-      eatNewLine(p, c)
+      # var declt = newNodeP(nkExprColonExpr, p)
+      # addSon(declt, newIdentNodeP("untyped", p))
+      # addSon(c, declt)
+      addSon(result, newIdentNodeP("int", p))
+
+      skipLine(p)
+      # result = c
       if p.tok.xkind == pxDirective and p.tok.s == "define":
         getTok(p)
       else:
@@ -600,6 +605,8 @@ proc parseDir(p: var Parser; sectionParser: SectionParser): PNode =
       setLen(p.options.macros, L)
       backtrackContext(p)
       if p.options.importdefines:
+        result = parseDefineAsDecls(p, hasParams)
+      elif p.options.importfuncdefines and hasParams:
         result = parseDefineAsDecls(p, hasParams)
       else:
         result = parseDefine(p, hasParams)
