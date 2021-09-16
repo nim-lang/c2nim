@@ -164,6 +164,9 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
     if val.len > 0: parserOptions.paramPrefix = val
   of "assumedef": parserOptions.assumeDef.add(val)
   of "assumendef": parserOptions.assumenDef.add(val)
+  of "mangle":
+    let vals = val.split("=")
+    parserOptions.mangleRules.add((parsePeg(vals[0]), vals[1]))
   of "skipinclude": incl(parserOptions.flags, pfSkipInclude)
   of "typeprefixes": incl(parserOptions.flags, pfTypePrefixes)
   of "skipcomments": incl(parserOptions.flags, pfSkipComments)
