@@ -154,21 +154,25 @@ proc parseDefineAsDecls(p: var Parser; hasParams: bool): PNode =
 
   else:
     # a macro without parameters:
-    result = newNodeP(nkExprColonExpr, p)
+    result = newNodeP(nkTypeDef, p)
+    var pe = newNodeP(nkPragmaExpr, p)
     var pragmas = newNodeP(nkPragma, p)
 
     while true:
-      var vdef = newNodeP(nkVarSection, p)
-      addSon(vdef , skipIdentExport(p, skConst))
+      var vdef = newNodeP(nkVarTy, p)
+      addSon(vdef, skipIdentExport(p, skConst))
+      skipStarCom(p, vdef)
 
       let iname = cppImportName(p, origName)
       addSon(pragmas, newIdentStrLitPair(p.options.importcLit, iname, p))
       addSon(pragmas, getHeaderPair(p))
-      addSon(vdef, pragmas)
 
-      skipStarCom(p, vdef)
-      addSon(result, vdef)
-      addSon(result, newIdentNodeP("int", p))
+
+      addSon(pe, vdef)
+      addSon(pe, newIdentNodeP("int", p))
+      addSon(result, pe)
+      # addSon(result, emptyNode)
+      result.add(pragmas)
 
       skipLine(p) # eat the rest of the define, skip parsing
       if p.tok.xkind == pxDirective and p.tok.s == "define":

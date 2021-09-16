@@ -1188,9 +1188,14 @@ proc gsub(g: var TSrcGen, n: PNode, c: TContext) =
   of nkTypeDef:
     if n.sons[0].kind == nkPragmaExpr:
       # generate pragma after generic
+      echo "generate pragma after generic, n.len: ", $n.len
+      echo "g.p0: ", $g.buf
       gsub(g, n.sons[0], 0)
+      echo "g.p1: ", $g.buf
       gsub(g, n, 1)
+      echo "g.p2: ", $g.buf
       gsub(g, n.sons[0], 1)
+      echo "g.pre: ", $g.buf
     else:
       gsub(g, n, 0)
       gsub(g, n, 1)
