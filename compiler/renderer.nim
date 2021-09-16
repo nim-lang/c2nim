@@ -1168,7 +1168,13 @@ proc gsub(g: var TSrcGen, n: PNode, c: TContext) =
     else:
       put(g, tkPtr, "ptr")
   of nkVarTy:
-    if sonsLen(n) > 0:
+    if sonsLen(n) > 2 and n.sons[1].kind == nkPragma:
+      putWithSpace(g, tkVar, "var")
+      gsub(g, n.sons[0])
+      gsub(g, n.sons[1])
+      putWithSpace(g, tkColon, ":")
+      gsub(g, n.sons[2])
+    elif sonsLen(n) > 0:
       putWithSpace(g, tkVar, "var")
       gsub(g, n.sons[0])
     else:
@@ -1188,14 +1194,9 @@ proc gsub(g: var TSrcGen, n: PNode, c: TContext) =
   of nkTypeDef:
     if n.sons[0].kind == nkPragmaExpr:
       # generate pragma after generic
-      echo "generate pragma after generic, n.len: ", $n.len
-      echo "g.p0: ", $g.buf
       gsub(g, n.sons[0], 0)
-      echo "g.p1: ", $g.buf
       gsub(g, n, 1)
-      echo "g.p2: ", $g.buf
       gsub(g, n.sons[0], 1)
-      echo "g.pre: ", $g.buf
     else:
       gsub(g, n, 0)
       gsub(g, n, 1)

@@ -149,31 +149,27 @@ proc parseDefineAsDecls(p: var Parser; hasParams: bool): PNode =
     addSon(result, pragmas) 
     addSon(result, emptyNode)
 
-    skipLine(p)
     addSon(result, emptyNode)
+    skipLine(p)
 
   else:
     # a macro without parameters:
-    result = newNodeP(nkTypeDef, p)
-    var pe = newNodeP(nkPragmaExpr, p)
-    var pragmas = newNodeP(nkPragma, p)
+    result = newNodeP(nkVarTy, p)
 
     while true:
-      var vdef = newNodeP(nkVarTy, p)
-      addSon(vdef, skipIdentExport(p, skConst))
-      skipStarCom(p, vdef)
-
+      let vname = skipIdentExport(p, skConst)
+      # skipStarCom(p, result)
       let iname = cppImportName(p, origName)
-      addSon(pragmas, newIdentStrLitPair(p.options.importcLit, iname, p))
-      addSon(pragmas, getHeaderPair(p))
+      var vpragmas = newNodeP(nkPragma, p)
+      addSon(vpragmas, newIdentStrLitPair(p.options.importcLit, iname, p))
+      addSon(vpragmas, getHeaderPair(p))
+      let vtype = newIdentNodeP("int", p)
 
+      addSon(result, vname)
+      addSon(result, vpragmas)
+      addSon(result, vtype)
 
-      addSon(pe, vdef)
-      addSon(pe, newIdentNodeP("int", p))
-      addSon(result, pe)
-      # addSon(result, emptyNode)
-      result.add(pragmas)
-
+      skipCom(p, result)
       skipLine(p) # eat the rest of the define, skip parsing
       if p.tok.xkind == pxDirective and p.tok.s == "define":
         getTok(p)
