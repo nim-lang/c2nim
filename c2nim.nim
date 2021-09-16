@@ -48,6 +48,10 @@ Options:
                          (multiple --prefix options are supported)
   --suffix:SUFFIX        strip suffix for the generated Nim identifiers
                          (multiple --suffix options are supported)
+  --mangle:PEG=FORMAT    extra PEG expression to mangle identifiers,
+                         for example `--mangle:'{u?}int{\d+}_t=$1int$2'` to
+                         convert C <stdint.h> to Nim equivalents
+                         (multiple --mangle options are supported)
   --paramprefix:PREFIX   add prefix to parameter name of the generated Nim proc
   --assumedef:IDENT      skips #ifndef sections for the given C identifier
                          (multiple --assumedef options are supported)
