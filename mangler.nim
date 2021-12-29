@@ -76,8 +76,8 @@ proc mangleRules(s: string, p: Parser; kind: TSymKind): string =
         if result.endsWith(suffix):
           setLen(result, result.len - suffix.len)
           break suffixes
-    if p.options.followNep1 and kind != skDontMangle:
-      result = nep1(result, kind)
+  if p.options.followNep1 and kind != skDontMangle:
+    result = nep1(result, kind)
 
 proc mangleName(s: string, p: Parser; kind: TSymKind): string =
   if p.options.toMangle.hasKey(s): result = p.options.toMangle[s]
