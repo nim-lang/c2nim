@@ -36,6 +36,7 @@ type
     pxDirective,              # #define, etc.
     pxDirectiveParLe,         # #define m( with parle (yes, C is that ugly!)
     pxDirConc,                # ##
+    pxToString,               # #tok within a #define (toString operation)
     pxNewLine,                # newline: end of directive
     pxAmp,                    # &
     pxAmpAmp,                 # &&
@@ -170,7 +171,7 @@ proc tokKindToStr*(k: Tokkind): string =
   of pxStrLit: result = "[string literal]"
   of pxCharLit: result = "[char literal]"
 
-  of pxDirective, pxDirectiveParLe: result = "#"             # #define, etc.
+  of pxDirective, pxDirectiveParLe, pxToString: result = "#"             # #define, etc.
   of pxDirConc: result = "##"
   of pxNewLine: result = "[NewLine]"
   of pxAmp: result = "&"                   # &

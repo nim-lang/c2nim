@@ -124,7 +124,21 @@ proc parseDefBody(p: var Parser, m: var Macro, params: seq[string]): bool =
   var closedParentheses = 0
   while p.tok.xkind notin {pxEof, pxNewLine, pxLineComment}:
     case p.tok.xkind
-    of pxSymbol, pxDirective, pxDirectiveParLe:
+    of pxDirective:
+      # is it a parameter reference? (or possibly #param with a toString)
+      var tok = p.tok
+      for i in 0..high(params):
+        if params[i] == p.tok.s:
+          # over-write the *persistent* token too. This means we finally support
+          # #define foo(param) #param
+          # too, because `parseDef` is always called before `parseDefine`.
+          tok.xkind = pxToString
+          new(tok)
+          tok.xkind = pxMacroParamToStr
+          tok.position = i
+          break
+      m.body.add(tok)
+    of pxSymbol, pxDirectiveParLe, pxToString:
       let isSymbol = p.tok.xkind == pxSymbol
       # is it a parameter reference? (or possibly #param with a toString)
       var tok = p.tok

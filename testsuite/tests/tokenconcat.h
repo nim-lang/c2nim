@@ -5,13 +5,15 @@
 # def CAT(x,y) x ## y
 # def MANGLE_DOUBLE(x,y) typedef y CAT(x,y)
 #endif
- 
- 
+
+
 MANGLE_DOUBLE(fftw_, double);
 
 // test the toString macro operator
 
 #def toString(x) #x
+
+#define toStringTemplate(x) #x
 
 int main(int argc, char *argv[])
 {

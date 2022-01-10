@@ -2152,6 +2152,10 @@ proc startExpression(p: var Parser, tok: Token): PNode =
     result = newNodeP(nkPrefix, p)
     addSon(result, newIdentNodeP("-", p))
     addSon(result, expression(p, 139))
+  of pxToString:
+    result = newNodeP(nkCall, p)
+    addSon(result, newIdentNodeP("astToStr", p))
+    addSon(result, newIdentNodeP(tok.s, p))
   of pxTilde:
     result = newNodeP(nkPrefix, p)
     addSon(result, newIdentNodeP("not", p))
