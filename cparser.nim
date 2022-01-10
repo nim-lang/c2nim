@@ -3524,14 +3524,12 @@ proc parseStrict(p: var Parser): PNode =
 proc parseWithSyncPoints(p: var Parser): PNode =
   result = newNodeP(nkStmtList, p)
   getTok(p) # read first token
-  var useful = false
   var firstError = ""
   while p.tok.xkind != pxEof:
     saveContextB(p, true)
     try:
       var s = statement(p)
       if s.kind != nkEmpty:
-        useful = true
         embedStmts(result, s)
       closeContextB(p)
     except ERetryParsing:
@@ -3540,8 +3538,6 @@ proc parseWithSyncPoints(p: var Parser): PNode =
       backtrackContextB(p)
       # skip to the next sync point (which is a not-nested ';')
       result.add skipToSemicolon(p, err, exitForCurlyRi=false)
-  if not useful:
-    parError(p, firstError)
 
 proc parseUnit*(p: var Parser): PNode =
   if pfStrict in p.options.flags:
