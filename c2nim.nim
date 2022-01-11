@@ -81,7 +81,7 @@ proc parse(infile: string, options: PParserOptions; dllExport: var PNode): PNode
   var p: Parser
   if isCpp: options.flags.incl pfCpp
   openParser(p, infile, stream, options)
-  result = parseUnit(p).postprocess
+  result = parseUnit(p).postprocess(pfStructStruct in options.flags)
   closeParser(p)
   if isCpp: options.flags.excl pfCpp
   if options.exportPrefix.len > 0:

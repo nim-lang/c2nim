@@ -179,7 +179,7 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   else: result = false
 
 proc openParser*(p: var Parser, filename: string,
-                inputStream: PLLStream, options = newParserOptions()) =
+                inputStream: PLLStream, options: PParserOptions) =
   openLexer(p.lex, filename, inputStream)
   p.options = options
   p.header = filename.extractFilename
@@ -1411,7 +1411,15 @@ proc parseTypedefStruct(p: var Parser, result, stmtList: PNode,
         p.options.classes[origName] = nameOrType.ident.s
     of pxSymbol:
       # typedef struct a a?
-      if mangleName(p.tok.s, p, skType) == nameOrType.ident.s:
+      if pfStructStruct in p.options.flags:
+        let nn = mangledIdent(p.tok.s, p, skType)
+        getTok(p, nil)
+        markTypeIdent(p, nn)
+        let t = newNodeP(nkObjectTy, p)
+        addSon(t, emptyNode, emptyNode) # no pragmas, no inheritance
+        addSon(t, newNodeP(nkRecList, p))
+        addTypeDef(result, nn, t, emptyNode)
+      elif mangleName(p.tok.s, p, skType) == nameOrType.ident.s:
         # ignore the declaration:
         if pfStructStruct in p.options.flags:
           # XXX to implement
