@@ -70,7 +70,11 @@ proc isCppFile(s: string): bool =
 when not declared(NimCompilerApiVersion):
   type AbsoluteFile = string
 
-proc parse(infile: string, options: PParserOptions; dllExport: var PNode): PNode =
+type
+  CustomPostProcessor* = proc (n: PNode; cfilename: string): PNode
+
+proc parse(infile: string, options: PParserOptions; dllExport: var PNode;
+           postProcessor: CustomPostProcessor): PNode =
   var stream = llStreamOpen(AbsoluteFile infile, fmRead)
   if stream == nil:
     when declared(NimCompilerApiVersion):
@@ -82,6 +86,7 @@ proc parse(infile: string, options: PParserOptions; dllExport: var PNode): PNode
   if isCpp: options.flags.incl pfCpp
   openParser(p, infile, stream, options)
   result = parseUnit(p).postprocess(pfStructStruct in options.flags)
+  result = postProcessor(result, infile)
   closeParser(p)
   if isCpp: options.flags.excl pfCpp
   if options.exportPrefix.len > 0:
@@ -102,7 +107,7 @@ when not compiles(renderModule(dummy, "")):
   proc renderModule(tree: PNode; filename: string) =
     renderModule(tree, filename, filename)
 
-proc myRenderModule(tree: PNode; filename: string) =
+proc myRenderModule*(tree: PNode; filename: string) =
   # also ensure we produced no trailing whitespace:
   let tmpFile = filename & ".tmp"
   renderModule(tree, tmpFile)
@@ -133,20 +138,21 @@ proc myRenderModule(tree: PNode; filename: string) =
   f.close
 
 proc main(infiles: seq[string], outfile: var string,
-          options: PParserOptions, concat: bool) =
+          options: PParserOptions, concat: bool;
+          postProcessor: CustomPostProcessor) =
   var start = getTime()
   var dllexport: PNode = nil
   if concat:
     var tree = newNode(nkStmtList)
     for infile in infiles:
-      let m = parse(infile.addFileExt("h"), options, dllexport)
+      let m = parse(infile.addFileExt("h"), options, dllexport, postProcessor)
       if not isC2nimFile(infile):
         if outfile.len == 0: outfile = changeFileExt(infile, "nim")
         for n in m: tree.add(n)
     myRenderModule(tree, outfile)
   else:
     for infile in infiles:
-      let m = parse(infile, options, dllexport)
+      let m = parse(infile, options, dllexport, postProcessor)
       if not isC2nimFile(infile):
         if outfile.len > 0:
           myRenderModule(m, outfile)
@@ -165,36 +171,40 @@ proc main(infiles: seq[string], outfile: var string,
     rawMessage(hintSuccessX, [$gLinesCompiled, $(getTime() - start),
                               formatSize(getTotalMem()), ""])
 
-var
-  infiles = newSeq[string](0)
-  outfile = ""
-  concat = false
-  parserOptions = newParserOptions()
-for kind, key, val in getopt():
-  case kind
-  of cmdArgument:
-    infiles.add key
-  of cmdLongOption, cmdShortOption:
-    case key.normalize
-    of "help", "h":
-      stdout.write(Usage)
-      quit(0)
-    of "version", "v":
-      stdout.write(Version & "\n")
-      quit(0)
-    of "o", "out": outfile = val
-    of "concat": concat = true
-    of "spliceheader":
-      quit "[Error] 'spliceheader' doesn't exist anymore" &
-           " use a list of files and --concat instead"
-    of "exportdll":
-      parserOptions.exportPrefix = val
-    else:
-      if not parserOptions.setOption(key, val):
-        quit("[Error] unknown option: " & key)
-  of cmdEnd: assert(false)
-if infiles.len == 0:
-  # no filename has been given, so we show the help:
-  stdout.write(Usage)
-else:
-  main(infiles, outfile, parserOptions, concat)
+proc handleCmdLine*(postProcessor: CustomPostProcessor) =
+  var
+    infiles = newSeq[string](0)
+    outfile = ""
+    concat = false
+    parserOptions = newParserOptions()
+  for kind, key, val in getopt():
+    case kind
+    of cmdArgument:
+      infiles.add key
+    of cmdLongOption, cmdShortOption:
+      case key.normalize
+      of "help", "h":
+        stdout.write(Usage)
+        quit(0)
+      of "version", "v":
+        stdout.write(Version & "\n")
+        quit(0)
+      of "o", "out": outfile = val
+      of "concat": concat = true
+      of "spliceheader":
+        quit "[Error] 'spliceheader' doesn't exist anymore" &
+            " use a list of files and --concat instead"
+      of "exportdll":
+        parserOptions.exportPrefix = val
+      else:
+        if not parserOptions.setOption(key, val):
+          quit("[Error] unknown option: " & key)
+    of cmdEnd: assert(false)
+  if infiles.len == 0:
+    # no filename has been given, so we show the help:
+    stdout.write(Usage)
+  else:
+    main(infiles, outfile, parserOptions, concat, postProcessor)
+
+handleCmdLine proc (n: PNode; cfilename: string): PNode =
+  result = n
