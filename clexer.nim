@@ -537,7 +537,7 @@ proc getRawString(L: var Lexer, tok: var Token) =
     case buf[pos]
     of ')':
       inc(pos)
-      if endsWith(buf, pos, delim):
+      if endsWith(cstring buf, pos, delim):
         inc pos, delim.len
         break
       add(tok.s, ')')

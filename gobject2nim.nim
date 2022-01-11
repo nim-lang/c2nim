@@ -12,7 +12,7 @@
 ## - Use inheritance based on `parent_instance` and `parent_class`.
 ## - Generates a high level wrapper offering strings and refs.
 
-import std / [tables, os]
+import std / [tables, os, strutils]
 
 import compiler/[ast, renderer, idents, lineinfos]
 
@@ -49,19 +49,114 @@ proc traverseObject(c: var Context; n: PNode; inheritsFrom: var PNode) =
   else:
     discard
 
-proc handleObjectDecl(c: var Context; n: PNode) =
+proc ident(c: var Context; s: string): PNode =
+  newIdentNode(getIdent(identCache, s), c.info)
+
+proc hasHighLevelType(s: string): bool =
+  result = s.startsWith("Gtk") and not s.endsWith("Class")
+
+proc createRefWrapper(c: var Context; n: PNode) =
+  let name = getName(n[0])
+  if name.kind == nkIdent and hasHighLevelType(name.ident.s):
+    let hname = name.ident.s.substr(3)
+    c.m.add newTree(nkTypeSection,
+      newTree(nkTypeDef,
+        newTree(nkPostFix, c.ident"*", c.ident(hname)),
+        newNode(nkEmpty), # generic params
+        newTree(nkRefTy,
+          newTree(nkObjectTy, newNode(nkEmpty), newNode(nkEmpty), newTree(nkRecList,
+            newTree(nkIdentDefs, newTree(nkPostFix, c.ident"*", c.ident("impl")),
+              newTree(nkPtrTy, name), newNode(nkEmpty))))
+         )))
+    c.m.add newTree(nkCall, c.ident"implementHooks", c.ident(hname))
+
+proc handleObjectDecl(c: var Context; typedef, n: PNode) =
   if n.kind == nkObjectTy:
     var inheritsFrom = PNode(nil)
     traverseObject(c, n[2], inheritsFrom)
     if inheritsFrom != nil:
       n[1] = inheritsFrom
+      createRefWrapper(c, typedef)
+
+type
+  WrappedProc = object
+    name: string
+    params: PNode
+    call: PNode
+    useful: bool
+
+proc transformParams(c: var Context; w: var WrappedProc; n: PNode) =
+  w.params.add copyTree(n[0]) # todo: transform return type
+  for i in 1..<n.len:
+    let it = n[i]
+    if it.kind == nkIdentDefs:
+      let paramName = it[0]
+      let mine = copyTree(it)
+      let t = it[it.len-2]
+      if t.kind == nkIdent:
+        case t.ident.s
+        of "Gboolean":
+          w.call.add newTree(nkInfix, c.ident"!=", paramName, newStrNode(nkIntLit, "0"))
+          mine[mine.len-2] = c.ident"bool"
+          w.useful = true
+        of "cstring":
+          w.call.add newTree(nkCall, c.ident"cstring", paramName)
+          mine[mine.len-2] = c.ident"string"
+          w.useful = true
+        of "guint":
+          w.call.add newTree(nkCall, c.ident"guint", paramName)
+          mine[mine.len-2] = c.ident"int"
+          w.useful = true
+        of "cint":
+          w.call.add newTree(nkCall, c.ident"cint", paramName)
+          mine[mine.len-2] = c.ident"int"
+          w.useful = true
+        of "cstringArray":
+          # TODO
+          w.call.add paramName
+        else:
+          w.call.add paramName
+      elif t.kind == nkPtrTy and t[0].kind == nkIdent and hasHighLevelType(t[0].ident.s):
+        let hname = t[0].ident.s.substr(3)
+        mine[mine.len-2] = c.ident(hname)
+        w.call.add newTree(nkDotExpr, paramName, c.ident"impl")
+        w.useful = true
+      else:
+        w.call.add paramName
+      w.params.add mine
+
+proc handleProc(c: var Context; n: PNode) =
+  let name = getName(n[0])
+  if name.kind != nkIdent: return
+
+  var result = newNodeI(nkProcDef, c.info)
+  var w = WrappedProc(name: name.ident.s,
+                      params: newNode(nkFormalParams),
+                      call: newTree(nkCall, name))
+
+  transformParams(c, w, n[paramsPos])
+  addSon(result, newTree(nkPostFix, c.ident"*", name))
+  # no pattern:
+  addSon(result, newNode(nkEmpty))
+  # no generics:
+  addSon(result, newNode(nkEmpty))
+  addSon(result, w.params)
+  addSon(result, newNode(nkEmpty))
+  # empty exception tracking:
+  addSon(result, newNode(nkEmpty))
+  # body:
+  addSon(result, newTree(nkStmtList, w.call))
+  if w.useful:
+    c.m.add result
 
 proc pp(c: var Context; n: PNode) =
   case n.kind
   of nkTypeSection:
     for i in 0 ..< n.len:
       if n[i].kind == nkTypeDef:
-        handleObjectDecl(c, n[i].lastSon)
+        handleObjectDecl(c, n[i], n[i].lastSon)
+  of nkProcDef:
+    handleProc(c, n)
   else:
     for i in 0 ..< n.safeLen: pp(c, n.sons[i])
 
