@@ -53,18 +53,31 @@ proc ident(c: var Context; s: string): PNode =
   newIdentNode(getIdent(identCache, s), c.info)
 
 proc hasHighLevelType(s: string): bool =
-  result = s.startsWith("Gtk") and not s.endsWith("Class")
+  result = (s.startsWith("Gtk") or s.len > 2 and s[0] == 'G' and s[1] in {'A'..'Z'}) and
+      not s.endsWith("Class")
 
-proc createRefWrapper(c: var Context; n: PNode) =
+proc toHighLevelType(s: string): string =
+  if s.startsWith("Gtk"):
+    s.substr(3)
+  else:
+    "Glib" & s.substr(1) # GApplication -> GlibApplication
+
+proc createRefWrapper(c: var Context; n, inh: PNode) =
   let name = getName(n[0])
   if name.kind == nkIdent and hasHighLevelType(name.ident.s):
-    let hname = name.ident.s.substr(3)
+    let hname = name.ident.s.toHighLevelType
+    let inheritFrom =
+      if inh.kind == nkIdent and hasHighLevelType(inh.ident.s):
+        newTree(nkOfInherit, c.ident(inh.ident.s.toHighLevelType))
+      else:
+        newNode(nkEmpty)
+
     c.m.add newTree(nkTypeSection,
       newTree(nkTypeDef,
         newTree(nkPostFix, c.ident"*", c.ident(hname)),
         newNode(nkEmpty), # generic params
         newTree(nkRefTy,
-          newTree(nkObjectTy, newNode(nkEmpty), newNode(nkEmpty), newTree(nkRecList,
+          newTree(nkObjectTy, newNode(nkEmpty), inheritFrom, newTree(nkRecList,
             newTree(nkIdentDefs, newTree(nkPostFix, c.ident"*", c.ident("impl")),
               newTree(nkPtrTy, name), newNode(nkEmpty))))
          )))
@@ -76,7 +89,7 @@ proc handleObjectDecl(c: var Context; typedef, n: PNode) =
     traverseObject(c, n[2], inheritsFrom)
     if inheritsFrom != nil:
       n[1] = inheritsFrom
-      createRefWrapper(c, typedef)
+      createRefWrapper(c, typedef, inheritsFrom[0])
 
 type
   WrappedProc = object
