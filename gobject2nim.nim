@@ -9,7 +9,7 @@
 
 ## Custom logic postprocessor for "gobject" related code (GTK, GDK, etc.).
 ## Things it does:
-## - Use inheritance based on `parent_instance` and `parent_class`.
+## - Uses inheritance based on `parent_instance` and `parent_class`.
 ## - Generates a high level wrapper offering strings and refs.
 
 import std / [tables, os, strutils]
@@ -22,6 +22,7 @@ type
   Context = object
     m: PNode # the high level wrapping code
     info: TLineInfo
+    refTypes: seq[string]
 
 proc getName(n: PNode): PNode =
   result = n
@@ -66,6 +67,7 @@ proc createRefWrapper(c: var Context; n, inh: PNode) =
   let name = getName(n[0])
   if name.kind == nkIdent and hasHighLevelType(name.ident.s):
     let hname = name.ident.s.toHighLevelType
+    c.refTypes.add hname
     let inheritFrom =
       if inh.kind == nkIdent and hasHighLevelType(inh.ident.s):
         newTree(nkOfInherit, c.ident(inh.ident.s.toHighLevelType))
@@ -96,10 +98,40 @@ type
     name: string
     params: PNode
     call: PNode
+    wrapInObject: PNode
     useful: bool
 
+proc transformReturnType(c: var Context; w: var WrappedProc; n: PNode): PNode =
+  if n.kind == nkPtrTy and n[0].kind == nkIdent and hasHighLevelType(n[0].ident.s):
+    let ht = toHighLevelType(n[0].ident.s)
+    block constructor:
+      for h in mitems(c.refTypes):
+        if w.name.startsWith(h.toLowerAscii() & "New"):
+          w.name = "new" & h
+          result = c.ident(h)
+          # XXX What if it's GObject and not GtkObject?
+          w.wrapInObject = newTree(nkObjConstr, result, newTree(nkExprColonExpr, c.ident"impl", newTree(nkCast, c.ident("ptr Gtk" & h), w.call)))
+          break constructor
+      result = c.ident ht
+      w.wrapInObject = newTree(nkObjConstr, result, newTree(nkExprColonExpr, c.ident"impl", w.call))
+  elif n.kind == nkIdent:
+    case n.ident.s
+    of "Gboolean":
+      result = c.ident"bool"
+      w.wrapInObject = newTree(nkInfix, c.ident"!=", w.call, newStrNode(nkIntLit, "0"))
+    of "cstring":
+      result = c.ident"string"
+      w.wrapInObject = newTree(nkPrefix, c.ident"$", w.call)
+    of "guint", "cint":
+      result = c.ident"int"
+      w.wrapInObject = newTree(nkCall, result, w.call)
+    else:
+      result = n
+  else:
+    result = n
+
 proc transformParams(c: var Context; w: var WrappedProc; n: PNode) =
-  w.params.add copyTree(n[0]) # todo: transform return type
+  w.params.add transformReturnType(c, w, n[0])
   for i in 1..<n.len:
     let it = n[i]
     if it.kind == nkIdentDefs:
@@ -145,10 +177,11 @@ proc handleProc(c: var Context; n: PNode) =
   var result = newNodeI(nkProcDef, c.info)
   var w = WrappedProc(name: name.ident.s,
                       params: newNode(nkFormalParams),
-                      call: newTree(nkCall, name))
+                      call: newTree(nkCall, name),
+                      wrapInObject: nil)
 
   transformParams(c, w, n[paramsPos])
-  addSon(result, newTree(nkPostFix, c.ident"*", name))
+  addSon(result, newTree(nkPostFix, c.ident"*", c.ident(w.name)))
   # no pattern:
   addSon(result, newNode(nkEmpty))
   # no generics:
@@ -158,8 +191,8 @@ proc handleProc(c: var Context; n: PNode) =
   # empty exception tracking:
   addSon(result, newNode(nkEmpty))
   # body:
-  addSon(result, newTree(nkStmtList, w.call))
-  if w.useful:
+  addSon(result, newTree(nkStmtList, if w.wrapInObject != nil: w.wrapInObject else: w.call))
+  if w.useful or w.wrapInObject != nil:
     c.m.add result
 
 proc pp(c: var Context; n: PNode) =
