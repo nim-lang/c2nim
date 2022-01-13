@@ -22,7 +22,7 @@ type
   Context = object
     m: PNode # the high level wrapping code
     info: TLineInfo
-    refTypes: seq[string]
+    refTypes: seq[(string, string)]
 
 proc getName(n: PNode): PNode =
   result = n
@@ -67,7 +67,7 @@ proc createRefWrapper(c: var Context; n, inh: PNode) =
   let name = getName(n[0])
   if name.kind == nkIdent and hasHighLevelType(name.ident.s):
     let hname = name.ident.s.toHighLevelType
-    c.refTypes.add hname
+    c.refTypes.add (hname, name.ident.s)
     let inheritFrom =
       if inh.kind == nkIdent and hasHighLevelType(inh.ident.s):
         newTree(nkOfInherit, c.ident(inh.ident.s.toHighLevelType))
@@ -106,11 +106,11 @@ proc transformReturnType(c: var Context; w: var WrappedProc; n: PNode): PNode =
     let ht = toHighLevelType(n[0].ident.s)
     block constructor:
       for h in mitems(c.refTypes):
-        if w.name.startsWith(h.toLowerAscii() & "New"):
-          w.name = "new" & h
-          result = c.ident(h)
-          # XXX What if it's GObject and not GtkObject?
-          w.wrapInObject = newTree(nkObjConstr, result, newTree(nkExprColonExpr, c.ident"impl", newTree(nkCast, c.ident("ptr Gtk" & h), w.call)))
+        if w.name.startsWith(h[0].toLowerAscii() & "New"):
+          w.name = "new" & h[0]
+          result = c.ident(h[0])
+          w.wrapInObject = newTree(nkObjConstr, result, newTree(nkExprColonExpr, c.ident"impl",
+                                  newTree(nkCast, newTree(nkPtrTy, c.ident(h[1])), w.call)))
           break constructor
       result = c.ident ht
       w.wrapInObject = newTree(nkObjConstr, result, newTree(nkExprColonExpr, c.ident"impl", w.call))
