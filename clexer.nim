@@ -579,6 +579,7 @@ proc scanLineComment(L: var Lexer, tok: var Token) =
   var col = getColNumber(L, pos)
   while true:
     inc(pos, 2)               # skip //
+    if buf[pos] == ' ': inc(pos)
     #add(tok.s, '#')
     while buf[pos] notin {CR, LF, nimlexbase.EndOfFile}:
       add(tok.s, buf[pos])
@@ -618,6 +619,7 @@ proc scanStarComment(L: var Lexer, tok: var Token) =
       if buf[pos] == '*':
         if buf[pos+1] != '/':
           inc(pos)
+          if buf[pos] == ' ': inc(pos)
         else:
           inc(pos, 2)
           break
