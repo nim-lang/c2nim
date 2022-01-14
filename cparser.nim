@@ -466,8 +466,8 @@ proc markTypeIdent(p: var Parser, typ: PNode) =
 # avoids to build a symbol table, which can't be done reliably anyway for our
 # purposes.
 
-proc expression(p: var Parser, rbp: int = 0): PNode
-proc constantExpression(p: var Parser): PNode = expression(p, 40)
+proc expression(p: var Parser, rbp: int = 0; parent: PNode = nil): PNode
+proc constantExpression(p: var Parser; parent: PNode = nil): PNode = expression(p, 40, parent)
 proc assignmentExpression(p: var Parser): PNode = expression(p, 30)
 proc compoundStatement(p: var Parser; newScope=true): PNode
 proc statement(p: var Parser): PNode
@@ -1270,7 +1270,7 @@ proc enumFields(p: var Parser, constList, stmtList: PNode): PNode =
     var e = skipIdent(p, skEnumField)
     if p.tok.xkind == pxAsgn:
       getTok(p, e)
-      var c = constantExpression(p)
+      var c = constantExpression(p, e)
       var a = e
       e = newNodeP(nkEnumFieldDef, p)
       addSon(e, a, c)
@@ -2372,9 +2372,9 @@ proc leftExpression(p: var Parser, tok: Token, left: PNode): PNode =
   else:
     result = left
 
-proc expression(p: var Parser, rbp: int = 0): PNode =
+proc expression(p: var Parser, rbp: int = 0; parent: PNode = nil): PNode =
   var tok = p.tok[]
-  getTok(p, result)
+  getTok(p, parent)
 
   result = startExpression(p, tok)
   while rbp < leftBindingPower(p, p.tok):
