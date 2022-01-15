@@ -15,8 +15,7 @@ import
 type
   TRenderFlag* = enum
     renderNone, renderNoBody, renderNoComments, renderDocComments,
-    renderNoPragmas, renderIds, renderNoProcDefs, renderSyms, renderRunnableExamples,
-    renderIr
+    renderNoPragmas, renderIds, renderNoProcDefs, renderSyms
   TRenderFlags* = set[TRenderFlag]
   TRenderTok* = object
     kind*: TTokType
@@ -44,21 +43,12 @@ type
       pendingNewlineCount: int
     fid*: FileIndex
     config*: ConfigRef
-    mangler: seq[PSym]
 
 proc renderTree*(n: PNode, renderFlags: TRenderFlags = {}): string
 
 # We render the source code in a two phases: The first
 # determines how long the subtree will likely be, the second
 # phase appends to a buffer that will be the output.
-
-proc disamb(g: var TSrcGen; s: PSym): int =
-  # we group by 's.name.s' to compute the stable name ID.
-  result = 0
-  for i in 0 ..< g.mangler.len:
-    if s == g.mangler[i]: return result
-    if s.name.s == g.mangler[i].name.s: inc result
-  g.mangler.add s
 
 proc isKeyword*(i: PIdent): bool =
   if (i.id >= ord(tokKeywordLow) - ord(tkSymbol)) and
@@ -295,38 +285,6 @@ proc gcoms(g: var TSrcGen) =
   popAllComs(g)
 
 proc lsub(g: TSrcGen; n: PNode): int
-proc litAux(g: TSrcGen; n: PNode, x: BiggestInt, size: int): string =
-  proc skip(t: PType): PType =
-    result = t
-    while result != nil and result.kind in {tyGenericInst, tyRange, tyVar,
-                          tyLent, tyDistinct, tyOrdinal, tyAlias, tySink}:
-      result = lastSon(result)
-
-  let typ = n.typ.skip
-  if typ != nil and typ.kind in {tyBool, tyEnum}:
-    if sfPure in typ.sym.flags:
-      result = typ.sym.name.s & '.'
-    let enumfields = typ.n
-    # we need a slow linear search because of enums with holes:
-    for e in items(enumfields):
-      if e.sym.position == x:
-        result &= e.sym.name.s
-        return
-
-  if nfBase2 in n.flags: result = "0b" & toBin(x, size * 8)
-  elif nfBase8 in n.flags:
-    var y = if size < sizeof(BiggestInt): x and ((1.BiggestInt shl (size*8)) - 1)
-            else: x
-    result = "0o" & toOct(y, size * 3)
-  elif nfBase16 in n.flags: result = "0x" & toHex(x, size * 2)
-  else: result = $x
-
-proc ulitAux(g: TSrcGen; n: PNode, x: BiggestInt, size: int): string =
-  if nfBase2 in n.flags: result = "0b" & toBin(x, size * 8)
-  elif nfBase8 in n.flags: result = "0o" & toOct(x, size * 3)
-  elif nfBase16 in n.flags: result = "0x" & toHex(x, size * 2)
-  else: result = $cast[BiggestUInt](x)
-
 proc atom(g: TSrcGen; n: PNode): string =
   when defined(nimpretty):
     doAssert g.config != nil, "g.config not initialized!"
@@ -849,14 +807,7 @@ proc gident(g: var TSrcGen, n: PNode) =
       t = tkSymbol
   else:
     t = tkOpr
-  if renderIr in g.flags and n.kind == nkSym:
-    let localId = disamb(g, n.sym)
-    if localId != 0 and n.sym.magic == mNone:
-      s.add '_'
-      s.addInt localId
-    if sfCursor in n.sym.flags:
-      s.add "_cursor"
-  elif n.kind == nkSym and (renderIds in g.flags or sfGenSym in n.sym.flags or n.sym.kind == skTemp):
+  if n.kind == nkSym and (renderIds in g.flags or sfGenSym in n.sym.flags or n.sym.kind == skTemp):
     s.add '_'
     s.addInt n.sym.id
     when defined(debugMagics):
@@ -1041,7 +992,7 @@ proc gsub(g: var TSrcGen, n: PNode, c: TContext, fromStmtList = false) =
   of nkHiddenStdConv, nkHiddenSubConv:
     if n.len >= 2:
       when false:
-        # if {renderIds, renderIr} * g.flags != {}:
+        # if renderIds in g.flags:
         put(g, tkSymbol, "(conv)")
         put(g, tkParLe, "(")
         gsub(g, n[1])
@@ -1051,7 +1002,7 @@ proc gsub(g: var TSrcGen, n: PNode, c: TContext, fromStmtList = false) =
     else:
       put(g, tkSymbol, "(wrong conv)")
   of nkHiddenCallConv:
-    if {renderIds, renderIr} * g.flags != {}:
+    if renderIds in g.flags:
       accentedName(g, n[0])
       put(g, tkParLe, "(")
       gcomma(g, n, 1)
