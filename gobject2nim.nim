@@ -206,9 +206,20 @@ proc pp(c: var Context; n: PNode) =
   else:
     for i in 0 ..< n.safeLen: pp(c, n.sons[i])
 
+const
+  destructor = """
+template implementHooks(T) =
+  proc `=destroy`*(self: var typeof(T()[])) =
+    if self.impl != nil:
+      g_unref(self.impl)
+      self.impl = nil
+"""
+
 proc postprocessGObject*(n: PNode; name: string): PNode =
   var c = Context(m: newNode(nkStmtList), info: unknownLineInfo())
   c.m.add newTree(nkImportStmt, newIdentNode(getIdent(identCache, name), c.info))
+  #c.m.add newTree(nkIncludeStmt, newIdentNode(getIdent(identCache, "gobjectdestructors"), c.info))
+  c.m.add newIdentNode(getIdent(identCache, destructor), c.info)
   pp(c, n)
   result = c.m
 
