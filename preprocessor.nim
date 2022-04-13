@@ -487,16 +487,6 @@ proc parseMangleDir(p: var Parser) =
   getTok(p)
   eatNewLine(p, nil)
 
-proc modulePragmas(p: var Parser): PNode =
-  if p.options.dynlibSym.len > 0 and not p.hasDeadCodeElimPragma:
-    p.hasDeadCodeElimPragma = true
-    result = newNodeP(nkPragma, p)
-    var e = newNodeP(nkExprColonExpr, p)
-    addSon(e, newIdentNodeP("deadCodeElim", p), newIdentNodeP("on", p))
-    addSon(result, e)
-  else:
-    result = emptyNode
-
 proc parseOverride(p: var Parser; tab: StringTableRef) =
   getTok(p)
   expectIdent(p)
@@ -547,7 +537,7 @@ proc parseDir(p: var Parser; sectionParser: SectionParser): PNode =
         discard setOption(p.options, key, p.tok.s)
       getTok(p)
     eatNewLine(p, nil)
-    result = modulePragmas(p)
+    result = emptyNode
   of "dynlib", "prefix", "suffix", "class", "discardableprefix", "assumedef", "assumendef", "isarray":
     var key = p.tok.s
     getTok(p)
@@ -555,7 +545,7 @@ proc parseDir(p: var Parser; sectionParser: SectionParser): PNode =
     discard setOption(p.options, key, p.tok.s)
     getTok(p)
     eatNewLine(p, nil)
-    result = modulePragmas(p)
+    result = emptyNode
   of "mangle":
     parseMangleDir(p)
   of "pp":

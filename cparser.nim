@@ -88,7 +88,6 @@ type
     backtrackB: seq[(ref Token, bool)] # like backtrack, but with the possibility to ignore errors
     inTypeDef: int
     scopeCounter: int
-    hasDeadCodeElimPragma: bool
     currentClass: PNode   # type that needs to be added as 'this' parameter
     currentClassOrig: string # original class name
     classHierarchy: seq[string] # used for nested types
