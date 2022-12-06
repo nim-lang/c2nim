@@ -54,7 +54,12 @@ proc parseDefine(p: var Parser; hasParams: bool): PNode =
     addSon(params, emptyNode)
     if p.tok.xkind != pxParRi:
       var identDefs = newNodeP(nkIdentDefs, p)
+      var isVariable = false
       while p.tok.xkind != pxParRi:
+        if p.tok.xkind == pxDotDotDot:
+          isVariable = true
+          getTok(p)
+          break
         addSon(identDefs, skipIdent(p, skParam))
         skipStarCom(p, nil)
         if p.tok.xkind != pxComma: break
@@ -62,6 +67,15 @@ proc parseDefine(p: var Parser; hasParams: bool): PNode =
       addSon(identDefs, newIdentNodeP("untyped", p))
       addSon(identDefs, emptyNode)
       addSon(params, identDefs)
+      if isVariable:
+        var vdefs = newNodeP(nkExprColonExpr, p)
+        addSon(vdefs, newIdentNodeP("xargs", p))
+        var vdecl =
+          newTree(nkBracketExpr, 
+            newIdentNodeP("varargs", p),
+            newIdentNodeP("untyped", p))
+        addSon(vdefs, vdecl)
+        addSon(params, vdefs)
     eat(p, pxParRi)
 
     addSon(result, emptyNode) # no generic parameters
@@ -85,6 +99,78 @@ proc parseDefine(p: var Parser; hasParams: bool): PNode =
         addSon(c, expression(p))
       addSon(result, c)
       eatNewLine(p, c)
+      if p.tok.xkind == pxDirective and p.tok.s == "define":
+        getTok(p)
+      else:
+        break
+  assert result != nil
+
+proc parseDefineAsDecls(p: var Parser; hasParams: bool): PNode =
+  var origName = p.tok.s
+  if hasParams:
+    # a macro with parameters:
+    result = newNodeP(nkProcDef, p)
+    var name = skipIdentExport(p, skTemplate)
+    addSon(result, name)
+    addSon(result, emptyNode)
+    eat(p, pxParLe)
+    var params = newNodeP(nkFormalParams, p)
+    # return type; not known yet:
+    addSon(params, emptyNode)
+
+    var pragmas = newNodeP(nkPragma, p)
+
+    if p.tok.xkind != pxParRi:
+      while p.tok.xkind != pxParRi:
+        if p.tok.xkind == pxDotDotDot: # handle varargs
+          getTok(p)
+          addSon(pragmas, newIdentNodeP("varargs", p))
+          break
+        else:
+          var vdefs = newTree(nkExprColonExpr,
+            skipIdent(p, skParam),
+            newIdentNodeP("untyped", p))
+          addSon(params, vdefs)
+
+          skipStarCom(p, nil)
+          if p.tok.xkind != pxComma:
+            break
+          getTok(p)
+
+    eat(p, pxParRi)
+
+    let iname = cppImportName(p, origName)
+    addSon(pragmas,
+      newIdentStrLitPair(p.options.importcLit, iname, p),
+      getHeaderPair(p))
+
+    addSon(result, emptyNode) # no generic parameters
+    addSon(result, params)
+    addSon(result, pragmas) 
+    addSon(result, emptyNode)
+
+    addSon(result, emptyNode)
+    skipLine(p)
+
+  else:
+    # a macro without parameters:
+    result = newNodeP(nkVarTy, p)
+
+    while true:
+      let vname = skipIdentExport(p, skConst)
+      # skipStarCom(p, result)
+      let iname = cppImportName(p, origName)
+      var vpragmas = newNodeP(nkPragma, p)
+      addSon(vpragmas, newIdentStrLitPair(p.options.importcLit, iname, p))
+      addSon(vpragmas, getHeaderPair(p))
+      let vtype = newIdentNodeP("int", p)
+
+      addSon(result, vname)
+      addSon(result, vpragmas)
+      addSon(result, vtype)
+
+      skipCom(p, result)
+      skipLine(p) # eat the rest of the define, skip parsing
       if p.tok.xkind == pxDirective and p.tok.s == "define":
         getTok(p)
       else:
@@ -184,6 +270,9 @@ proc parseDef(p: var Parser, m: var Macro; hasParams: bool): bool =
   if hasParams:
     eat(p, pxParLe)
     while p.tok.xkind != pxParRi:
+      if p.tok.xkind == pxDotDotDot:
+        getTok(p)
+        break
       expectIdent(p)
       params.add(p.tok.s)
       getTok(p)
@@ -510,7 +599,12 @@ proc parseDir(p: var Parser; sectionParser: SectionParser): PNode =
     if not parseDef(p, p.options.macros[L], hasParams) and not isDefOverride:
       setLen(p.options.macros, L)
       backtrackContext(p)
-      result = parseDefine(p, hasParams)
+      if p.options.importdefines:
+        result = parseDefineAsDecls(p, hasParams)
+      elif p.options.importfuncdefines and hasParams:
+        result = parseDefineAsDecls(p, hasParams)
+      else:
+        result = parseDefine(p, hasParams)
     else:
       closeContext(p)
 

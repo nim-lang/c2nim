@@ -41,11 +41,17 @@ Options:
   --noconv               annotate procs with ``{.noconv.}``
   --stdcall              annotate procs with ``{.stdcall.}``
   --importc              annotate procs with ``{.importc.}``
+  --importdefines        import C defines as procs or vars with ``{.importc.}``
+  --importfuncdefines    import C define funcs as procs with ``{.importc.}``
   --ref                  convert typ* to ref typ (default: ptr typ)
   --prefix:PREFIX        strip prefix for the generated Nim identifiers
                          (multiple --prefix options are supported)
   --suffix:SUFFIX        strip suffix for the generated Nim identifiers
                          (multiple --suffix options are supported)
+  --mangle:PEG=FORMAT    extra PEG expression to mangle identifiers,
+                         for example `--mangle:'{u?}int{\d+}_t=$1int$2'` to
+                         convert C <stdint.h> to Nim equivalents
+                         (multiple --mangle options are supported)
   --paramprefix:PREFIX   add prefix to parameter name of the generated Nim proc
   --assumedef:IDENT      skips #ifndef sections for the given C identifier
                          (multiple --assumedef options are supported)

@@ -65,7 +65,8 @@ type
     classes: StringTableRef
     toPreprocess: StringTableRef
     inheritable: StringTableRef
-    debugMode, followNep1, useHeader: bool
+    debugMode, followNep1: bool
+    useHeader, importdefines, importfuncdefines: bool
     discardablePrefixes: seq[string]
     constructor, destructor, importcLit: string
     exportPrefix*: string
@@ -148,6 +149,10 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "header":
     parserOptions.useHeader = true
     if val.len > 0: parserOptions.headerOverride = val
+  of "importfuncdefines":
+    parserOptions.importfuncdefines = true
+  of "importdefines":
+    parserOptions.importdefines = true
   of "cdecl": incl(parserOptions.flags, pfCdecl)
   of "stdcall": incl(parserOptions.flags, pfStdCall)
   of "importc": incl(parserOptions.flags, pfImportc)
@@ -158,6 +163,9 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
     if val.len > 0: parserOptions.paramPrefix = val
   of "assumedef": parserOptions.assumeDef.add(val)
   of "assumendef": parserOptions.assumenDef.add(val)
+  of "mangle":
+    let vals = val.split("=")
+    parserOptions.mangleRules.add((parsePeg(vals[0]), vals[1]))
   of "skipinclude": incl(parserOptions.flags, pfSkipInclude)
   of "typeprefixes": incl(parserOptions.flags, pfTypePrefixes)
   of "skipcomments": incl(parserOptions.flags, pfSkipComments)
