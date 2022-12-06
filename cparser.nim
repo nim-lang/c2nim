@@ -89,7 +89,6 @@ type
     backtrackB: seq[(ref Token, bool)] # like backtrack, but with the possibility to ignore errors
     inTypeDef: int
     scopeCounter: int
-    hasDeadCodeElimPragma: bool
     currentClass: PNode   # type that needs to be added as 'this' parameter
     currentClassOrig: string # original class name
     classHierarchy: seq[string] # used for nested types
@@ -187,7 +186,7 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   else: result = false
 
 proc openParser*(p: var Parser, filename: string,
-                inputStream: PLLStream, options = newParserOptions()) =
+                inputStream: PLLStream, options: PParserOptions) =
   openLexer(p.lex, filename, inputStream)
   p.options = options
   p.header = filename.extractFilename
@@ -474,8 +473,8 @@ proc markTypeIdent(p: var Parser, typ: PNode) =
 # avoids to build a symbol table, which can't be done reliably anyway for our
 # purposes.
 
-proc expression(p: var Parser, rbp: int = 0): PNode
-proc constantExpression(p: var Parser): PNode = expression(p, 40)
+proc expression(p: var Parser, rbp: int = 0; parent: PNode = nil): PNode
+proc constantExpression(p: var Parser; parent: PNode = nil): PNode = expression(p, 40, parent)
 proc assignmentExpression(p: var Parser): PNode = expression(p, 30)
 proc compoundStatement(p: var Parser; newScope=true): PNode
 proc statement(p: var Parser): PNode
@@ -1278,7 +1277,7 @@ proc enumFields(p: var Parser, constList, stmtList: PNode): PNode =
     var e = skipIdent(p, skEnumField)
     if p.tok.xkind == pxAsgn:
       getTok(p, e)
-      var c = constantExpression(p)
+      var c = constantExpression(p, e)
       var a = e
       e = newNodeP(nkEnumFieldDef, p)
       addSon(e, a, c)
@@ -1419,7 +1418,15 @@ proc parseTypedefStruct(p: var Parser, result, stmtList: PNode,
         p.options.classes[origName] = nameOrType.ident.s
     of pxSymbol:
       # typedef struct a a?
-      if mangleName(p.tok.s, p, skType) == nameOrType.ident.s:
+      if pfStructStruct in p.options.flags:
+        let nn = mangledIdent(p.tok.s, p, skType)
+        getTok(p, nil)
+        markTypeIdent(p, nn)
+        let t = newNodeP(nkObjectTy, p)
+        addSon(t, emptyNode, emptyNode) # no pragmas, no inheritance
+        addSon(t, newNodeP(nkRecList, p))
+        addTypeDef(result, nn, t, emptyNode)
+      elif mangleName(p.tok.s, p, skType) == nameOrType.ident.s:
         # ignore the declaration:
         if pfStructStruct in p.options.flags:
           # XXX to implement
@@ -2160,6 +2167,10 @@ proc startExpression(p: var Parser, tok: Token): PNode =
     result = newNodeP(nkPrefix, p)
     addSon(result, newIdentNodeP("-", p))
     addSon(result, expression(p, 139))
+  of pxToString:
+    result = newNodeP(nkCall, p)
+    addSon(result, newIdentNodeP("astToStr", p))
+    addSon(result, newIdentNodeP(tok.s, p))
   of pxTilde:
     result = newNodeP(nkPrefix, p)
     addSon(result, newIdentNodeP("not", p))
@@ -2368,9 +2379,9 @@ proc leftExpression(p: var Parser, tok: Token, left: PNode): PNode =
   else:
     result = left
 
-proc expression(p: var Parser, rbp: int = 0): PNode =
+proc expression(p: var Parser, rbp: int = 0; parent: PNode = nil): PNode =
   var tok = p.tok[]
-  getTok(p, result)
+  getTok(p, parent)
 
   result = startExpression(p, tok)
   while rbp < leftBindingPower(p, p.tok):
@@ -3532,14 +3543,12 @@ proc parseStrict(p: var Parser): PNode =
 proc parseWithSyncPoints(p: var Parser): PNode =
   result = newNodeP(nkStmtList, p)
   getTok(p) # read first token
-  var useful = false
   var firstError = ""
   while p.tok.xkind != pxEof:
     saveContextB(p, true)
     try:
       var s = statement(p)
       if s.kind != nkEmpty:
-        useful = true
         embedStmts(result, s)
       closeContextB(p)
     except ERetryParsing:
@@ -3548,8 +3557,6 @@ proc parseWithSyncPoints(p: var Parser): PNode =
       backtrackContextB(p)
       # skip to the next sync point (which is a not-nested ';')
       result.add skipToSemicolon(p, err, exitForCurlyRi=false)
-  if not useful:
-    parError(p, firstError)
 
 proc parseUnit*(p: var Parser): PNode =
   if pfStrict in p.options.flags:

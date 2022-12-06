@@ -210,7 +210,21 @@ proc parseDefBody(p: var Parser, m: var Macro, params: seq[string]): bool =
   var closedParentheses = 0
   while p.tok.xkind notin {pxEof, pxNewLine, pxLineComment}:
     case p.tok.xkind
-    of pxSymbol, pxDirective, pxDirectiveParLe:
+    of pxDirective:
+      # is it a parameter reference? (or possibly #param with a toString)
+      var tok = p.tok
+      for i in 0..high(params):
+        if params[i] == p.tok.s:
+          # over-write the *persistent* token too. This means we finally support
+          # #define foo(param) #param
+          # too, because `parseDef` is always called before `parseDefine`.
+          tok.xkind = pxToString
+          new(tok)
+          tok.xkind = pxMacroParamToStr
+          tok.position = i
+          break
+      m.body.add(tok)
+    of pxSymbol, pxDirectiveParLe, pxToString:
       let isSymbol = p.tok.xkind == pxSymbol
       # is it a parameter reference? (or possibly #param with a toString)
       var tok = p.tok
@@ -562,16 +576,6 @@ proc parseMangleDir(p: var Parser) =
   getTok(p)
   eatNewLine(p, nil)
 
-proc modulePragmas(p: var Parser): PNode =
-  if p.options.dynlibSym.len > 0 and not p.hasDeadCodeElimPragma:
-    p.hasDeadCodeElimPragma = true
-    result = newNodeP(nkPragma, p)
-    var e = newNodeP(nkExprColonExpr, p)
-    addSon(e, newIdentNodeP("deadCodeElim", p), newIdentNodeP("on", p))
-    addSon(result, e)
-  else:
-    result = emptyNode
-
 proc parseOverride(p: var Parser; tab: StringTableRef) =
   getTok(p)
   expectIdent(p)
@@ -627,7 +631,7 @@ proc parseDir(p: var Parser; sectionParser: SectionParser): PNode =
         discard setOption(p.options, key, p.tok.s)
       getTok(p)
     eatNewLine(p, nil)
-    result = modulePragmas(p)
+    result = emptyNode
   of "dynlib", "prefix", "suffix", "class", "discardableprefix", "assumedef", "assumendef", "isarray":
     var key = p.tok.s
     getTok(p)
@@ -635,7 +639,7 @@ proc parseDir(p: var Parser; sectionParser: SectionParser): PNode =
     discard setOption(p.options, key, p.tok.s)
     getTok(p)
     eatNewLine(p, nil)
-    result = modulePragmas(p)
+    result = emptyNode
   of "mangle":
     parseMangleDir(p)
   of "pp":

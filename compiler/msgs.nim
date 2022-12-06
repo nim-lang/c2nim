@@ -73,7 +73,8 @@ proc fileInfoIdx*(conf: ConfigRef; filename: AbsoluteFile; isKnownFile: var bool
 
   try:
     canon = canonicalizePath(conf, filename)
-    shallow(canon.string)
+    when not defined(nimSeqsV2):
+      shallow(canon.string)
   except OSError:
     canon = filename
     # The compiler uses "filenames" such as `command line` or `stdin`
@@ -187,11 +188,17 @@ proc setDirtyFile*(conf: ConfigRef; fileIdx: FileIndex; filename: AbsoluteFile) 
 
 proc setHash*(conf: ConfigRef; fileIdx: FileIndex; hash: string) =
   assert fileIdx.int32 >= 0
-  shallowCopy(conf.m.fileInfos[fileIdx.int32].hash, hash)
+  when defined(gcArc) or defined(gcOrc):
+    conf.m.fileInfos[fileIdx.int32].hash = hash
+  else:
+    shallowCopy(conf.m.fileInfos[fileIdx.int32].hash, hash)
 
 proc getHash*(conf: ConfigRef; fileIdx: FileIndex): string =
   assert fileIdx.int32 >= 0
-  shallowCopy(result, conf.m.fileInfos[fileIdx.int32].hash)
+  when defined(gcArc) or defined(gcOrc):
+    result = conf.m.fileInfos[fileIdx.int32].hash
+  else:
+    shallowCopy(result, conf.m.fileInfos[fileIdx.int32].hash)
 
 proc toFullPathConsiderDirty*(conf: ConfigRef; fileIdx: FileIndex): AbsoluteFile =
   if fileIdx.int32 < 0:

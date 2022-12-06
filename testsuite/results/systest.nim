@@ -215,7 +215,6 @@ template MULTILINE*(x, y: untyped): void =
     if not 0:
       break
 
-{.deadCodeElim: on.}
 when defined(windows):
   const
     iupdll* = "iup.dll"

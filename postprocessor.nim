@@ -27,6 +27,7 @@ proc isEmptyStmtList(n: PNode): bool =
 type
   Context = object
     typedefs: Table[string, PNode]
+    structStructMode: bool
 
 proc getName(n: PNode): PNode =
   result = n
@@ -39,10 +40,27 @@ proc skipColon(n: PNode): PNode =
   if n.kind == nkExprColonExpr: result = n[1]
   else: result = n
 
+proc count(n: PNode): int =
+  result = safeLen(n)
+  for i in 0..<safeLen(n):
+    inc result, count(n[i])
+
 proc rememberTypedef(c: var Context; n: PNode) =
   let name = getName(n[0])
   if name.kind == nkIdent and n.len >= 2:
-    c.typedefs[name.ident.s] = n.lastSon
+    if not c.structStructMode:
+      c.typedefs[name.ident.s] = n
+    else:
+      let oldDef = c.typedefs.getOrDefault(name.ident.s)
+      if oldDef == nil:
+        c.typedefs[name.ident.s] = n
+      else:
+        # check which declaration is the better one:
+        if count(n.lastSon) > count(oldDef.lastSon):
+          oldDef.kind = nkEmpty # remove it
+          c.typedefs[name.ident.s] = n
+        else:
+          n.kind = nkEmpty # remove this one
 
 proc ithFieldName(t: PNode; position: var int): PNode =
   result = nil
@@ -72,7 +90,7 @@ proc patchBracket(c: Context; t: PNode; n: var PNode) =
   while t.kind == nkIdent and attempts >= 0:
     let t2 = c.typedefs.getOrDefault(t.ident.s)
     if t2 != nil:
-      t = t2
+      t = t2.lastSon
     else:
       break
     dec attempts
@@ -143,8 +161,8 @@ proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
   else:
     for i in 0 ..< n.safeLen: pp(c, n.sons[i], stmtList, idx)
 
-proc postprocess*(n: PNode): PNode =
-  var c = Context(typedefs: initTable[string, PNode]())
+proc postprocess*(n: PNode; structStructMode: bool): PNode =
+  var c = Context(typedefs: initTable[string, PNode](), structStructMode: structStructMode)
   result = n
   pp(c, result)
 

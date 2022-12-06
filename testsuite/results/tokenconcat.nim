@@ -3,6 +3,9 @@ type
 
 ##  test the toString macro operator
 
+template toStringTemplate*(x: untyped): untyped =
+  astToStr(x)
+
 proc main*(argc: cint; argv: ptr cstring): cint =
   var test: fftw_double = 1.234
   printf("%s %f", "hello3", test)
