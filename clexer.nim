@@ -107,6 +107,7 @@ type
     base*: NumericalBase      # the numerical base; only valid for int
                               # or float literals
     next*: ref Token          # for C we need arbitrary look-ahead :-(
+    lineNumber*: int          # line number
 
   Lexer* = object of TBaseLexer
     fileIdx*: (when declared(FileIndex): FileIndex else: int32)
@@ -750,6 +751,7 @@ proc getTok*(L: var Lexer, tok: var Token) =
   skip(L, tok)
   if tok.xkind == pxNewLine: return
   var c = L.buf[L.bufpos]
+  tok.lineNumber = L.lineNumber
   if c in SymStartChars:
     getSymbol(L, tok)
     if L.buf[L.bufpos] == '"':
@@ -770,9 +772,11 @@ proc getTok*(L: var Lexer, tok: var Token) =
   else:
     case c
     of ';':
+      echo "SEMI NEXT: ", L.linenumber
       tok.xkind = pxSemicolon
       inc(L.bufpos)
     of '/':
+      echo "SLASH NEXT: ", L.linenumber, " ", tok.lineNumber
       if L.buf[L.bufpos + 1] == '/':
         scanLineComment(L, tok)
       elif L.buf[L.bufpos+1] == '*':

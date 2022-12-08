@@ -28,6 +28,7 @@ type
   Context = object
     typedefs: Table[string, PNode]
     structStructMode: bool
+    reorderComments: bool
 
 proc getName(n: PNode): PNode =
   result = n
@@ -113,7 +114,37 @@ proc patchBracket(c: Context; t: PNode; n: var PNode) =
     if success:
       n = nn
 
+
+import sequtils
+
+var depth = 0
+
+proc reorderComments(n: PNode) = 
+  ## reorder C style comments to Nim style ones
+  var i = 0
+  while i < n.safeLen - 1:
+    if n[i].kind == nkCommentStmt:
+      echo "reorder comments"
+      if n[i+1].kind == nkTypeSection:
+        if n[i+1].len >= 0:
+          n[i+1][0].comment = n[i].comment
+          delete(n.sons, i)
+      elif n[i+1].kind == nkProcDef:
+        if n[i+1].len >= 0:
+          n[i+1][0].comment = n[i].comment
+          delete(n.sons, i)
+    inc i
+
 proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
+
+  if c.reorderComments:
+    reorderComments(n)
+
+  var s = ""
+  inc depth
+  for i in 0..depth: s &= "  "
+  echo s, "PP: ", n.kind, " idx: ", idx, " ln: ", n.info.line, " comment: `", n.comment[0..<n.comment.len().min(45)], "`"
+
   case n.kind
   of nkIdent:
     if renderer.isKeyword(n.ident):
@@ -125,7 +156,9 @@ proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
   of nkAccQuoted: discard
 
   of nkStmtList:
-    for i in 0 ..< n.safeLen: pp(c, n.sons[i], n, i)
+    for i in 0 ..< n.safeLen:
+      pp(c, n.sons[i], n, i)
+
   of nkRecList:
     var consts: seq[int] = @[]
     for i in 0 ..< n.safeLen:
@@ -161,8 +194,12 @@ proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
   else:
     for i in 0 ..< n.safeLen: pp(c, n.sons[i], stmtList, idx)
 
+  dec depth
+
 proc postprocess*(n: PNode; structStructMode: bool): PNode =
-  var c = Context(typedefs: initTable[string, PNode](), structStructMode: structStructMode)
+  var c = Context(typedefs: initTable[string, PNode](),
+                  reorderComments: false,
+                  structStructMode: structStructMode)
   result = n
   pp(c, result)
 
