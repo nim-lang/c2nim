@@ -202,7 +202,6 @@ for kind, key, val in getopt():
       let defs = val.split("=")
       var lex: Lexer
       var tfl = createTempFile("macro_", ".h")
-      echo "defs[1]: ", defs[1]
       let ss = llStreamOpen(defs[1])
       openLexer(lex, tfl[1], ss)
       var toks: seq[ref Token]
@@ -211,28 +210,15 @@ for kind, key, val in getopt():
       while tk.xkind != pxEof:
         tk = new Token
         lex.getTok(tk[])
-        echo "tk: ", tk.xkind
         if tk.xkind == pxEof:
           break
         toks.add tk
         inc idx
         if idx > 1_000: raise newException(Exception, "parse error")
-      # echo "DEF: ", $pn
-      # let defs = val.split("=")
-      # let tk = new Token
-      # tk.xkind = pxSymbol
-      # tk.s = defs[1]
-      # let lp = new Token
-      # lp.xkind = pxParLe
-      # let rp = new Token
-      # rp.xkind = pxParRi
       var mc: cparser.Macro
       mc.params = -1
       mc.name = defs[0]
       mc.body = toks
-      # mc.body = @[tk, lp, rp]
-      echo "MC: ", mc
-      echo "MC:body: ", repr mc.body
       parserOptions.macros.add(mc)
     else:
       if not parserOptions.setOption(key, val):

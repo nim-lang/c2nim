@@ -492,7 +492,6 @@ template initExpr(p: untyped): untyped = expression(p, 11)
 
 proc declKeyword(p: Parser, s: string): bool =
   # returns true if it is a keyword that introduces a declaration
-  echo "DECL_KEYWORD: ", s
   case s
   of  "extern", "static", "auto", "register", "const", "volatile",
       "restrict", "inline", "__inline", "__cdecl", "__stdcall", "__syscall",
@@ -2565,7 +2564,6 @@ proc parseDoWhile(p: var Parser): PNode =
   addSon(result, stm)
 
 proc declarationOrStatement(p: var Parser): PNode =
-  echo "P.TOK: ", repr p.tok
   if p.tok.xkind != pxSymbol:
     result = expressionStatement(p)
   elif declKeyword(p, p.tok.s):
