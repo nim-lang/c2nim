@@ -954,8 +954,7 @@ proc parseStructBody(p: var Parser, stmtList: PNode,
     let ln = p.parLineInfo().line
     if p.tok.xkind in {pxLineComment, pxStarComment}:
       echo p.lex.getCurrentLine
-      var info = result.lastSon.info
-      let com = newNodeI(nkCommentStmt, info)
+      let com = newNodeP(nkCommentStmt, p)
       com.info.line = p.tok.lineNumber.uint16
       addSon(result, com)
       skipComAux(p, com)

@@ -121,15 +121,28 @@ var depth = 0
 
 proc reorderComments(n: PNode) = 
   ## reorder C style comments to Nim style ones
+  var j = 1
+  let commentKinds = {nkTypeSection, nkIdentDefs, nkProcDef}
+  template moveComment(idx) =
+    if n[idx+1].len >= 0:
+      n[idx+1][0].comment = n[idx].comment
+      delete(n.sons, i)
+
+  while j < n.safeLen - 1:
+    if n[j].kind == nkCommentStmt:
+      # join comments to previous node if line numbers match
+      # these comments should get reordered
+      if n[j-1].kind in commentKinds:
+        if n[j-1].info.line == n[j].info.line:
+          if n[j-1].len >= 0:
+            n[j-1][0].comment = n[j].comment
+            delete(n.sons, j)
+    inc j
   var i = 0
   while i < n.safeLen - 1:
     if n[i].kind == nkCommentStmt:
-      echo "reorder comments"
-      if n[i+1].kind == nkTypeSection:
-        if n[i+1].len >= 0:
-          n[i+1][0].comment = n[i].comment
-          delete(n.sons, i)
-      elif n[i+1].kind == nkProcDef:
+      # reorder comments to match Nim ordering
+      if n[i+1].kind in commentKinds:
         if n[i+1].len >= 0:
           n[i+1][0].comment = n[i].comment
           delete(n.sons, i)
@@ -198,7 +211,7 @@ proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
 
 proc postprocess*(n: PNode; structStructMode: bool): PNode =
   var c = Context(typedefs: initTable[string, PNode](),
-                  reorderComments: false,
+                  reorderComments: true,
                   structStructMode: structStructMode)
   result = n
   pp(c, result)
