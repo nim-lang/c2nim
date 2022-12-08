@@ -352,10 +352,6 @@ proc parLineInfo(p: Parser): TLineInfo =
   result = getLineInfo(p.lex)
 
 proc skipComAux(p: var Parser, n: PNode) =
-  echo "skipComAux"
-  # if p.tok.xkind == pxStarComment:
-  #   echo "p.tok: ", repr p
-  #   raise newException(Exception, "star comment")
   if n != nil and n.kind != nkEmpty:
     if pfSkipComments notin p.options.flags:
       if n.comment.len == 0: n.comment = p.tok.s
@@ -942,26 +938,18 @@ import compiler/nimlexbase
 proc parseStructBody(p: var Parser, stmtList: PNode,
                      kind: TNodeKind = nkRecList): PNode =
   result = newNodeP(kind, p)
-  echo "parseStructBody1: ", p.tok.xkind, " :: ", p.tok.lineNumber
   let com = newNodeP(nkCommentStmt, p)
   eat(p, pxCurlyLe, com)
-  echo "parseStructBody2: ", p.tok.xkind, " :: ", p.tok.lineNumber
-  echo "parseStructBody3: ", com
   if com.comment.len() > 0:
     addSon(result, com)
-  var lastLine = 0
-  echo "\n========"
   while p.tok.xkind notin {pxEof, pxCurlyRi}:
-    echo "<<<<<<<< p.tok: ", p.tok.xkind, " : ", p.tok.lineNumber
     let ln = p.parLineInfo().line
     if p.tok.xkind in {pxLineComment, pxStarComment}:
-      echo p.lex.getCurrentLine
       let com = newNodeP(nkCommentStmt, p)
       com.info.line = p.tok.lineNumber.uint16
       addSon(result, com)
       skipComAux(p, com)
       continue
-    echo ">>>>>>>>"
     discard skipConst(p)
     var baseTyp: PNode
     if p.tok.xkind == pxSymbol and p.tok.s in ["struct", "union"]:
@@ -1012,9 +1000,6 @@ proc parseStructBody(p: var Parser, stmtList: PNode,
       if p.tok.xkind != pxComma: break
       getTok(p, def)
 
-    # eat(p, pxSemicolon, lastSon(result))
-    lastLine = p.tok.lineNumber
-    echo "set lastline: ", lastLine
     eat(p, pxSemicolon)
 
   eat(p, pxCurlyRi, result)

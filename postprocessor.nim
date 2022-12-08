@@ -148,10 +148,10 @@ proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
   if c.reorderComments:
     reorderComments(n)
 
-  var s = ""
-  inc depth
-  for i in 0..depth: s &= "  "
-  echo s, "PP: ", n.kind, " idx: ", idx, " ln: ", n.info.line, " comment: `", n.comment[0..<n.comment.len().min(45)], "`"
+  # var s = ""
+  # inc depth
+  # for i in 0..depth: s &= "  "
+  # echo s, "PP: ", n.kind, " idx: ", idx, " ln: ", n.info.line, " comment: `", n.comment[0..<n.comment.len().min(45)], "`"
 
   case n.kind
   of nkIdent:

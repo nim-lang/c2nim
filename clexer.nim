@@ -772,11 +772,9 @@ proc getTok*(L: var Lexer, tok: var Token) =
   else:
     case c
     of ';':
-      echo "SEMI NEXT: ", L.linenumber
       tok.xkind = pxSemicolon
       inc(L.bufpos)
     of '/':
-      echo "SLASH NEXT: ", L.linenumber, " ", tok.lineNumber
       if L.buf[L.bufpos + 1] == '/':
         scanLineComment(L, tok)
       elif L.buf[L.bufpos+1] == '*':
