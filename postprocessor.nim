@@ -204,9 +204,9 @@ proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
 
   dec depth
 
-proc postprocess*(n: PNode; structStructMode: bool): PNode =
+proc postprocess*(n: PNode; structStructMode, reorderComments: bool): PNode =
   var c = Context(typedefs: initTable[string, PNode](),
-                  reorderComments: true,
+                  reorderComments: reorderComments,
                   structStructMode: structStructMode)
   result = n
   pp(c, result)

@@ -46,7 +46,8 @@ type
     pfIgnoreRValueRefs, ## transform C++'s 'T&&' to 'T'
     pfKeepBodies,       ## do not skip C++ method bodies
     pfAssumeIfIsTrue,   ## assume #if is true
-    pfStructStruct      ## do not treat struct Foo Foo as a forward decl
+    pfStructStruct,     ## do not treat struct Foo Foo as a forward decl
+    pfReorderComments   ## do not treat struct Foo Foo as a forward decl
 
   Macro = object
     name: string
@@ -182,6 +183,7 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "assumeifistrue": incl(parserOptions.flags, pfAssumeIfIsTrue)
   of "discardableprefix": parserOptions.discardablePrefixes.add(val)
   of "structstruct": incl(parserOptions.flags, pfStructStruct)
+  of "reordercomments": incl(parserOptions.flags, pfReorderComments)
   of "isarray": parserOptions.isArray[val] = "true"
   else: result = false
 
