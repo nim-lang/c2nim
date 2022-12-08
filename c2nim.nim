@@ -7,7 +7,7 @@
 #    distribution, for details about the copyright.
 #
 
-import std / [strutils, os, times, parseopt, strscans]
+import std / [strutils, os, times, tempfiles, parseopt, strscans]
 
 import compiler/ [llstream, ast, renderer, options, msgs, nversion]
 
@@ -198,6 +198,42 @@ for kind, key, val in getopt():
            " use a list of files and --concat instead"
     of "exportdll":
       parserOptions.exportPrefix = val
+    of "def":
+      let defs = val.split("=")
+      var lex: Lexer
+      var tfl = createTempFile("macro_", ".h")
+      echo "defs[1]: ", defs[1]
+      let ss = llStreamOpen(defs[1])
+      openLexer(lex, tfl[1], ss)
+      var toks: seq[ref Token]
+      var tk = new Token
+      var idx = 0
+      while tk.xkind != pxEof:
+        tk = new Token
+        lex.getTok(tk[])
+        echo "tk: ", tk.xkind
+        if tk.xkind == pxEof:
+          break
+        toks.add tk
+        inc idx
+        if idx > 1_000: raise newException(Exception, "parse error")
+      # echo "DEF: ", $pn
+      # let defs = val.split("=")
+      # let tk = new Token
+      # tk.xkind = pxSymbol
+      # tk.s = defs[1]
+      # let lp = new Token
+      # lp.xkind = pxParLe
+      # let rp = new Token
+      # rp.xkind = pxParRi
+      var mc: cparser.Macro
+      mc.params = -1
+      mc.name = defs[0]
+      mc.body = toks
+      # mc.body = @[tk, lp, rp]
+      echo "MC: ", mc
+      echo "MC:body: ", repr mc.body
+      parserOptions.macros.add(mc)
     else:
       if not parserOptions.setOption(key, val):
         quit("[Error] unknown option: " & key)

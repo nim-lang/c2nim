@@ -49,10 +49,10 @@ type
     pfStructStruct,     ## do not treat struct Foo Foo as a forward decl
     pfReorderComments   ## do not treat struct Foo Foo as a forward decl
 
-  Macro = object
-    name: string
-    params: int # number of parameters; 0 for empty (); -1 for no () at all
-    body: seq[ref Token] # can contain pxMacroParam tokens
+  Macro* = object
+    name*: string
+    params*: int # number of parameters; 0 for empty (); -1 for no () at all
+    body*: seq[ref Token] # can contain pxMacroParam tokens
 
   ParserOptions = object ## shared parser state!
     flags*: set[ParserFlag]
@@ -61,7 +61,7 @@ type
     mangleRules: seq[tuple[pattern: Peg, frmt: string]]
     privateRules: seq[Peg]
     dynlibSym, headerOverride: string
-    macros: seq[Macro]
+    macros*: seq[Macro]
     toMangle: StringTableRef
     classes: StringTableRef
     toPreprocess: StringTableRef
@@ -167,6 +167,9 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "mangle":
     let vals = val.split("=")
     parserOptions.mangleRules.add((parsePeg(vals[0]), vals[1]))
+  of "stdints":
+    let vals = val.split(r"{u?}int{\d+}_t=$1int$2")
+    parserOptions.mangleRules.add((parsePeg(vals[0]), vals[1]))
   of "skipinclude": incl(parserOptions.flags, pfSkipInclude)
   of "typeprefixes": incl(parserOptions.flags, pfTypePrefixes)
   of "skipcomments": incl(parserOptions.flags, pfSkipComments)
@@ -204,6 +207,7 @@ proc parMessage(p: Parser, msg: TMsgKind, arg = "") =
   lexMessage(p.lex, msg, arg)
 
 proc parError(p: Parser, arg = "") =
+  # raise newException(Exception, arg)
   if p.backtrackB.len == 0:
     lexMessage(p.lex, errGenerated, arg)
   else:
@@ -251,7 +255,8 @@ proc findMacro(p: Parser): int =
 
 proc rawEat(p: var Parser, xkind: Tokkind) =
   if p.tok.xkind == xkind: rawGetTok(p)
-  else: parError(p, "token expected: " & tokKindToStr(xkind))
+  else:
+    parError(p, "token expected: " & tokKindToStr(xkind))
 
 proc parseMacroArguments(p: var Parser): seq[seq[ref Token]] =
   result = @[]
@@ -487,12 +492,13 @@ template initExpr(p: untyped): untyped = expression(p, 11)
 
 proc declKeyword(p: Parser, s: string): bool =
   # returns true if it is a keyword that introduces a declaration
+  echo "DECL_KEYWORD: ", s
   case s
   of  "extern", "static", "auto", "register", "const", "volatile",
       "restrict", "inline", "__inline", "__cdecl", "__stdcall", "__syscall",
       "__fastcall", "__safecall", "void", "struct", "union", "enum", "typedef",
       "size_t", "short", "int", "long", "float", "double", "signed", "unsigned",
-      "char", "__declspec":
+      "char", "__declspec", "__attribute__":
     result = true
   of "class", "mutable", "constexpr", "consteval", "constinit", "decltype":
     result = p.options.flags.contains(pfCpp)
@@ -1151,6 +1157,10 @@ proc parseCallConv(p: var Parser, pragmas: PNode) =
     of "__fastcall": addSon(pragmas, newIdentNodeP("fastcall", p))
     of "__safecall": addSon(pragmas, newIdentNodeP("safecall", p))
     of "__declspec":
+      getTok(p, nil)
+      eat(p, pxParLe, nil)
+      while p.tok.xkind notin {pxEof, pxParRi}: getTok(p, nil)
+    of "__attribute__":
       getTok(p, nil)
       eat(p, pxParLe, nil)
       while p.tok.xkind notin {pxEof, pxParRi}: getTok(p, nil)
@@ -2555,6 +2565,7 @@ proc parseDoWhile(p: var Parser): PNode =
   addSon(result, stm)
 
 proc declarationOrStatement(p: var Parser): PNode =
+  echo "P.TOK: ", repr p.tok
   if p.tok.xkind != pxSymbol:
     result = expressionStatement(p)
   elif declKeyword(p, p.tok.s):
