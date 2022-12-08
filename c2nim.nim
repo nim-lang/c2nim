@@ -103,6 +103,30 @@ proc parse(infile: string, options: PParserOptions; dllExport: var PNode): PNode
 
 proc isC2nimFile(s: string): bool = splitFile(s).ext.toLowerAscii == ".c2nim"
 
+proc parseDefineArgs(parserOptions: var PParserOptions, val: string) =
+  let defs = val.split("=")
+  var lex: Lexer
+  var tfl = createTempFile("macro_", ".h")
+  let ss = llStreamOpen(defs[1])
+  openLexer(lex, tfl[1], ss)
+  var toks: seq[ref Token]
+  var tk = new Token
+  var idx = 0
+  while tk.xkind != pxEof:
+    tk = new Token
+    lex.getTok(tk[])
+    if tk.xkind == pxEof:
+      break
+    toks.add tk
+    inc idx
+    if idx > 1_000: raise newException(Exception, "parse error")
+  var mc: cparser.Macro
+  mc.params = -1
+  mc.name = defs[0]
+  mc.body = toks
+  parserOptions.macros.add(mc)
+
+
 var dummy: PNode
 
 when not compiles(renderModule(dummy, "")):
@@ -199,27 +223,7 @@ for kind, key, val in getopt():
     of "exportdll":
       parserOptions.exportPrefix = val
     of "def":
-      let defs = val.split("=")
-      var lex: Lexer
-      var tfl = createTempFile("macro_", ".h")
-      let ss = llStreamOpen(defs[1])
-      openLexer(lex, tfl[1], ss)
-      var toks: seq[ref Token]
-      var tk = new Token
-      var idx = 0
-      while tk.xkind != pxEof:
-        tk = new Token
-        lex.getTok(tk[])
-        if tk.xkind == pxEof:
-          break
-        toks.add tk
-        inc idx
-        if idx > 1_000: raise newException(Exception, "parse error")
-      var mc: cparser.Macro
-      mc.params = -1
-      mc.name = defs[0]
-      mc.body = toks
-      parserOptions.macros.add(mc)
+      parserOptions.parseDefineArgs(val)
     else:
       if not parserOptions.setOption(key, val):
         quit("[Error] unknown option: " & key)
