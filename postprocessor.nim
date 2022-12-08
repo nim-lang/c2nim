@@ -123,29 +123,24 @@ proc reorderComments(n: PNode) =
   ## reorder C style comments to Nim style ones
   var j = 1
   let commentKinds = {nkTypeSection, nkIdentDefs, nkProcDef}
-  template moveComment(idx) =
-    if n[idx+1].len >= 0:
-      n[idx+1][0].comment = n[idx].comment
-      delete(n.sons, i)
+  template moveComment(idx, off) =
+    if n[idx+off].len >= 0:
+      n[idx+off][0].comment = n[idx].comment
+      delete(n.sons, idx)
 
   while j < n.safeLen - 1:
     if n[j].kind == nkCommentStmt:
       # join comments to previous node if line numbers match
-      # these comments should get reordered
       if n[j-1].kind in commentKinds:
         if n[j-1].info.line == n[j].info.line:
-          if n[j-1].len >= 0:
-            n[j-1][0].comment = n[j].comment
-            delete(n.sons, j)
+          moveComment(j, -1)
     inc j
   var i = 0
   while i < n.safeLen - 1:
     if n[i].kind == nkCommentStmt:
       # reorder comments to match Nim ordering
       if n[i+1].kind in commentKinds:
-        if n[i+1].len >= 0:
-          n[i+1][0].comment = n[i].comment
-          delete(n.sons, i)
+        moveComment(i, +1)
     inc i
 
 proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
