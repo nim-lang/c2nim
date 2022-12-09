@@ -140,13 +140,13 @@ var dummy: PNode
 when not compiles(renderModule(dummy, "")):
   # newer versions of 'renderModule' take 2 parameters. We workaround this
   # problem here:
-  proc renderModule(tree: PNode; filename: string) =
-    renderModule(tree, filename, filename)
+  proc renderModule(tree: PNode; filename: string, renderFlags: TRenderFlags) =
+    renderModule(tree, filename, filename, renderFlags)
 
-proc myRenderModule(tree: PNode; filename: string) =
+proc myRenderModule(tree: PNode; filename: string, renderFlags: TRenderFlags) =
   # also ensure we produced no trailing whitespace:
   let tmpFile = filename & ".tmp"
-  renderModule(tree, tmpFile)
+  renderModule(tree, tmpFile, renderFlags)
 
   let b = readFile(tmpFile)
   removeFile(tmpFile)
@@ -184,21 +184,21 @@ proc main(infiles: seq[string], outfile: var string,
       if not isC2nimFile(infile):
         if outfile.len == 0: outfile = changeFileExt(infile, "nim")
         for n in m: tree.add(n)
-    myRenderModule(tree, outfile)
+    myRenderModule(tree, outfile, options.renderFlags)
   else:
     for infile in infiles:
       let m = parse(infile, options, dllexport)
       if not isC2nimFile(infile):
         if outfile.len > 0:
-          myRenderModule(m, outfile)
+          myRenderModule(m, outfile, options.renderFlags)
           outfile = ""
         else:
           let outfile = changeFileExt(infile, "nim")
-          myRenderModule(m, outfile)
+          myRenderModule(m, outfile, options.renderFlags)
   if dllexport != nil:
     let (path, name, _) = infiles[0].splitFile
     let outfile = path / name & "_dllimpl" & ".nim"
-    myRenderModule(dllexport, outfile)
+    myRenderModule(dllexport, outfile, options.renderFlags)
   when declared(NimCompilerApiVersion):
     rawMessage(gConfig, hintSuccessX, [$gLinesCompiled, $(getTime() - start),
                               formatSize(getTotalMem()), ""])
@@ -233,7 +233,10 @@ for kind, key, val in getopt():
     of "def":
       parserOptions.parseDefineArgs(val)
     else:
-      if not parserOptions.setOption(key, val):
+      if key.normalize == "render":
+        if not parserOptions.renderFlags.setOption(val):
+          quit("[Error] unknown option: " & key)
+      elif not parserOptions.setOption(key, val):
         quit("[Error] unknown option: " & key)
   of cmdEnd: assert(false)
 if infiles.len == 0:

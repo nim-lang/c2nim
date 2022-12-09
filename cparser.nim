@@ -56,6 +56,7 @@ type
 
   ParserOptions = object ## shared parser state!
     flags*: set[ParserFlag]
+    renderFlags*: TRenderFlags
     prefixes, suffixes: seq[string]
     assumeDef, assumenDef: seq[string]
     mangleRules: seq[tuple[pattern: Peg, frmt: string]]
@@ -128,6 +129,7 @@ proc newParserOptions*(): PParserOptions =
     privateRules: @[],
     discardablePrefixes: @[],
     flags: {},
+    renderFlags: {},
     dynlibSym: "",
     headerOverride: "",
     toMangle: newStringTable(modeCaseSensitive),
