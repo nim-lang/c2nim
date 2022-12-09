@@ -578,6 +578,8 @@ proc scanLineComment(L: var Lexer, tok: var Token) =
   # column after only whitespace
   tok.xkind = pxLineComment
   var col = getColNumber(L, pos)
+  # skip initial /// 
+  if buf[pos] == '/': inc(pos)
   while true:
     inc(pos, 2)               # skip //
     #add(tok.s, '#')
