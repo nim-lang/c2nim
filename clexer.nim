@@ -579,10 +579,11 @@ proc scanLineComment(L: var Lexer, tok: var Token) =
   tok.xkind = pxLineComment
   var col = getColNumber(L, pos)
   # skip initial /// 
-  if buf[pos] == '/': inc(pos)
   while true:
     inc(pos, 2)               # skip //
     #add(tok.s, '#')
+    if buf[pos] == '/':
+      inc(pos)
     while buf[pos] notin {CR, LF, nimlexbase.EndOfFile}:
       add(tok.s, buf[pos])
       inc(pos)
@@ -605,7 +606,8 @@ proc scanStarComment(L: var Lexer, tok: var Token) =
   tok.s = ""
   tok.xkind = pxStarComment
   # skip initial /** 
-  if buf[pos] == '*' and buf[pos+1] != '/': inc(pos)
+  if buf[pos] == '*' and buf[pos] != '/':
+    inc(pos)
   while true:
     case buf[pos]
     of CR, LF:

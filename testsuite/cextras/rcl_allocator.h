@@ -28,7 +28,7 @@ typedef struct rcutils_allocator_s
 
   void * (*zero_allocate)(size_t number_of_elements, size_t size_of_element, void * state); /// zero_allocate: Allocate memory with all elements set to zero, given a number of elements and their size.
 
-  /** reallocate2: Also takes the `state` pointer.  */
+  /* reallocate2: Also takes the `state` pointer.  */
   void * (*reallocate2)(void * pointer, size_t size, void * state);
 
   /** allocator objects.  */
