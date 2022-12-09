@@ -87,7 +87,7 @@ proc rcl_parse_arguments*(argc: cint; argv: cstringArray; allocator: rcl_allocat
                          args_output: ptr rcl_arguments_t): rcl_ret_t {.
     importc: "rcl_parse_arguments", header: "rcl_arguments.h".}
   ## / Parse command line arguments into a structure usable by code.
-  ## *
+  ##
   ##  \sa rcl_get_zero_initialized_arguments()
   ##
   ##  ROS arguments are expected to be scoped by a leading `--ros-args` flag and a trailing double
@@ -147,7 +147,7 @@ proc rcl_parse_arguments*(argc: cint; argv: cstringArray; allocator: rcl_allocat
 proc rcl_arguments_get_count_unparsed*(args: ptr rcl_arguments_t): cint {.
     importc: "rcl_arguments_get_count_unparsed", header: "rcl_arguments.h".}
   ## / Return the number of arguments that were not ROS specific arguments.
-  ## *
+  ##
   ##  <hr>
   ##  Attribute          | Adherence
   ##  ------------------ | -------------
@@ -166,7 +166,7 @@ proc rcl_arguments_get_unparsed*(args: ptr rcl_arguments_t;
                                 output_unparsed_indices: ptr ptr cint): rcl_ret_t {.
     importc: "rcl_arguments_get_unparsed", header: "rcl_arguments.h".}
   ## / Return a list of indices to non ROS specific arguments.
-  ## *
+  ##
   ##  Non ROS specific arguments may have been provided i.e. arguments outside a '--ros-args' scope.
   ##  This function populates an array of indices to these arguments in the original argv array.
   ##  Since the first argument is always assumed to be a process name, the list will always contain
@@ -194,7 +194,7 @@ proc rcl_arguments_get_unparsed*(args: ptr rcl_arguments_t;
 proc rcl_arguments_get_count_unparsed_ros*(args: ptr rcl_arguments_t): cint {.
     importc: "rcl_arguments_get_count_unparsed_ros", header: "rcl_arguments.h".}
   ## / Return the number of ROS specific arguments that were not successfully parsed.
-  ## *
+  ##
   ##  <hr>
   ##  Attribute          | Adherence
   ##  ------------------ | -------------
@@ -213,7 +213,7 @@ proc rcl_arguments_get_unparsed_ros*(args: ptr rcl_arguments_t;
                                     output_unparsed_ros_indices: ptr ptr cint): rcl_ret_t {.
     importc: "rcl_arguments_get_unparsed_ros", header: "rcl_arguments.h".}
   ## / Return a list of indices to unknown ROS specific arguments that were left unparsed.
-  ## *
+  ##
   ##  Some ROS specific arguments may not have been recognized, or were not intended to be
   ##  parsed by rcl.
   ##  This function populates an array of indices to these arguments in the original argv array.
@@ -240,7 +240,7 @@ proc rcl_arguments_get_unparsed_ros*(args: ptr rcl_arguments_t;
 proc rcl_arguments_get_param_files_count*(args: ptr rcl_arguments_t): cint {.
     importc: "rcl_arguments_get_param_files_count", header: "rcl_arguments.h".}
   ## / Return the number of parameter yaml files given in the arguments.
-  ## *
+  ##
   ##  <hr>
   ##  Attribute          | Adherence
   ##  ------------------ | -------------
@@ -259,7 +259,7 @@ proc rcl_arguments_get_param_files*(arguments: ptr rcl_arguments_t;
                                    parameter_files: ptr cstringArray): rcl_ret_t {.
     importc: "rcl_arguments_get_param_files", header: "rcl_arguments.h".}
   ## / Return a list of yaml parameter file paths specified on the command line.
-  ## *
+  ##
   ##  <hr>
   ##  Attribute          | Adherence
   ##  ------------------ | -------------
@@ -283,7 +283,7 @@ proc rcl_arguments_get_param_overrides*(arguments: ptr rcl_arguments_t;
     parameter_overrides: ptr ptr rcl_params_t): rcl_ret_t {.
     importc: "rcl_arguments_get_param_overrides", header: "rcl_arguments.h".}
   ## / Return all parameter overrides parsed from the command line.
-  ## *
+  ##
   ##  Parameter overrides are parsed directly from command line arguments and
   ##  parameter files provided in the command line.
   ##
@@ -310,7 +310,7 @@ proc rcl_remove_ros_arguments*(argv: cstringArray; args: ptr rcl_arguments_t;
                               nonros_argv: ptr cstringArray): rcl_ret_t {.
     importc: "rcl_remove_ros_arguments", header: "rcl_arguments.h".}
   ## / Return a list of arguments with ROS-specific arguments removed.
-  ## *
+  ##
   ##  Some arguments may not have been intended as ROS arguments.
   ##  This function populates an array of the aruments in a new argv array.
   ##  Since the first argument is always assumed to be a process name, the list
@@ -341,7 +341,7 @@ proc rcl_arguments_get_log_levels*(arguments: ptr rcl_arguments_t;
                                   log_levels: ptr rcl_log_levels_t): rcl_ret_t {.
     importc: "rcl_arguments_get_log_levels", header: "rcl_arguments.h".}
   ## / Return log levels parsed from the command line.
-  ## *
+  ##
   ##  Log levels are parsed directly from command line arguments.
   ##
   ##  <hr>
@@ -363,7 +363,7 @@ proc rcl_arguments_get_log_levels*(arguments: ptr rcl_arguments_t;
 proc rcl_arguments_copy*(args: ptr rcl_arguments_t; args_out: ptr rcl_arguments_t): rcl_ret_t {.
     importc: "rcl_arguments_copy", header: "rcl_arguments.h".}
   ## / Copy one arguments structure into another.
-  ## *
+  ##
   ##  <hr>
   ##  Attribute          | Adherence
   ##  ------------------ | -------------
@@ -384,7 +384,7 @@ proc rcl_arguments_copy*(args: ptr rcl_arguments_t; args_out: ptr rcl_arguments_
 proc rcl_arguments_fini*(args: ptr rcl_arguments_t): rcl_ret_t {.
     importc: "rcl_arguments_fini", header: "rcl_arguments.h".}
   ## / Reclaim resources held inside rcl_arguments_t structure.
-  ## *
+  ##
   ##  <hr>
   ##  Attribute          | Adherence
   ##  ------------------ | -------------

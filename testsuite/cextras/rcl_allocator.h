@@ -20,18 +20,18 @@ typedef struct rcutils_allocator_s
   void * (*allocate)(size_t size, void * state);
 
   /// deallocate: Deallocate previously allocated memory, mimicking free().
-  ///   more lines
+  ///  more lines
   void (* deallocate)(void * pointer, void * state);
 
-  /** * reallocate: Also takes the `state` pointer.  */
+  /** reallocate: Also takes the `state` pointer.  */
   void * (*reallocate)(void * pointer, size_t size, void * state);
 
   void * (*zero_allocate)(size_t number_of_elements, size_t size_of_element, void * state); /// zero_allocate: Allocate memory with all elements set to zero, given a number of elements and their size.
 
-  /** * reallocate2: Also takes the `state` pointer.  */
+  /** reallocate2: Also takes the `state` pointer.  */
   void * (*reallocate2)(void * pointer, size_t size, void * state);
 
-  /** * allocator objects.  */
+  /** allocator objects.  */
   void * state;
 
 

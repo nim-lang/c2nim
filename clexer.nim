@@ -602,6 +602,8 @@ proc scanStarComment(L: var Lexer, tok: var Token) =
   var buf = L.buf
   tok.s = ""
   tok.xkind = pxStarComment
+  # skip initial /** 
+  if buf[pos] == '*' and buf[pos+1] != '/': inc(pos)
   while true:
     case buf[pos]
     of CR, LF:
@@ -614,7 +616,6 @@ proc scanStarComment(L: var Lexer, tok: var Token) =
       #  */
       let oldPos = pos
       while buf[pos] in {' ', '\t'}:
-        #add(tok.s, ' ')
         inc(pos)
       if buf[pos] == '*':
         if buf[pos+1] != '/':

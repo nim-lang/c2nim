@@ -29,20 +29,20 @@ type
                                                                            ## memory,
                                                                            ## mimicking
                                                                            ## free().
-                                                                           ## /   more lines
+                                                                           ## /  more lines
     reallocate* {.importc: "reallocate".}: proc (pointer: pointer; size: csize_t;
-        state: pointer): pointer ## * * reallocate: Also takes the `state` pointer.
+        state: pointer): pointer ##  reallocate: Also takes the `state` pointer.
     zero_allocate* {.importc: "zero_allocate".}: proc (number_of_elements: csize_t;
         size_of_element: csize_t; state: pointer): pointer ## / zero_allocate: Allocate memory with all elements set to zero, given a number of elements and their size.
     reallocate2* {.importc: "reallocate2".}: proc (pointer: pointer; size: csize_t;
-        state: pointer): pointer ## * * reallocate2: Also takes the `state` pointer.
-    state* {.importc: "state".}: pointer ## * * allocator objects.
+        state: pointer): pointer ##  reallocate2: Also takes the `state` pointer.
+    state* {.importc: "state".}: pointer ##  allocator objects.
 
 
 
 proc rcutils_get_zero_initialized_allocator*(): rcutils_allocator_t {.
     importc: "rcutils_get_zero_initialized_allocator", header: "rcl_allocator.h".}
   ## / Return a zero initialized allocator.
-  ## *
+  ##
   ##  Note that this is an invalid allocator and should only be used as a placeholder.
   ## 
