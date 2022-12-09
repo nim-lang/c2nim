@@ -1,4 +1,4 @@
-## Copyright 2018 Open Source Robotics Foundation, Inc.
+##  Copyright 2018 Open Source Robotics Foundation, Inc.
 ##
 ##  Licensed under the Apache License, Version 2.0 (the "License");
 ##  you may not use this file except in compliance with the License.
@@ -60,15 +60,15 @@ const
 
 const
   RCL_LOG_STDOUT_FLAG_SUFFIX* = "stdout-logs" ##  The suffix of the ROS flag to enable or disable stdout
-                                           ## / logging (must be preceded with --enable- or --disable-).
+                                           ##  logging (must be preceded with --enable- or --disable-).
 
 const
   RCL_LOG_ROSOUT_FLAG_SUFFIX* = "rosout-logs" ##  The suffix of the ROS flag to enable or disable rosout
-                                           ## / logging (must be preceded with --enable- or --disable-).
+                                           ##  logging (must be preceded with --enable- or --disable-).
 
 const
   RCL_LOG_EXT_LIB_FLAG_SUFFIX* = "external-lib-logs" ##  The suffix of the ROS flag to enable or disable external library
-                                                  ## / logging (must be preceded with --enable- or --disable-).
+                                                  ##  logging (must be preceded with --enable- or --disable-).
 
 
 proc rcl_get_zero_initialized_arguments*(): rcl_arguments_t {.
