@@ -380,6 +380,7 @@ proc getTok(p: var Parser, n: PNode) =
 
 proc expectIdent(p: Parser) =
   if p.tok.xkind != pxSymbol:
+    # raise newException(Exception, "error")
     parError(p, "identifier expected, but got: " & debugTok(p.lex, p.tok[]))
 
 proc eat(p: var Parser, xkind: Tokkind, n: PNode) =

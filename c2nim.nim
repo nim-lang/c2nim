@@ -108,31 +108,38 @@ proc parse(infile: string, options: PParserOptions; dllExport: var PNode): PNode
 
 proc isC2nimFile(s: string): bool = splitFile(s).ext.toLowerAscii == ".c2nim"
 
-proc parseDefineArgs(parserOptions: var PParserOptions, val: string) =
-  let defs = val.split("=")
+proc parseDefines(val: string): seq[ref Token] =
   let tpath = getTempDir() / "macro_" & getMD5(val) & ".h"
   let tfl = (open(tpath, fmReadWrite), tpath)
-  let ss = llStreamOpen(defs[1])
+  let ss = llStreamOpen(val)
   var lex: Lexer
   openLexer(lex, tfl[1], ss)
-  var toks: seq[ref Token]
   var tk = new Token
   var idx = 0
+  result = newSeq[ref Token]()
   while tk.xkind != pxEof:
     tk = new Token
     lex.getTok(tk[])
     if tk.xkind == pxEof:
       break
-    toks.add tk
+    result.add tk
     inc idx
     if idx > 1_000: raise newException(Exception, "parse error")
-  var mc: cparser.Macro
-  mc.params = -1
-  mc.name = defs[0]
-  mc.body = toks
-  parserOptions.macros.add(mc)
   tfl[0].close()
   tfl[1].removeFile()
+
+proc parseDefineArgs(parserOptions: var PParserOptions, val: string) =
+  let defs = val.split("=")
+  var mc: cparser.Macro
+  let macs = parseDefines(defs[0])
+  let toks = parseDefines(defs[1])
+  mc.name = macs[0].s
+  mc.params = -1
+  mc.body = toks
+  for m in macs[1..^1]:
+    if m.xkind == pxParLe: mc.params = 0
+    if m.xkind == pxSymbol: inc mc.params
+  parserOptions.macros.add(mc)
 
 
 var dummy: PNode

@@ -169,7 +169,7 @@ rcl_parse_arguments(
  * \return number of unparsed arguments, or
  * \return -1 if args is `NULL` or zero initialized.
  */
-RCL_PUBLIC
+RCL_ALIGNAS(8)
 RCL_WARN_UNUSED
 int
 rcl_arguments_get_count_unparsed(
