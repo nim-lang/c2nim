@@ -7,7 +7,7 @@
 #    distribution, for details about the copyright.
 #
 
-import std / [strutils, os, times, tempfiles, parseopt, strscans]
+import std / [strutils, os, times, md5, parseopt, strscans]
 
 import compiler/ [llstream, ast, renderer, options, msgs, nversion]
 
@@ -110,9 +110,10 @@ proc isC2nimFile(s: string): bool = splitFile(s).ext.toLowerAscii == ".c2nim"
 
 proc parseDefineArgs(parserOptions: var PParserOptions, val: string) =
   let defs = val.split("=")
-  var lex: Lexer
-  var tfl = createTempFile("macro_", ".h")
+  let tpath = getTempDir() / "macro_" & getMD5(val) & ".h"
+  let tfl = (open(tpath, fmReadWrite), tpath)
   let ss = llStreamOpen(defs[1])
+  var lex: Lexer
   openLexer(lex, tfl[1], ss)
   var toks: seq[ref Token]
   var tk = new Token
