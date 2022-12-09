@@ -582,7 +582,7 @@ proc scanLineComment(L: var Lexer, tok: var Token) =
     # FIXME: this should be inc(pos, 3) to not double count space?
     inc(pos, 2) # skip //
     if buf[pos] == '/':
-      inc(pos, 2) # skip /// 
+      inc(pos, 1) # skip /// 
     while buf[pos] notin {CR, LF, nimlexbase.EndOfFile}:
       add(tok.s, buf[pos])
       inc(pos)
