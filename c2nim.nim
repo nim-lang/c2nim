@@ -130,6 +130,8 @@ proc parseDefineArgs(parserOptions: var PParserOptions, val: string) =
   mc.name = defs[0]
   mc.body = toks
   parserOptions.macros.add(mc)
+  tfl[0].close()
+  tfl[1].removeFile()
 
 
 var dummy: PNode
