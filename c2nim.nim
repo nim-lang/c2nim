@@ -43,6 +43,10 @@ Options:
   --importc              annotate procs with ``{.importc.}``
   --importdefines        import C defines as procs or vars with ``{.importc.}``
   --importfuncdefines    import C define funcs as procs with ``{.importc.}``
+  --def:SYM='macro()'    define a C macro that gets replaced with the given
+                         definition. It's parsed by the lexer. Use it to fix
+                         function attributes: ``--def:PUBLIC='__attribute__ ()'``
+  --reordercomments      reorder C comments to match Nim's postfix style
   --ref                  convert typ* to ref typ (default: ptr typ)
   --prefix:PREFIX        strip prefix for the generated Nim identifiers
                          (multiple --prefix options are supported)
@@ -52,6 +56,7 @@ Options:
                          for example `--mangle:'{u?}int{\d+}_t=$1int$2'` to
                          convert C <stdint.h> to Nim equivalents
                          (multiple --mangle options are supported)
+  --stdint               Mangle C stdint's into Nim style int's
   --paramprefix:PREFIX   add prefix to parameter name of the generated Nim proc
   --assumedef:IDENT      skips #ifndef sections for the given C identifier
                          (multiple --assumedef options are supported)
