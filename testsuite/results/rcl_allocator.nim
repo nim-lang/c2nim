@@ -39,6 +39,7 @@ type
     state* {.importc: "state".}: pointer ## * * allocator objects.
 
 
+
 proc rcutils_get_zero_initialized_allocator*(): rcutils_allocator_t {.
     importc: "rcutils_get_zero_initialized_allocator", header: "rcl_allocator.h".}
   ## / Return a zero initialized allocator.
