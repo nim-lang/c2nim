@@ -122,7 +122,7 @@ var depth = 0
 proc reorderComments(n: PNode) = 
   ## reorder C style comments to Nim style ones
   var j = 1
-  let commentKinds = {nkTypeSection, nkIdentDefs, nkProcDef}
+  let commentKinds = {nkTypeSection, nkIdentDefs, nkProcDef, nkConstSection}
   template moveComment(idx, off) =
     if n[idx+off].len >= 0:
       n[idx+off][0].comment = n[idx].comment
