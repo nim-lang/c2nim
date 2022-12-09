@@ -579,6 +579,7 @@ proc scanLineComment(L: var Lexer, tok: var Token) =
   tok.xkind = pxLineComment
   var col = getColNumber(L, pos)
   while true:
+    # FIXME: this should be inc(pos, 3) to not double count space?
     inc(pos, 2) # skip //
     if buf[pos] == '/':
       inc(pos, 2) # skip /// 
