@@ -83,7 +83,7 @@ typedef struct rcl_arguments_s
 /// logging (must be preceded with --enable- or --disable-).
 #define RCL_LOG_EXT_LIB_FLAG_SUFFIX "external-lib-logs"
 
-/// Return a rcl_arguments_t struct with members initialized to `NULL`.
+///   Return a rcl_arguments_t struct with members initialized to `NULL`.
 RCL_PUBLIC
 RCL_WARN_UNUSED
 rcl_arguments_t

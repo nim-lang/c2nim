@@ -11,7 +11,7 @@
 ##  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 ##  See the License for the specific language governing permissions and
 ##  limitations under the License.
-##  @file
+## @file
 
 import
   rcl/allocator, rcl/log_level, rcl/macros, rcl/types, rcl/visibility_control,
@@ -21,64 +21,64 @@ type
   rcl_arguments_impl_t* = rcl_arguments_impl_s
 
 type
-  rcl_arguments_t* {.importc: "rcl_arguments_t", header: "rcl_arguments.h", bycopy.} = object ##  Hold output of parsing command line arguments.
-    impl* {.importc: "impl".}: ptr rcl_arguments_impl_t ##  Private implementation pointer.
+  rcl_arguments_t* {.importc: "rcl_arguments_t", header: "rcl_arguments.h", bycopy.} = object ## Hold output of parsing command line arguments.
+    impl* {.importc: "impl".}: ptr rcl_arguments_impl_t ## Private implementation pointer.
 
 
 const
-  RCL_ROS_ARGS_FLAG* = "--ros-args" ##  The command-line flag that delineates the start of ROS arguments.
+  RCL_ROS_ARGS_FLAG* = "--ros-args" ## The command-line flag that delineates the start of ROS arguments.
 
 const
-  RCL_ROS_ARGS_EXPLICIT_END_TOKEN* = "--" ##  The token that delineates the explicit end of ROS arguments.
+  RCL_ROS_ARGS_EXPLICIT_END_TOKEN* = "--" ## The token that delineates the explicit end of ROS arguments.
 
 const
-  RCL_PARAM_FLAG* = "--param"   ##  The ROS flag that precedes the setting of a ROS parameter.
+  RCL_PARAM_FLAG* = "--param"   ## The ROS flag that precedes the setting of a ROS parameter.
 
 const
-  RCL_SHORT_PARAM_FLAG* = "-p"  ##  The short version of the ROS flag that precedes the setting of a ROS parameter.
+  RCL_SHORT_PARAM_FLAG* = "-p"  ## The short version of the ROS flag that precedes the setting of a ROS parameter.
 
 const
-  RCL_PARAM_FILE_FLAG* = "--params-file" ##  The ROS flag that precedes a path to a file containing ROS parameters.
+  RCL_PARAM_FILE_FLAG* = "--params-file" ## The ROS flag that precedes a path to a file containing ROS parameters.
 
 const
-  RCL_REMAP_FLAG* = "--remap"   ##  The ROS flag that precedes a ROS remapping rule.
+  RCL_REMAP_FLAG* = "--remap"   ## The ROS flag that precedes a ROS remapping rule.
 
 const
-  RCL_SHORT_REMAP_FLAG* = "-r"  ##  The short version of the ROS flag that precedes a ROS remapping rule.
+  RCL_SHORT_REMAP_FLAG* = "-r"  ## The short version of the ROS flag that precedes a ROS remapping rule.
 
 const
-  RCL_ENCLAVE_FLAG* = "--enclave" ##  The ROS flag that precedes the name of a ROS security enclave.
+  RCL_ENCLAVE_FLAG* = "--enclave" ## The ROS flag that precedes the name of a ROS security enclave.
 
 const
-  RCL_SHORT_ENCLAVE_FLAG* = "-e" ##  The short version of the ROS flag that precedes the name of a ROS security enclave.
+  RCL_SHORT_ENCLAVE_FLAG* = "-e" ## The short version of the ROS flag that precedes the name of a ROS security enclave.
 
 const
-  RCL_LOG_LEVEL_FLAG* = "--log-level" ##  The ROS flag that precedes the ROS logging level to set.
+  RCL_LOG_LEVEL_FLAG* = "--log-level" ## The ROS flag that precedes the ROS logging level to set.
 
 const
-  RCL_EXTERNAL_LOG_CONFIG_FLAG* = "--log-config-file" ##  The ROS flag that precedes the name of a configuration file to configure logging.
+  RCL_EXTERNAL_LOG_CONFIG_FLAG* = "--log-config-file" ## The ROS flag that precedes the name of a configuration file to configure logging.
 
 const
-  RCL_LOG_STDOUT_FLAG_SUFFIX* = "stdout-logs" ##  The suffix of the ROS flag to enable or disable stdout
-                                           ##  logging (must be preceded with --enable- or --disable-).
+  RCL_LOG_STDOUT_FLAG_SUFFIX* = "stdout-logs" ## The suffix of the ROS flag to enable or disable stdout
+                                           ## logging (must be preceded with --enable- or --disable-).
 
 const
-  RCL_LOG_ROSOUT_FLAG_SUFFIX* = "rosout-logs" ##  The suffix of the ROS flag to enable or disable rosout
-                                           ##  logging (must be preceded with --enable- or --disable-).
+  RCL_LOG_ROSOUT_FLAG_SUFFIX* = "rosout-logs" ## The suffix of the ROS flag to enable or disable rosout
+                                           ## logging (must be preceded with --enable- or --disable-).
 
 const
-  RCL_LOG_EXT_LIB_FLAG_SUFFIX* = "external-lib-logs" ##  The suffix of the ROS flag to enable or disable external library
-                                                  ##  logging (must be preceded with --enable- or --disable-).
+  RCL_LOG_EXT_LIB_FLAG_SUFFIX* = "external-lib-logs" ## The suffix of the ROS flag to enable or disable external library
+                                                  ## logging (must be preceded with --enable- or --disable-).
 
 
 proc rcl_get_zero_initialized_arguments*(): rcl_arguments_t {.
     importc: "rcl_get_zero_initialized_arguments", header: "rcl_arguments.h".}
-  ##  Return a rcl_arguments_t struct with members initialized to `NULL`.
+  ##   Return a rcl_arguments_t struct with members initialized to `NULL`.
 
 proc rcl_parse_arguments*(argc: cint; argv: cstringArray; allocator: rcl_allocator_t;
                          args_output: ptr rcl_arguments_t): rcl_ret_t {.
     importc: "rcl_parse_arguments", header: "rcl_arguments.h".}
-  ##  Parse command line arguments into a structure usable by code.
+  ## Parse command line arguments into a structure usable by code.
   ##
   ##  \sa rcl_get_zero_initialized_arguments()
   ##
@@ -138,7 +138,7 @@ proc rcl_parse_arguments*(argc: cint; argv: cstringArray; allocator: rcl_allocat
 
 proc rcl_arguments_get_count_unparsed*(args: ptr rcl_arguments_t): cint {.
     importc: "rcl_arguments_get_count_unparsed", header: "rcl_arguments.h".}
-  ##  Return the number of arguments that were not ROS specific arguments.
+  ## Return the number of arguments that were not ROS specific arguments.
   ##
   ##  <hr>
   ##  Attribute          | Adherence
@@ -157,7 +157,7 @@ proc rcl_arguments_get_unparsed*(args: ptr rcl_arguments_t;
                                 allocator: rcl_allocator_t;
                                 output_unparsed_indices: ptr ptr cint): rcl_ret_t {.
     importc: "rcl_arguments_get_unparsed", header: "rcl_arguments.h".}
-  ##  Return a list of indices to non ROS specific arguments.
+  ## Return a list of indices to non ROS specific arguments.
   ##
   ##  Non ROS specific arguments may have been provided i.e. arguments outside a '--ros-args' scope.
   ##  This function populates an array of indices to these arguments in the original argv array.
@@ -185,7 +185,7 @@ proc rcl_arguments_get_unparsed*(args: ptr rcl_arguments_t;
 
 proc rcl_arguments_get_count_unparsed_ros*(args: ptr rcl_arguments_t): cint {.
     importc: "rcl_arguments_get_count_unparsed_ros", header: "rcl_arguments.h".}
-  ##  Return the number of ROS specific arguments that were not successfully parsed.
+  ## Return the number of ROS specific arguments that were not successfully parsed.
   ##
   ##  <hr>
   ##  Attribute          | Adherence
@@ -204,7 +204,7 @@ proc rcl_arguments_get_unparsed_ros*(args: ptr rcl_arguments_t;
                                     allocator: rcl_allocator_t;
                                     output_unparsed_ros_indices: ptr ptr cint): rcl_ret_t {.
     importc: "rcl_arguments_get_unparsed_ros", header: "rcl_arguments.h".}
-  ##  Return a list of indices to unknown ROS specific arguments that were left unparsed.
+  ## Return a list of indices to unknown ROS specific arguments that were left unparsed.
   ##
   ##  Some ROS specific arguments may not have been recognized, or were not intended to be
   ##  parsed by rcl.
@@ -231,7 +231,7 @@ proc rcl_arguments_get_unparsed_ros*(args: ptr rcl_arguments_t;
 
 proc rcl_arguments_get_param_files_count*(args: ptr rcl_arguments_t): cint {.
     importc: "rcl_arguments_get_param_files_count", header: "rcl_arguments.h".}
-  ##  Return the number of parameter yaml files given in the arguments.
+  ## Return the number of parameter yaml files given in the arguments.
   ##
   ##  <hr>
   ##  Attribute          | Adherence
@@ -250,7 +250,7 @@ proc rcl_arguments_get_param_files*(arguments: ptr rcl_arguments_t;
                                    allocator: rcl_allocator_t;
                                    parameter_files: ptr cstringArray): rcl_ret_t {.
     importc: "rcl_arguments_get_param_files", header: "rcl_arguments.h".}
-  ##  Return a list of yaml parameter file paths specified on the command line.
+  ## Return a list of yaml parameter file paths specified on the command line.
   ##
   ##  <hr>
   ##  Attribute          | Adherence
@@ -274,7 +274,7 @@ proc rcl_arguments_get_param_files*(arguments: ptr rcl_arguments_t;
 proc rcl_arguments_get_param_overrides*(arguments: ptr rcl_arguments_t;
     parameter_overrides: ptr ptr rcl_params_t): rcl_ret_t {.
     importc: "rcl_arguments_get_param_overrides", header: "rcl_arguments.h".}
-  ##  Return all parameter overrides parsed from the command line.
+  ## Return all parameter overrides parsed from the command line.
   ##
   ##  Parameter overrides are parsed directly from command line arguments and
   ##  parameter files provided in the command line.
@@ -301,7 +301,7 @@ proc rcl_remove_ros_arguments*(argv: cstringArray; args: ptr rcl_arguments_t;
                               allocator: rcl_allocator_t; nonros_argc: ptr cint;
                               nonros_argv: ptr cstringArray): rcl_ret_t {.
     importc: "rcl_remove_ros_arguments", header: "rcl_arguments.h".}
-  ##  Return a list of arguments with ROS-specific arguments removed.
+  ## Return a list of arguments with ROS-specific arguments removed.
   ##
   ##  Some arguments may not have been intended as ROS arguments.
   ##  This function populates an array of the aruments in a new argv array.
@@ -332,7 +332,7 @@ proc rcl_remove_ros_arguments*(argv: cstringArray; args: ptr rcl_arguments_t;
 proc rcl_arguments_get_log_levels*(arguments: ptr rcl_arguments_t;
                                   log_levels: ptr rcl_log_levels_t): rcl_ret_t {.
     importc: "rcl_arguments_get_log_levels", header: "rcl_arguments.h".}
-  ##  Return log levels parsed from the command line.
+  ## Return log levels parsed from the command line.
   ##
   ##  Log levels are parsed directly from command line arguments.
   ##
@@ -354,7 +354,7 @@ proc rcl_arguments_get_log_levels*(arguments: ptr rcl_arguments_t;
 
 proc rcl_arguments_copy*(args: ptr rcl_arguments_t; args_out: ptr rcl_arguments_t): rcl_ret_t {.
     importc: "rcl_arguments_copy", header: "rcl_arguments.h".}
-  ##  Copy one arguments structure into another.
+  ## Copy one arguments structure into another.
   ##
   ##  <hr>
   ##  Attribute          | Adherence
@@ -375,7 +375,7 @@ proc rcl_arguments_copy*(args: ptr rcl_arguments_t; args_out: ptr rcl_arguments_
 
 proc rcl_arguments_fini*(args: ptr rcl_arguments_t): rcl_ret_t {.
     importc: "rcl_arguments_fini", header: "rcl_arguments.h".}
-  ##  Reclaim resources held inside rcl_arguments_t structure.
+  ## Reclaim resources held inside rcl_arguments_t structure.
   ##
   ##  <hr>
   ##  Attribute          | Adherence
