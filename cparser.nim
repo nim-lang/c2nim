@@ -168,7 +168,7 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
     let vals = val.split("=")
     parserOptions.mangleRules.add((parsePeg(vals[0]), vals[1]))
   of "stdints":
-    let vals = val.split(r"{u?}int{\d+}_t=$1int$2")
+    let vals = (r"{u?}int{\d+}_t", r"$1int$2")
     parserOptions.mangleRules.add((parsePeg(vals[0]), vals[1]))
   of "skipinclude": incl(parserOptions.flags, pfSkipInclude)
   of "typeprefixes": incl(parserOptions.flags, pfTypePrefixes)

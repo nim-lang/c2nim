@@ -56,7 +56,7 @@ Options:
                          for example `--mangle:'{u?}int{\d+}_t=$1int$2'` to
                          convert C <stdint.h> to Nim equivalents
                          (multiple --mangle options are supported)
-  --stdint               Mangle C stdint's into Nim style int's
+  --stdints              Mangle C stdint's into Nim style int's
   --paramprefix:PREFIX   add prefix to parameter name of the generated Nim proc
   --assumedef:IDENT      skips #ifndef sections for the given C identifier
                          (multiple --assumedef options are supported)

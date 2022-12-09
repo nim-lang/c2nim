@@ -1281,7 +1281,7 @@ proc gsub(g: var TSrcGen, n: PNode, c: TContext) =
   of nkStaticStmt: gstaticStmt(g, n)
   of nkAsmStmt: gasm(g, n)
   of nkProcDef:
-    putNL(g)
+    # putNL(g)
     if renderNoProcDefs notin g.flags: putWithSpace(g, tkProc, "proc")
     gproc(g, n)
   of nkFuncDef:
