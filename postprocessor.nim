@@ -28,6 +28,7 @@ type
   Context = object
     typedefs: Table[string, PNode]
     structStructMode: bool
+    reorderComments: bool
 
 proc getName(n: PNode): PNode =
   result = n
@@ -113,7 +114,45 @@ proc patchBracket(c: Context; t: PNode; n: var PNode) =
     if success:
       n = nn
 
+
+import sequtils
+
+var depth = 0
+
+proc reorderComments(n: PNode) = 
+  ## reorder C style comments to Nim style ones
+  var j = 1
+  let commentKinds = {nkTypeSection, nkIdentDefs, nkProcDef, nkConstSection}
+  template moveComment(idx, off) =
+    if n[idx+off].len >= 0:
+      n[idx+off][0].comment = n[idx].comment
+      delete(n.sons, idx)
+
+  while j < n.safeLen - 1:
+    if n[j].kind == nkCommentStmt:
+      # join comments to previous node if line numbers match
+      if n[j-1].kind in commentKinds:
+        if n[j-1].info.line == n[j].info.line:
+          moveComment(j, -1)
+    inc j
+  var i = 0
+  while i < n.safeLen - 1:
+    if n[i].kind == nkCommentStmt:
+      # reorder comments to match Nim ordering
+      if n[i+1].kind in commentKinds:
+        moveComment(i, +1)
+    inc i
+
 proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
+
+  if c.reorderComments:
+    reorderComments(n)
+
+  # var s = ""
+  # inc depth
+  # for i in 0..depth: s &= "  "
+  # echo s, "PP: ", n.kind, " idx: ", idx, " ln: ", n.info.line, " comment: `", n.comment[0..<n.comment.len().min(45)], "`"
+
   case n.kind
   of nkIdent:
     if renderer.isKeyword(n.ident):
@@ -125,7 +164,9 @@ proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
   of nkAccQuoted: discard
 
   of nkStmtList:
-    for i in 0 ..< n.safeLen: pp(c, n.sons[i], n, i)
+    for i in 0 ..< n.safeLen:
+      pp(c, n.sons[i], n, i)
+
   of nkRecList:
     var consts: seq[int] = @[]
     for i in 0 ..< n.safeLen:
@@ -161,8 +202,12 @@ proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
   else:
     for i in 0 ..< n.safeLen: pp(c, n.sons[i], stmtList, idx)
 
-proc postprocess*(n: PNode; structStructMode: bool): PNode =
-  var c = Context(typedefs: initTable[string, PNode](), structStructMode: structStructMode)
+  dec depth
+
+proc postprocess*(n: PNode; structStructMode, reorderComments: bool): PNode =
+  var c = Context(typedefs: initTable[string, PNode](),
+                  reorderComments: reorderComments,
+                  structStructMode: structStructMode)
   result = n
   pp(c, result)
 

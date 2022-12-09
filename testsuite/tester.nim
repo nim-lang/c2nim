@@ -9,6 +9,7 @@ const
   cpp2nimCmd = dotslash & "c2nim --cpp $#"
   cpp2nimCmdKeepBodies = dotslash & "c2nim --cpp --keepBodies $#"
   hpp2nimCmd = dotslash & "c2nim --cpp --header $#"
+  c2nimExtrasCmd = dotslash & "c2nim --stdints --strict --header --reordercomments --def:RCL_PUBLIC='__attribute__ ()' --def:RCL_WARN_UNUSED='__attribute__ ()' --def:'RCL_ALIGNAS(N)=__attribute__(align)' --render:extranewlines $#"
   dir = "testsuite/"
   usage = """
 c2nim test runner
@@ -75,5 +76,7 @@ if not exitEarly:
 
   for t in walkFiles(dir & "cppkeepbodies/*.cpp"):
     test(t, cpp2nimCmdKeepBodies, "cppkeepbodies")
+  for t in walkFiles(dir & "cextras/*.h"):
+    test(t, c2nimExtrasCmd, "cextras")
 
   if failures > 0: quit($failures & " failures occurred.")

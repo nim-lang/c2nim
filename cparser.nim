@@ -46,21 +46,23 @@ type
     pfIgnoreRValueRefs, ## transform C++'s 'T&&' to 'T'
     pfKeepBodies,       ## do not skip C++ method bodies
     pfAssumeIfIsTrue,   ## assume #if is true
-    pfStructStruct      ## do not treat struct Foo Foo as a forward decl
+    pfStructStruct,     ## do not treat struct Foo Foo as a forward decl
+    pfReorderComments   ## do not treat struct Foo Foo as a forward decl
 
-  Macro = object
-    name: string
-    params: int # number of parameters; 0 for empty (); -1 for no () at all
-    body: seq[ref Token] # can contain pxMacroParam tokens
+  Macro* = object
+    name*: string
+    params*: int # number of parameters; 0 for empty (); -1 for no () at all
+    body*: seq[ref Token] # can contain pxMacroParam tokens
 
   ParserOptions = object ## shared parser state!
     flags*: set[ParserFlag]
+    renderFlags*: TRenderFlags
     prefixes, suffixes: seq[string]
     assumeDef, assumenDef: seq[string]
     mangleRules: seq[tuple[pattern: Peg, frmt: string]]
     privateRules: seq[Peg]
     dynlibSym, headerOverride: string
-    macros: seq[Macro]
+    macros*: seq[Macro]
     toMangle: StringTableRef
     classes: StringTableRef
     toPreprocess: StringTableRef
@@ -127,6 +129,7 @@ proc newParserOptions*(): PParserOptions =
     privateRules: @[],
     discardablePrefixes: @[],
     flags: {},
+    renderFlags: {},
     dynlibSym: "",
     headerOverride: "",
     toMangle: newStringTable(modeCaseSensitive),
@@ -166,6 +169,9 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "mangle":
     let vals = val.split("=")
     parserOptions.mangleRules.add((parsePeg(vals[0]), vals[1]))
+  of "stdints":
+    let vals = (r"{u?}int{\d+}_t", r"$1int$2")
+    parserOptions.mangleRules.add((parsePeg(vals[0]), vals[1]))
   of "skipinclude": incl(parserOptions.flags, pfSkipInclude)
   of "typeprefixes": incl(parserOptions.flags, pfTypePrefixes)
   of "skipcomments": incl(parserOptions.flags, pfSkipComments)
@@ -182,6 +188,7 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "assumeifistrue": incl(parserOptions.flags, pfAssumeIfIsTrue)
   of "discardableprefix": parserOptions.discardablePrefixes.add(val)
   of "structstruct": incl(parserOptions.flags, pfStructStruct)
+  of "reordercomments": incl(parserOptions.flags, pfReorderComments)
   of "isarray": parserOptions.isArray[val] = "true"
   else: result = false
 
@@ -202,6 +209,7 @@ proc parMessage(p: Parser, msg: TMsgKind, arg = "") =
   lexMessage(p.lex, msg, arg)
 
 proc parError(p: Parser, arg = "") =
+  # raise newException(Exception, arg)
   if p.backtrackB.len == 0:
     lexMessage(p.lex, errGenerated, arg)
   else:
@@ -249,7 +257,8 @@ proc findMacro(p: Parser): int =
 
 proc rawEat(p: var Parser, xkind: Tokkind) =
   if p.tok.xkind == xkind: rawGetTok(p)
-  else: parError(p, "token expected: " & tokKindToStr(xkind))
+  else:
+    parError(p, "token expected: " & tokKindToStr(xkind))
 
 proc parseMacroArguments(p: var Parser): seq[seq[ref Token]] =
   result = @[]
@@ -354,6 +363,7 @@ proc skipComAux(p: var Parser, n: PNode) =
     if pfSkipComments notin p.options.flags:
       if n.comment.len == 0: n.comment = p.tok.s
       else: add(n.comment, "\n" & p.tok.s)
+      n.info.line = p.tok.lineNumber.uint16
   else:
     parMessage(p, warnCommentXIgnored, p.tok.s)
   getTok(p)
@@ -370,6 +380,7 @@ proc getTok(p: var Parser, n: PNode) =
 
 proc expectIdent(p: Parser) =
   if p.tok.xkind != pxSymbol:
+    # raise newException(Exception, "error")
     parError(p, "identifier expected, but got: " & debugTok(p.lex, p.tok[]))
 
 proc eat(p: var Parser, xkind: Tokkind, n: PNode) =
@@ -397,7 +408,9 @@ proc addSon(father, a, b, c: PNode) =
   addSon(father, c)
 
 proc newNodeP(kind: TNodeKind, p: Parser): PNode =
-  result = newNodeI(kind, getLineInfo(p.lex))
+  var info = getLineInfo(p.lex)
+  info.line = p.tok.lineNumber.uint16
+  result = newNodeI(kind, info)
 
 proc newNumberNodeP(kind: TNodeKind, number: string, p: Parser): PNode =
   result = newNodeP(kind, p)
@@ -487,7 +500,7 @@ proc declKeyword(p: Parser, s: string): bool =
       "restrict", "inline", "__inline", "__cdecl", "__stdcall", "__syscall",
       "__fastcall", "__safecall", "void", "struct", "union", "enum", "typedef",
       "size_t", "short", "int", "long", "float", "double", "signed", "unsigned",
-      "char", "__declspec":
+      "char", "__declspec", "__attribute__":
     result = true
   of "class", "mutable", "constexpr", "consteval", "constinit", "decltype":
     result = p.options.flags.contains(pfCpp)
@@ -928,11 +941,23 @@ proc parseBitfield(p: var Parser, i: PNode): PNode =
   else:
     result = i
 
+import compiler/nimlexbase
+
 proc parseStructBody(p: var Parser, stmtList: PNode,
                      kind: TNodeKind = nkRecList): PNode =
   result = newNodeP(kind, p)
-  eat(p, pxCurlyLe, result)
+  let com = newNodeP(nkCommentStmt, p)
+  eat(p, pxCurlyLe, com)
+  if com.comment.len() > 0:
+    addSon(result, com)
   while p.tok.xkind notin {pxEof, pxCurlyRi}:
+    let ln = p.parLineInfo().line
+    if p.tok.xkind in {pxLineComment, pxStarComment}:
+      let com = newNodeP(nkCommentStmt, p)
+      com.info.line = p.tok.lineNumber.uint16
+      addSon(result, com)
+      skipComAux(p, com)
+      continue
     discard skipConst(p)
     var baseTyp: PNode
     if p.tok.xkind == pxSymbol and p.tok.s in ["struct", "union"]:
@@ -982,7 +1007,9 @@ proc parseStructBody(p: var Parser, stmtList: PNode,
       addSon(result, def)
       if p.tok.xkind != pxComma: break
       getTok(p, def)
-    eat(p, pxSemicolon, lastSon(result))
+
+    eat(p, pxSemicolon)
+
   eat(p, pxCurlyRi, result)
 
 proc enumPragmas(p: Parser, name: PNode; origName: string): PNode =
@@ -1132,6 +1159,10 @@ proc parseCallConv(p: var Parser, pragmas: PNode) =
     of "__fastcall": addSon(pragmas, newIdentNodeP("fastcall", p))
     of "__safecall": addSon(pragmas, newIdentNodeP("safecall", p))
     of "__declspec":
+      getTok(p, nil)
+      eat(p, pxParLe, nil)
+      while p.tok.xkind notin {pxEof, pxParRi}: getTok(p, nil)
+    of "__attribute__":
       getTok(p, nil)
       eat(p, pxParLe, nil)
       while p.tok.xkind notin {pxEof, pxParRi}: getTok(p, nil)

@@ -23,11 +23,11 @@
 import
   RefCounted
 
-## / Shared pointer template class with intrusive reference counting.
+##  Shared pointer template class with intrusive reference counting.
 
 type
-  SharedPtr*[T] {.bycopy.} = object ## / Construct a null shared pointer.
-                                ## / Prevent direct assignment from a shared pointer of another type.
+  SharedPtr*[T] {.bycopy.} = object ##  Construct a null shared pointer.
+                                ##  Prevent direct assignment from a shared pointer of another type.
 
 
 proc constructSharedPtr*[T](): SharedPtr[T] {.constructor.}
@@ -50,22 +50,22 @@ proc Refs*[T](this: SharedPtr[T]): cint {.noSideEffect.}
 proc WeakRefs*[T](this: SharedPtr[T]): cint {.noSideEffect.}
 proc RefCountPtr*[T](this: SharedPtr[T]): ptr RefCount {.noSideEffect.}
 proc ToHash*[T](this: SharedPtr[T]): cuint {.noSideEffect.}
-## / Perform a static cast from one shared pointer type to another.
+##  Perform a static cast from one shared pointer type to another.
 
 proc StaticCast*[T; U](`ptr`: SharedPtr[U]): SharedPtr[T] =
   discard
 
-## / Perform a dynamic cast from one weak pointer type to another.
+##  Perform a dynamic cast from one weak pointer type to another.
 
 proc DynamicCast*[T; U](`ptr`: SharedPtr[U]): SharedPtr[T] =
   discard
 
-## / Weak pointer template class with intrusive reference counting. Does not keep the object pointed to alive.
+##  Weak pointer template class with intrusive reference counting. Does not keep the object pointed to alive.
 
 type
-  WeakPtr*[T] {.bycopy.} = object ## / Construct a null weak pointer.
-                              ## / Prevent direct assignment from a weak pointer of different type.
-    ## / Pointer to the RefCount structure.
+  WeakPtr*[T] {.bycopy.} = object ##  Construct a null weak pointer.
+                              ##  Prevent direct assignment from a weak pointer of different type.
+    ##  Pointer to the RefCount structure.
 
 
 proc constructWeakPtr*[T](): WeakPtr[T] {.constructor.}
@@ -90,12 +90,12 @@ proc WeakRefs*[T](this: WeakPtr[T]): cint {.noSideEffect.}
 proc Expired*[T](this: WeakPtr[T]): bool {.noSideEffect.}
 proc RefCountPtr*[T](this: WeakPtr[T]): ptr RefCount {.noSideEffect.}
 proc ToHash*[T](this: WeakPtr[T]): cuint {.noSideEffect.}
-## / Perform a static cast from one weak pointer type to another.
+##  Perform a static cast from one weak pointer type to another.
 
 proc StaticCast*[T; U](`ptr`: WeakPtr[U]): WeakPtr[T] =
   discard
 
-## / Perform a dynamic cast from one weak pointer type to another.
+##  Perform a dynamic cast from one weak pointer type to another.
 
 proc DynamicCast*[T; U](`ptr`: WeakPtr[U]): WeakPtr[T] =
   discard

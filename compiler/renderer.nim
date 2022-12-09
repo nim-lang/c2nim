@@ -15,7 +15,7 @@ import
 type
   TRenderFlag* = enum
     renderNone, renderNoBody, renderNoComments, renderDocComments,
-    renderNoPragmas, renderIds, renderNoProcDefs, renderSyms
+    renderNoPragmas, renderIds, renderNoProcDefs, renderSyms, renderExtraNewLines
   TRenderFlags* = set[TRenderFlag]
   TRenderTok* = object
     kind*: TTokType
@@ -42,6 +42,12 @@ type
       pendingNewlineCount: int
     fid*: FileIndex
     config*: ConfigRef
+
+proc setOption*(renderOptions: var TRenderFlags, val: string): bool =
+  result = true
+  case val.normalize
+  of "extranewlines": incl(renderOptions, renderExtraNewLines)
+  else: result = false
 
 # We render the source code in a two phases: The first
 # determines how long the subtree will likely be, the second
@@ -1281,6 +1287,7 @@ proc gsub(g: var TSrcGen, n: PNode, c: TContext) =
   of nkStaticStmt: gstaticStmt(g, n)
   of nkAsmStmt: gasm(g, n)
   of nkProcDef:
+    if renderExtraNewLines in g.flags: putNL(g)
     if renderNoProcDefs notin g.flags: putWithSpace(g, tkProc, "proc")
     gproc(g, n)
   of nkFuncDef:
