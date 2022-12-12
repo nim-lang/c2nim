@@ -1941,7 +1941,6 @@ proc declarationWithoutSemicolon(p: var Parser; genericParams: PNode = emptyNode
     try:
       parseFormalParams(p, params, pragmas)
       closeContextB(p)
-    # except IOError:
     except ERetryParsing:
       backtrackContextB(p)
       return parseVarDecl(p, baseTyp, rettyp, origName, varKind)
@@ -3653,15 +3652,15 @@ proc statement(p: var Parser): PNode =
   assert result != nil
 
 proc parseStrict(p: var Parser): PNode =
-  # try:
+  try:
     result = newNodeP(nkStmtList, p)
     getTok(p) # read first token
     while p.tok.xkind != pxEof:
       var s = statement(p)
       if s.kind != nkEmpty: embedStmts(result, s)
-  # except ERetryParsing:
-    # parError(p, getCurrentExceptionMsg())
-    #"Uncaught parsing exception raised")
+  except ERetryParsing:
+    parError(p, getCurrentExceptionMsg())
+    # "Uncaught parsing exception raised")
 
 proc parseWithSyncPoints(p: var Parser): PNode =
   result = newNodeP(nkStmtList, p)
