@@ -705,12 +705,12 @@ proc typeAtom(p: var Parser; isTypeDef=false): PNode =
     eat(p, pxParRi, result)
   elif isBaseIntType(p.tok.s):
     var x = ""
-    # saveContext(p)
     var isUnsigned = false
     var isSigned = false
     var isSizeT = false
     var isDone = false
     while p.tok.xkind == pxSymbol and (isBaseIntType(p.tok.s) or p.tok.s == "char"):
+      # do a bit more checking to try and handle odd cases like typedef long long someint_t;
       if p.tok.s == "unsigned":
         isUnsigned = true
       elif p.tok.s == "signed":
@@ -727,8 +727,6 @@ proc typeAtom(p: var Parser; isTypeDef=false): PNode =
     if not isDone and isTypeDef and (isSigned or isUnsigned) and p.tok.xkind == pxSymbol:
       add(x, p.tok.s)
       getTok(p, nil)
-    
-    # closeContext(p)
 
     if x.len == 0: x = "int"
     let xx = if isSizeT: "csize_t" elif isUnsigned: "cu" & x else: "c" & x
