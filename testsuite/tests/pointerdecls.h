@@ -19,3 +19,11 @@ void *malloc(size_t __size) __attribute__((__warn_unused_result__)) __attribute_
 struct _OSUnalignedU16 {
  volatile uint16_t __val;
 } __attribute__((__packed__));
+
+// other typedefs
+typedef long long int64_t;
+typedef unsigned short uint16_t;
+typedef unsigned int __uint32_t;
+typedef long long __int64_t;
+typedef unsigned long long __uint64_t;
+typedef long unsigned int __darwin_size_t;

@@ -25,3 +25,13 @@ type
   _OSUnalignedU16* {.bycopy.} = object
     __val*: uint16_t
 
+
+##  other typedefs
+
+type
+  int64_t* = clonglong
+  uint16_t* = cushort
+  __uint32_t* = cuint
+  __int64_t* = clonglong
+  __uint64_t* = culonglong
+  __darwin_size_t* = culong
