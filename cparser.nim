@@ -836,18 +836,12 @@ proc addDiscardable(origName: string; pragmas: PNode; p: Parser) =
 
 proc parseFormalParams(p: var Parser, params, pragmas: PNode)
 
-var sp = ""
-
 proc parseTypeSuffix(p: var Parser, typ: PNode, isParam: bool = false): PNode =
   result = typ
-  sp &= "=="
-  # echo "\n", sp, " parseTypeSuffix:start: "
-  # dumpTree(typ)
 
   let isBlock = nfBlockPtr in typ.flags
   case p.tok.xkind
   of pxBracketLe:
-    echo "\n", sp, " parseTypeSuffix:pxBracketLe:"
     getTok(p, result)
     discard skipConst(p) # POSIX contains: ``int [restrict]``
     if p.tok.xkind != pxBracketRi:
@@ -863,7 +857,6 @@ proc parseTypeSuffix(p: var Parser, typ: PNode, isParam: bool = false): PNode =
       eat(p, pxBracketRi, result)
       addSon(result, parseTypeSuffix(p, tmp))
     else:
-      echo "\n", sp, " parseTypeSuffix:ptrtype:"
       # pointer type:
       var tmp = result
       if pfRefs in p.options.flags:
@@ -877,7 +870,6 @@ proc parseTypeSuffix(p: var Parser, typ: PNode, isParam: bool = false): PNode =
       eat(p, pxBracketRi, result)
       addSon(result, parseTypeSuffix(p, tmp))
   of pxParLe:
-    echo "\n", sp, " parseTypeSuffix:parLe:"
     # function pointer:
     var procType = newNodeP(nkProcTy, p)
     var pragmas = newProcPragmas(p)
@@ -887,8 +879,6 @@ proc parseTypeSuffix(p: var Parser, typ: PNode, isParam: bool = false): PNode =
     try:
       parseFormalParams(p, params, pragmas)
       closeContextB(p)
-      # echo "\n", sp, " parseTypeSuffix:parLe:formalParams: "
-      # dumpTree(result)
 
       addSon(procType, params)
       if isBlock:
@@ -900,14 +890,7 @@ proc parseTypeSuffix(p: var Parser, typ: PNode, isParam: bool = false): PNode =
       backtrackContextB(p)
       result = typ
 
-    # echo "\n", sp, " parseTypeSuffix:parLe:end: "
-    # dumpTree(result)
-
   else: discard
-
-  # echo "\n", sp, " parseTypeSuffix:end: "
-  # dumpTree(result)
-  sp = sp[0..^3]
 
 proc typeDesc(p: var Parser): PNode = pointer(p, typeAtom(p))
 
@@ -1273,7 +1256,6 @@ proc parseCallConv(p: var Parser, pragmas: PNode) =
     getTok(p, nil)
 
 proc parseFunctionPointerDecl(p: var Parser, rettyp: PNode): PNode =
-  echo "\nparseFunctionPointerDecl:start: "
   var procType = newNodeP(nkProcTy, p)
   var pragmas = newProcPragmas(p)
   var params = newNodeP(nkFormalParams, p)
@@ -1295,36 +1277,29 @@ proc parseFunctionPointerDecl(p: var Parser, rettyp: PNode): PNode =
   discard skipAttributes(p)
   if p.inTypeDef > 0: markTypeIdent(p, nil)
   var name = skipIdentExport(p, if p.inTypeDef > 0: skType else: skVar, true)
-  echo "\nparseFunctionPointerDecl:params: "
-  dumpTree(params)
 
   let prevname = name.copyTree()
   name = parseTypeSuffix(p, name)
   eat(p, pxParRi, name)
-  echo "\nparseFunctionPointerDecl:name: "
-  dumpTree(name)
-
 
   parseFormalParams(p, params, pragmas)
-
   if name.kind == nkProcTy:
-    echo "PROC TYPE"
-    echo "\nparseFunctionPointerDecl:prevname: "
-    dumpTree(prevname)
+    # hack: we found another function pointer while
+    # parsing a function pointer. In C these are
+    # defined in reverse.
+    # The easiest solution here is to just
+    # un-reverse using the ProcTy from parseTypeSuffix
     let newproc = name
-    echo "\nparseFunctionPointerDecl:newproc: "
-    dumpTree(newproc)
     name = prevname
+    # turn the new returned proc into our return proc
     newproc[0].delSon(0)
     let newparams = newproc[0].copyTree()
     newproc.delSon(0)
     newproc.sons.insert(params, 0)
-    echo "\nparseFunctionPointerDecl:newparams: "
-    dumpTree(newparams)
+    # now swap the params
     params = newparams
+    # and set the new proc to be the new return type
     params.sons.insert(newproc, 0)
-    echo "\nparseFunctionPointerDecl:newproc:mod: "
-    dumpTree(newproc)
 
   addSon(procType, params)
   addPragmas(procType, pragmas)
@@ -1338,8 +1313,6 @@ proc parseFunctionPointerDecl(p: var Parser, rettyp: PNode): PNode =
     result = newNodeP(nkTypeDef, p)
     addSon(result, name, emptyNode, procType)
   assert result != nil
-  echo "\nparseFunctionPointerDecl:final: "
-  dumpTree(result)
 
 proc addTypeDef(section, name, t, genericParams: PNode) =
   var def = newNodeI(nkTypeDef, name.info)
