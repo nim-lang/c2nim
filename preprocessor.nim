@@ -692,13 +692,27 @@ proc parseRemoveIncludes*(p: var Parser): PNode =
         break
       result.add parseLineDir(p)
 
-    let start = p.lex.bufpos
-
     var code = newNodeP(nkTripleStrLit, p)
+    var lastpos = p.lex.bufpos
+    echo "start:lastpos: ", lastpos, " ", p.lex.bufpos
     while p.tok.xkind notin {pxEof, pxDirective}:
-      echo $p.lex.bufpos
+      echo "lastpos: ", lastpos, " ", p.lex.bufpos, " ", p.tok.xkind
+      # if p.tok.xkind == pxStarComment:
+      #   code.strVal.add("/*")
+      #   code.strVal.add($p.tok[])
+      #   code.strVal.add("*/")
+      # elif p.tok.xkind == pxLineComment:
+      #   code.strVal.add("//")
+      #   code.strVal.add(p.tok.s)
+      if lastpos >= p.lex.bufpos:
+        echo "lastpos wrong?"
+        # code.strVal.add(p.tok.s)
+        code.strVal.add(p.lex.buf[lastpos..<p.lex.buf.len()])
+        code.strVal.add(p.lex.buf[0..<p.lex.bufpos])
+      else:
+        code.strVal.add(p.lex.buf[lastpos..<p.lex.bufpos])
+      lastpos = p.lex.bufpos
       getTok(p)
-      # code.strVal &= $(p.tok[]) 
     result.add(code)
 
   echo "done parsing preprocessed C file"
