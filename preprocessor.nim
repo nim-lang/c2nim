@@ -696,17 +696,7 @@ proc parseRemoveIncludes*(p: var Parser): PNode =
     var lastpos = p.lex.bufpos
     echo "start:lastpos: ", lastpos, " ", p.lex.bufpos
     while p.tok.xkind notin {pxEof, pxDirective}:
-      echo "lastpos: ", lastpos, " ", p.lex.bufpos, " ", p.tok.xkind
-      # if p.tok.xkind == pxStarComment:
-      #   code.strVal.add("/*")
-      #   code.strVal.add($p.tok[])
-      #   code.strVal.add("*/")
-      # elif p.tok.xkind == pxLineComment:
-      #   code.strVal.add("//")
-      #   code.strVal.add(p.tok.s)
       if lastpos >= p.lex.bufpos:
-        echo "lastpos wrong?"
-        # code.strVal.add(p.tok.s)
         code.strVal.add(p.lex.buf[lastpos..<p.lex.buf.len()])
         code.strVal.add(p.lex.buf[0..<p.lex.bufpos])
       else:
