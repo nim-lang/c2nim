@@ -662,7 +662,7 @@ proc parseDir(p: var Parser; sectionParser: SectionParser): PNode =
     # ignore unimportant/unknown directive ("undef", "pragma", "error")
     skipLine(p)
 
-proc parseRemoveIncludes*(p: var Parser): PNode =
+proc parseRemoveIncludes*(p: var Parser, infile: string): PNode =
   # pxVerbatim, pxDirective
   proc parseSect(p: var Parser): PNode = 
     echo "parse sect!"
@@ -674,8 +674,7 @@ proc parseRemoveIncludes*(p: var Parser): PNode =
       # ignore unimportant/unknown directive ("undef", "pragma", "error")
       rawGetTok(p)
       let li = newLineInfo(gConfig, AbsoluteFile p.tok.s, num, 0)
-      # let li = TLineInfo(line: num.uint16, col: 0, fileIndex: flidx)
-      echo "SKIP: ", num, " :: ", toFileName(gConfig, li)
+      # echo "SKIP: ", num, " :: ", toProjPath(gConfig, li)
       result = newNodeI(nkComesFrom, li)
     except ValueError:
       result = emptyNode
@@ -692,6 +691,11 @@ proc parseRemoveIncludes*(p: var Parser): PNode =
         break
       result.add parseLineDir(p)
 
+    if result.len() > 0:
+      # echo "last: ", repr result.lastSon()
+      echo "last: ", repr result
+      discard
+
     var code = newNodeP(nkTripleStrLit, p)
     var lastpos = p.lex.bufpos
     while p.tok.xkind notin {pxEof, pxDirective}:
@@ -705,4 +709,5 @@ proc parseRemoveIncludes*(p: var Parser): PNode =
     result.add(code)
 
   echo "done parsing preprocessed C file"
+  echo "file: ", infile
   

@@ -83,6 +83,9 @@ when not declared(NimCompilerApiVersion):
 
 proc ccpreprocess(infile: string, options: PParserOptions; includes: seq[string]): AbsoluteFile =
   ## use C compiler to preprocess
+  if infile.isAbsolute():
+    gConfig.projectPath = getCurrentDir().AbsoluteDir
+  echo "gConfig: ", string gConfig.projectPath
   let outfile = infile & ".pre"
   let postfile = infile & ".pp"
   let cc = "/opt/homebrew/bin/gcc-12"
@@ -103,7 +106,7 @@ proc ccpreprocess(infile: string, options: PParserOptions; includes: seq[string]
   var p: Parser
   if isCpp: options.flags.incl pfCpp
   openParser(p, outfile, stream, options)
-  let rawNodes = parseRemoveIncludes(p)
+  let rawNodes = parseRemoveIncludes(p, infile)
   closeParser(p)
 
   let tfl = open(postfile, fmWrite)
