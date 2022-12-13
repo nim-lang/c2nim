@@ -85,12 +85,13 @@ proc ccpreprocess(infile: string, options: PParserOptions; includes: seq[string]
   ## use C compiler to preprocess
   if infile.isAbsolute():
     gConfig.projectPath = getCurrentDir().AbsoluteDir
+  let infile = infile.absolutePath()
   echo "gConfig: ", string gConfig.projectPath
   let outfile = infile & ".pre"
   let postfile = infile & ".pp"
   let cc = "/opt/homebrew/bin/gcc-12"
   var args = newSeq[string]()
-  args.add(["-E", "-CC", "-dI"])
+  args.add(["-E", "-CC", "-dI", "-dD"])
   args.add([infile, "-o", outfile])
   for pth in includes: args.add("-I" & pth)
   let outp = execProcess(cc, args=args, options={poUsePath, poStdErrToStdOut})
@@ -114,7 +115,7 @@ proc ccpreprocess(infile: string, options: PParserOptions; includes: seq[string]
     case node.kind:
     of nkComesFrom:
       discard
-      tfl.write("\n")
+      # tfl.write("\n")
     of nkTripleStrLit:
       tfl.write(node.strVal)
     else:

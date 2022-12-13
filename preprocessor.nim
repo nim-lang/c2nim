@@ -691,22 +691,34 @@ proc parseRemoveIncludes*(p: var Parser, infile: string): PNode =
         break
       result.add parseLineDir(p)
 
+    var isInFile = false
     if result.len() > 0:
       # echo "last: ", repr result.lastSon()
-      echo "last: ", toProjPath result.info
-      discard
+      isInFile = infile == gConfig.toProjPath(result.lastSon.info)
+      echo "path: ", isInFile, " -> ", gConfig.toFullPath(result.lastSon.info)
 
     var code = newNodeP(nkTripleStrLit, p)
     var lastpos = p.lex.bufpos
     while p.tok.xkind notin {pxEof, pxDirective}:
-      if lastpos >= p.lex.bufpos:
+      if p.tok.xkind == pxLineComment:
+        code.strVal.add("\n//")
+        code.strVal.add(p.tok.s)
+        code.strVal.add("\n")
+      elif p.tok.xkind == pxStarComment:
+        code.strVal.add("\n/*")
+        code.strVal.add(p.tok.s)
+        code.strVal.add("*/\n")
+      elif lastpos >= p.lex.bufpos:
         code.strVal.add(p.lex.buf[lastpos..<p.lex.buf.len()])
         code.strVal.add(p.lex.buf[0..<p.lex.bufpos])
       else:
         code.strVal.add(p.lex.buf[lastpos..<p.lex.bufpos])
       lastpos = p.lex.bufpos
       getTok(p)
-    result.add(code)
+    
+    # add code
+    if isInFile:
+      result.add(code)
 
   echo "done parsing preprocessed C file"
   echo "file: ", infile
