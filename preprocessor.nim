@@ -694,7 +694,6 @@ proc parseRemoveIncludes*(p: var Parser): PNode =
 
     var code = newNodeP(nkTripleStrLit, p)
     var lastpos = p.lex.bufpos
-    echo "start:lastpos: ", lastpos, " ", p.lex.bufpos
     while p.tok.xkind notin {pxEof, pxDirective}:
       if lastpos >= p.lex.bufpos:
         code.strVal.add(p.lex.buf[lastpos..<p.lex.buf.len()])
