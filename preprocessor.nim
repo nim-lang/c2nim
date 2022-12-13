@@ -693,7 +693,7 @@ proc parseRemoveIncludes*(p: var Parser, infile: string): PNode =
 
     if result.len() > 0:
       # echo "last: ", repr result.lastSon()
-      echo "last: ", repr result
+      echo "last: ", toProjPath result.info
       discard
 
     var code = newNodeP(nkTripleStrLit, p)
