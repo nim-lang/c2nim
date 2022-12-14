@@ -668,19 +668,20 @@ proc parseRemoveIncludes*(p: var Parser, infile: string): PNode =
     echo "parse sect!"
     result = emptyNode
   
-  proc parseLineDir(p: var Parser): PNode = 
+  proc parseLineDir(p: var Parser): (PNode, AbsoluteFile) = 
     try:
       let num = parseInt(p.tok.s)
       # ignore unimportant/unknown directive ("undef", "pragma", "error")
       rawGetTok(p)
       let li = newLineInfo(gConfig, AbsoluteFile p.tok.s, num, 0)
       # echo "SKIP: ", num, " :: ", toProjPath(gConfig, li)
-      result = newNodeI(nkComesFrom, li)
+      result = (newNodeI(nkComesFrom, li), AbsoluteFile p.tok.s)
     except ValueError:
-      result = emptyNode
+      result = (emptyNode, AbsoluteFile "")
     skipLine(p)
     # eatNewLine(p, nil)
   
+  var lastfile = AbsoluteFile ""
   result = newNode(nkStmtList)
   while true:
     if p.tok.xkind == pxEof:
@@ -689,13 +690,21 @@ proc parseRemoveIncludes*(p: var Parser, infile: string): PNode =
     while p.tok.xkind in {pxDirective}:
       if p.tok.xkind == pxEof:
         break
-      result.add parseLineDir(p)
+      let res = parseLineDir(p)
+      result.add(res[0])
+      if res[1] != AbsoluteFile "":
+        lastfile = res[1]
 
     var isInFile = false
     if result.len() > 0:
       # echo "last: ", repr result.lastSon()
-      isInFile = infile == gConfig.toProjPath(result.lastSon.info)
-      # echo "path: ", isInFile, " -> ", gConfig.toFullPath(result.lastSon.info)
+      # isInFile = infile == gConfig.toProjPath(result.lastSon.info)
+      isInFile = infile == lastfile.string
+      echo "PATH: ", isInFile, " id: ", $result.lastSon.info.fileIndex.int, " -> ", gConfig.toFullPath(result.lastSon.info)
+
+    if isInFile:
+      echo "DONE LDIR: ", p.lex.bufpos, " tok: ", $p.tok[]
+      echo "LDIR: ", p.lex.buf[p.lex.bufpos-1..<p.lex.bufpos+10]
 
     var code = newNodeP(nkTripleStrLit, p)
     var lastpos = p.lex.bufpos
@@ -711,16 +720,22 @@ proc parseRemoveIncludes*(p: var Parser, infile: string): PNode =
         code.strVal.add(p.tok.s)
         code.strVal.add("*/\n")
       elif lastpos >= p.lex.bufpos:
-        echo "sentinel:eq: ", lastpos, " vs ", p.lex.bufpos, " sent: ", p.lex.sentinel
+        echo "sentinel:eq: ", lastpos, " lastlen: ", lastlen, " vs ", p.lex.bufpos, " sent: ", p.lex.sentinel
         echo "sentinel:eq: lastlen: ", lastlen, " lastpos: ", lastpos
         var tmp = ""
         # tmp.add(p.lex.buf[lastpos..<lastpos+lastlen])
-        tmp.add(p.lex.buf[p.lex.bufpos..<p.lex.sentinel])
+        tmp.add($p.tok[])
+        echo "currline: ", p.lex.getCurrentLine()
+        # tmp.add(p.lex.buf[p.lex.bufpos..<p.lex.sentinel])
         code.strVal.add(tmp)
       else:
-        code.strVal.add(p.lex.buf[lastpos..<p.lex.bufpos])
+        # echo "sentinel:norm: ", lastpos, " lastlen: ", lastlen, " vs ", p.lex.bufpos, " sent: ", p.lex.sentinel
+        let tmp = p.lex.buf[lastpos..<p.lex.bufpos]
+        # echo "norm:tok: ", isInFile, " tok: ", $p.tok[], " :: ", tmp
+        code.strVal.add($tmp)
+        code.strVal.add($tmp)
       lastpos = p.lex.bufpos
-      lastlen = p.lex.sentinel + 1 - lastpos
+      lastlen = p.lex.sentinel - lastpos
       getTok(p)
     
     # add code
