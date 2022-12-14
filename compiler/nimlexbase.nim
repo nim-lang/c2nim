@@ -68,7 +68,6 @@ proc closeBaseLexer(L: var TBaseLexer) =
   llStreamClose(L.stream)
 
 proc fillBuffer(L: var TBaseLexer) =
-  echo "FILL BUFFER"
   var
     charsRead, toCopy, s: int # all are in characters,
                               # not bytes (in case this
