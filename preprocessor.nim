@@ -674,7 +674,9 @@ proc parseRemoveIncludes*(p: var Parser, infile: string): PNode =
       # echo "SKIP: ", num, " :: ", toProjPath(gConfig, li)
       result = (newNodeI(nkComesFrom, li), AbsoluteFile p.tok.s)
     except ValueError:
-      result = (emptyNode, AbsoluteFile "")
+      var code = newNodeP(nkTripleStrLit, p)
+      code.strVal.add(p.lex.getCurrentLine())
+      result = (code, AbsoluteFile "")
     skipLine(p)
     # eatNewLine(p, nil)
   
