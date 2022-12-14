@@ -68,6 +68,7 @@ proc closeBaseLexer(L: var TBaseLexer) =
   llStreamClose(L.stream)
 
 proc fillBuffer(L: var TBaseLexer) =
+  echo "FILL BUFFER"
   var
     charsRead, toCopy, s: int # all are in characters,
                               # not bytes (in case this
@@ -153,7 +154,7 @@ proc openBaseLexer(L: var TBaseLexer, inputstream: PLLStream, bufLen = 8192) =
 proc getColNumber(L: TBaseLexer, pos: int): int =
   result = abs(pos - L.lineStart)
 
-proc getCurrentLine(L: TBaseLexer, marker: bool = true): string =
+proc getCurrentLine*(L: TBaseLexer, marker: bool = true): string =
   result = ""
   var i = L.lineStart
   while not (L.buf[i] in {CR, LF, EndOfFile}):

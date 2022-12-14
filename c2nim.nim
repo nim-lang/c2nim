@@ -274,8 +274,6 @@ var
   infiles = newSeq[string](0)
   outfile = ""
   concat = false
-  preprocess = false
-  includes = newSeq[string](0)
   parserOptions = newParserOptions()
   preprocessOptions = new CCPreprocessOptions
 for kind, key, val in getopt():
@@ -292,7 +290,7 @@ for kind, key, val in getopt():
       quit(0)
     of "o", "out": outfile = val
     of "concat": concat = true
-    of "preprocess": preprocess = true
+    of "preprocess": preprocessOptions.run = true
     of "spliceheader":
       quit "[Error] 'spliceheader' doesn't exist anymore" &
            " use a list of files and --concat instead"

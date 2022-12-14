@@ -695,10 +695,11 @@ proc parseRemoveIncludes*(p: var Parser, infile: string): PNode =
     if result.len() > 0:
       # echo "last: ", repr result.lastSon()
       isInFile = infile == gConfig.toProjPath(result.lastSon.info)
-      echo "path: ", isInFile, " -> ", gConfig.toFullPath(result.lastSon.info)
+      # echo "path: ", isInFile, " -> ", gConfig.toFullPath(result.lastSon.info)
 
     var code = newNodeP(nkTripleStrLit, p)
     var lastpos = p.lex.bufpos
+    var lastlen = p.lex.sentinel - lastpos
     while p.tok.xkind notin {pxEof, pxDirective}:
       if p.tok.xkind == pxLineComment:
         for line in p.tok.s.splitLines():
@@ -710,11 +711,16 @@ proc parseRemoveIncludes*(p: var Parser, infile: string): PNode =
         code.strVal.add(p.tok.s)
         code.strVal.add("*/\n")
       elif lastpos >= p.lex.bufpos:
-        code.strVal.add(p.lex.buf[lastpos..<p.lex.buf.len()])
-        code.strVal.add(p.lex.buf[0..<p.lex.bufpos])
+        echo "sentinel:eq: ", lastpos, " vs ", p.lex.bufpos, " sent: ", p.lex.sentinel
+        echo "sentinel:eq: lastlen: ", lastlen, " lastpos: ", lastpos
+        var tmp = ""
+        # tmp.add(p.lex.buf[lastpos..<lastpos+lastlen])
+        tmp.add(p.lex.buf[p.lex.bufpos..<p.lex.sentinel])
+        code.strVal.add(tmp)
       else:
         code.strVal.add(p.lex.buf[lastpos..<p.lex.bufpos])
       lastpos = p.lex.bufpos
+      lastlen = p.lex.sentinel + 1 - lastpos
       getTok(p)
     
     # add code
