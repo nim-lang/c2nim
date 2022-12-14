@@ -5,6 +5,13 @@
 
 
 // @file
+#define RCL__ARGUMENTS_H_ 
+#include "rcl/allocator.h"
+#include "rcl/log_level.h"
+#include "rcl/macros.h"
+#include "rcl/types.h"
+#include "rcl/visibility_control.h"
+#include "rcl_yaml_param_parser/types.h"
 typedef struct rcl_arguments_impl_s rcl_arguments_impl_t;
 
 // Hold output of parsing command line arguments.
@@ -16,48 +23,62 @@ rcl_arguments_impl_t * impl;
 } rcl_arguments_t;
 
 // The command-line flag that delineates the start of ROS arguments.
+#define RCL_ROS_ARGS_FLAG "--ros-args"
 
 
 // The token that delineates the explicit end of ROS arguments.
+#define RCL_ROS_ARGS_EXPLICIT_END_TOKEN "--"
 
 
 // The ROS flag that precedes the setting of a ROS parameter.
+#define RCL_PARAM_FLAG "--param"
 
 
 // The short version of the ROS flag that precedes the setting of a ROS parameter.
+#define RCL_SHORT_PARAM_FLAG "-p"
 
 
 // The ROS flag that precedes a path to a file containing ROS parameters.
+#define RCL_PARAM_FILE_FLAG "--params-file"
 
 
 // The ROS flag that precedes a ROS remapping rule.
+#define RCL_REMAP_FLAG "--remap"
 
 
 // The short version of the ROS flag that precedes a ROS remapping rule.
+#define RCL_SHORT_REMAP_FLAG "-r"
 
 
 // The ROS flag that precedes the name of a ROS security enclave.
+#define RCL_ENCLAVE_FLAG "--enclave"
 
 
 // The short version of the ROS flag that precedes the name of a ROS security enclave.
+#define RCL_SHORT_ENCLAVE_FLAG "-e"
 
 
 // The ROS flag that precedes the ROS logging level to set.
+#define RCL_LOG_LEVEL_FLAG "--log-level"
 
 
 // The ROS flag that precedes the name of a configuration file to configure logging.
+#define RCL_EXTERNAL_LOG_CONFIG_FLAG "--log-config-file"
 
 
 // The suffix of the ROS flag to enable or disable stdout
 // logging (must be preceded with --enable- or --disable-).
+#define RCL_LOG_STDOUT_FLAG_SUFFIX "stdout-logs"
 
 
 // The suffix of the ROS flag to enable or disable rosout
 // logging (must be preceded with --enable- or --disable-).
+#define RCL_LOG_ROSOUT_FLAG_SUFFIX "rosout-logs"
 
 
 // The suffix of the ROS flag to enable or disable external library
 // logging (must be preceded with --enable- or --disable-).
+#define RCL_LOG_EXT_LIB_FLAG_SUFFIX "external-lib-logs"
 
 
 //   Return a rcl_arguments_t struct with members initialized to `NULL`.

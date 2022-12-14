@@ -675,30 +675,31 @@ proc parseRemoveIncludes*(p: var Parser, infile: string): PNode =
       result = (newNodeI(nkComesFrom, li), AbsoluteFile p.tok.s)
     except ValueError:
       var code = newNodeP(nkTripleStrLit, p)
-      code.strVal.add(p.lex.getCurrentLine())
+      code.strVal.add(p.lex.getCurrentLine(false))
       result = (code, AbsoluteFile "")
     skipLine(p)
     # eatNewLine(p, nil)
   
   var lastfile = AbsoluteFile ""
   result = newNode(nkStmtList)
+  var isInFile = false
+
   while true:
     if p.tok.xkind == pxEof:
       break
+
 
     while p.tok.xkind in {pxDirective}:
       if p.tok.xkind == pxEof:
         break
       let res = parseLineDir(p)
-      result.add(res[0])
       if res[1] != AbsoluteFile "":
         lastfile = res[1]
+        isInFile = infile == lastfile.string
+        echo "IS_IN_FILE: ", isInFile, " file: ", lastfile.string
 
-    var isInFile = false
-    if result.len() > 0:
-      # echo "last: ", repr result.lastSon()
-      # isInFile = infile == gConfig.toProjPath(result.lastSon.info)
-      isInFile = infile == lastfile.string
+      if isInFile:
+        result.add(res[0])
 
     var code = newNodeP(nkTripleStrLit, p)
     var lastpos = p.lex.bufpos
@@ -729,6 +730,8 @@ proc parseRemoveIncludes*(p: var Parser, infile: string): PNode =
     # add code
     if isInFile:
       result.add(code)
+    else:
+      echo "skipping... ", code
 
   echo "done parsing preprocessed C file"
   echo "file: ", infile
