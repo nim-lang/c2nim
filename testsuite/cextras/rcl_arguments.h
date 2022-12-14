@@ -18,7 +18,6 @@ extern "C"
 {
 #endif
 
-// begin
 
 typedef struct rcl_arguments_impl_s rcl_arguments_impl_t;
 
