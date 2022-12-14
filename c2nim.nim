@@ -81,47 +81,6 @@ proc isCppFile(s: string): bool =
 when not declared(NimCompilerApiVersion):
   type AbsoluteFile = string
 
-proc ccpreprocess(infile: string, options: PParserOptions; includes: seq[string]): AbsoluteFile =
-  ## use C compiler to preprocess
-  if infile.isAbsolute():
-    gConfig.projectPath = getCurrentDir().AbsoluteDir
-  let infile = infile.absolutePath()
-  echo "gConfig: ", string gConfig.projectPath
-  let outfile = infile & ".pre"
-  let postfile = infile & ".pp"
-  let cc = "/opt/homebrew/bin/gcc-12"
-  var args = newSeq[string]()
-  args.add(["-E", "-CC", "-dI", "-dD"])
-  args.add([infile, "-o", outfile])
-  for pth in includes: args.add("-I" & pth)
-  let outp = execProcess(cc, args=args, options={poUsePath, poStdErrToStdOut})
-  echo "OUTP: ", outp
-
-  var stream = llStreamOpen(AbsoluteFile outfile, fmRead)
-  if stream == nil:
-    when declared(NimCompilerApiVersion):
-      rawMessage(gConfig, errGenerated, "cannot open file: " & outfile)
-    else:
-      rawMessage(errGenerated, "cannot open file: " & outfile)
-  let isCpp = pfCpp notin options.flags and isCppFile(outfile)
-  var p: Parser
-  if isCpp: options.flags.incl pfCpp
-  openParser(p, outfile, stream, options)
-  let rawNodes = parseRemoveIncludes(p, infile)
-  closeParser(p)
-
-  let tfl = open(postfile, fmWrite)
-  for node in rawNodes:
-    case node.kind:
-    of nkComesFrom:
-      discard
-      # tfl.write("\n")
-    of nkTripleStrLit:
-      tfl.write(node.strVal)
-    else:
-      discard
-  tfl.close()
-
 proc parse(infile: string, options: PParserOptions; dllExport: var PNode): PNode =
   var stream = llStreamOpen(AbsoluteFile infile, fmRead)
   if stream == nil:
@@ -182,6 +141,57 @@ proc parseDefineArgs(parserOptions: var PParserOptions, val: string) =
     if m.xkind == pxSymbol: inc mc.params
   parserOptions.macros.add(mc)
 
+type
+  CCPreprocessOptions* = ref object
+    run: bool
+    cc: string
+    includes: seq[string]
+    
+proc ccpreprocess(infile: string,
+                  options: PParserOptions;
+                  ppoptions: CCPreprocessOptions
+                 ): AbsoluteFile =
+  ## use C compiler to preprocess
+  if infile.isAbsolute():
+    gConfig.projectPath = getCurrentDir().AbsoluteDir
+  let infile = infile.absolutePath()
+  echo "gConfig: ", string gConfig.projectPath
+  let outfile = infile & ".pre"
+  let postfile = infile & ".pp"
+  let cc = "/opt/homebrew/bin/gcc-12"
+  var args = newSeq[string]()
+  args.add(["-E", "-CC", "-dI", "-dD"])
+  args.add([infile, "-o", outfile])
+  for pth in ppoptions.includes: args.add("-I" & pth)
+  let outp = execProcess(cc, args=args, options={poUsePath, poStdErrToStdOut})
+  echo "OUTP: ", outp
+
+  var stream = llStreamOpen(AbsoluteFile outfile, fmRead)
+  if stream == nil:
+    when declared(NimCompilerApiVersion):
+      rawMessage(gConfig, errGenerated, "cannot open file: " & outfile)
+    else:
+      rawMessage(errGenerated, "cannot open file: " & outfile)
+  let isCpp = pfCpp notin options.flags and isCppFile(outfile)
+  var p: Parser
+  if isCpp: options.flags.incl pfCpp
+  openParser(p, outfile, stream, options)
+  let rawNodes = parseRemoveIncludes(p, infile)
+  closeParser(p)
+
+  let tfl = open(postfile, fmWrite)
+  for node in rawNodes:
+    case node.kind:
+    of nkComesFrom:
+      discard
+      # tfl.write("\n")
+    of nkTripleStrLit:
+      tfl.write(node.strVal)
+    else:
+      discard
+  tfl.close()
+
+  result = AbsoluteFile postfile
 
 var dummy: PNode
 
@@ -223,14 +233,15 @@ proc myRenderModule(tree: PNode; filename: string, renderFlags: TRenderFlags) =
 
 proc main(infiles: seq[string], outfile: var string,
           options: PParserOptions,
-          concat, preprocess: bool,
-          includes: seq[string]) =
+          concat: bool,
+          preprocessOptions: CCPreprocessOptions) =
   var start = getTime()
   var dllexport: PNode = nil
-  if preprocess:
+  if preprocessOptions.run:
     for fl in infiles:
-      discard ccpreprocess(fl, options, includes)
-  elif concat:
+      discard ccpreprocess(fl, options, preprocessOptions)
+  
+  if concat:
     var tree = newNode(nkStmtList)
     for infile in infiles:
       let m = parse(infile.addFileExt("h"), options, dllexport)
@@ -266,6 +277,7 @@ var
   preprocess = false
   includes = newSeq[string](0)
   parserOptions = newParserOptions()
+  preprocessOptions = new CCPreprocessOptions
 for kind, key, val in getopt():
   case kind
   of cmdArgument:
@@ -293,7 +305,7 @@ for kind, key, val in getopt():
         if not parserOptions.renderFlags.setOption(val):
           quit("[Error] unknown option: " & key)
       elif key == "I":
-        includes.add(val)
+        preprocessOptions.includes.add(val)
       elif not parserOptions.setOption(key, val):
         quit("[Error] unknown option: " & key)
   of cmdEnd: assert(false)
@@ -301,4 +313,4 @@ if infiles.len == 0:
   # no filename has been given, so we show the help:
   stdout.write(Usage)
 else:
-  main(infiles, outfile, parserOptions, concat, preprocess, includes)
+  main(infiles, outfile, parserOptions, concat, preprocessOptions)
