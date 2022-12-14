@@ -1,53 +1,72 @@
 
+
 // Copyright 2018 Open Source Robotics Foundation, Inc.
 // START
 
+
 // @file
 typedef struct rcl_arguments_impl_s rcl_arguments_impl_t;
+
 // Hold output of parsing command line arguments.
 typedef struct rcl_arguments_s
 {
+
 // Private implementation pointer.
 rcl_arguments_impl_t * impl;
 } rcl_arguments_t;
+
 // The command-line flag that delineates the start of ROS arguments.
+
 
 // The token that delineates the explicit end of ROS arguments.
 
+
 // The ROS flag that precedes the setting of a ROS parameter.
+
 
 // The short version of the ROS flag that precedes the setting of a ROS parameter.
 
+
 // The ROS flag that precedes a path to a file containing ROS parameters.
+
 
 // The ROS flag that precedes a ROS remapping rule.
 
+
 // The short version of the ROS flag that precedes a ROS remapping rule.
+
 
 // The ROS flag that precedes the name of a ROS security enclave.
 
+
 // The short version of the ROS flag that precedes the name of a ROS security enclave.
+
 
 // The ROS flag that precedes the ROS logging level to set.
 
+
 // The ROS flag that precedes the name of a configuration file to configure logging.
+
 
 // The suffix of the ROS flag to enable or disable stdout
 // logging (must be preceded with --enable- or --disable-).
 
+
 // The suffix of the ROS flag to enable or disable rosout
 // logging (must be preceded with --enable- or --disable-).
 
+
 // The suffix of the ROS flag to enable or disable external library
 // logging (must be preceded with --enable- or --disable-).
+
 
 //   Return a rcl_arguments_t struct with members initialized to `NULL`.
 __attribute__ ((visibility("default")))
 __attribute__((warn_unused_result))
 rcl_arguments_t
 rcl_get_zero_initialized_arguments(void);
-// Parse command line arguments into a structure usable by code.
 
+// Parse command line arguments into a structure usable by code.
 /*
  \sa rcl_get_zero_initialized_arguments()
 
@@ -68,7 +87,6 @@ rcl_get_zero_initialized_arguments(void);
  or `-p name:=value`.
 
 */
-
 __attribute__ ((visibility("default")))
 __attribute__((warn_unused_result))
 rcl_ret_t
@@ -77,11 +95,10 @@ rcl_parse_arguments(
   const char * const * argv,
   rcl_allocator_t allocator,
   rcl_arguments_t * args_output);
-// Return the number of arguments that were not ROS specific arguments.
 
+// Return the number of arguments that were not ROS specific arguments.
 /*
 */
-
 RCL_ALIGNAS(8)
 __attribute__((warn_unused_result))
 int

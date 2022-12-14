@@ -703,14 +703,16 @@ proc parseRemoveIncludes*(p: var Parser, infile: string): PNode =
     var lastlen = p.lex.sentinel - lastpos
     while p.tok.xkind notin {pxEof, pxDirective}:
       if p.tok.xkind == pxLineComment:
+        code.strVal.add("\n")
         for line in p.tok.s.splitLines():
-          code.strVal.add("\n//")
+          code.strVal.add("\n")
+          code.strVal.add("//")
           code.strVal.add(line)
         code.strVal.add("\n")
       elif p.tok.xkind == pxStarComment:
-        code.strVal.add("\n/*")
+        code.strVal.add("/*")
         code.strVal.add(p.tok.s)
-        code.strVal.add("*/\n")
+        code.strVal.add("*/")
       elif lastpos >= p.lex.bufpos:
         var tmp = ""
         tmp.add($p.tok[])
