@@ -476,6 +476,7 @@ type
     nfDefaultRefsParam # a default param value references another parameter
                        # the flag is applied to proc default values and to calls
     nfExecuteOnReload  # A top-level statement that will be executed during reloads
+    nfBlockPtr        # clang block pointer
 
   TNodeFlags* = set[TNodeFlag]
   TTypeFlag* = enum   # keep below 32 for efficiency reasons (now: ~38)

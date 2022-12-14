@@ -205,6 +205,14 @@ proc openParser*(p: var Parser, filename: string,
   p.classHierarchyGP = @[]
   new(p.tok)
 
+proc debugTok*(p: Parser): string =
+  result = debugTok(p.lex, p.tok[])
+
+proc dumpTree*(node: PNode, prefix = "") =
+  echo prefix, node.kind, " :: ", node
+  for c in node:
+    dumpTree(c, prefix & "  ")
+
 proc parMessage(p: Parser, msg: TMsgKind, arg = "") =
   lexMessage(p.lex, msg, arg)
 
@@ -506,6 +514,53 @@ proc declKeyword(p: Parser, s: string): bool =
     result = p.options.flags.contains(pfCpp)
   else: discard
 
+proc isAttribute(t: ref Token): tuple[isattr: bool, parens: uint] =
+  if t.xkind != pxSymbol:
+    return (isattr: false, parens: 0'u)
+  case t.s
+  of "__attribute__":
+    result = (isattr: true, parens: 2'u)
+  of "__alignof", "__declspec":
+    result = (isattr: true, parens: 1'u)
+  of "alignas":
+    result = (isattr: true, parens: 1'u)
+  of "__asm":
+    result = (isattr: true, parens: 1'u)
+  of "_Nullable", "_Nonnull":
+    result = (isattr: true, parens: 0'u)
+  of "__unaligned", "__packed":
+    result = (isattr: true, parens: 0'u)
+  else: discard
+
+proc skipAttribute(p: var Parser): bool {.discardable.} =
+  ## skip type attributes
+  ## TODO: these should be changed to pragmas
+  result = true
+  let (isattr, parens) = p.tok.isAttribute()
+  if not isattr: return false
+
+  if parens == 0:
+    getTok(p, nil)
+  else:
+    getTok(p, nil)
+    for i in 1..parens:
+      eat(p, pxParLe, nil)
+    while p.tok.xkind != pxParRi:
+      getTok(p, nil)
+      ## get args
+      if p.tok.xkind == pxParLe:
+        getTok(p, nil)
+        while p.tok.xkind != pxParRi:
+          getTok(p, nil)
+        eat(p, pxParRi, nil)
+
+    for i in 1..parens:
+      eat(p, pxParRi, nil)
+
+proc skipAttributes(p: var Parser): bool {.discardable.} =
+  while skipAttribute(p):
+    result = true
+
 proc stmtKeyword(s: string): bool =
   case s
   of  "if", "for", "while", "do", "switch", "break", "continue", "return",
@@ -517,11 +572,17 @@ proc stmtKeyword(s: string): bool =
 
 proc typeDesc(p: var Parser): PNode
 
-proc isIntType(s: string): bool =
+proc isBaseIntType(s: string): bool =
   case s
-  of "short", "int", "long", "float", "double", "signed", "unsigned", "size_t":
+  of "short", "int", "long", "float", "double", "signed", "unsigned":
     result = true
   else: discard
+
+proc isIntType(s: string): bool =
+  if isBaseIntType(s):
+    return true
+  elif s == "size_t":
+    return true
 
 proc skipConst(p: var Parser): bool =
   while p.tok.xkind == pxSymbol and
@@ -647,32 +708,37 @@ proc typeAtom(p: var Parser; isTypeDef=false): PNode =
     eat(p, pxParLe, result)
     result.add expression(p)
     eat(p, pxParRi, result)
-  elif isIntType(p.tok.s):
+  elif isBaseIntType(p.tok.s):
     var x = ""
-    #getTok(p, nil)
     var isUnsigned = false
     var isSigned = false
     var isSizeT = false
-    while p.tok.xkind == pxSymbol and (isIntType(p.tok.s) or p.tok.s == "char"):
+    var isDone = false
+    while p.tok.xkind == pxSymbol and (isBaseIntType(p.tok.s) or p.tok.s == "char"):
+      # do a bit more checking to try and handle odd cases like typedef long long someint_t;
       if p.tok.s == "unsigned":
         isUnsigned = true
-      elif p.tok.s == "size_t":
-        isSizeT = true
       elif p.tok.s == "signed":
         isSigned = true
       elif p.tok.s == "int":
-        discard
+        isDone = true
       else:
+        isDone = true
         add(x, p.tok.s)
       getTok(p, nil)
-      if (isSigned or isUnsigned) and p.tok.xkind == pxSymbol and isTypeDef:
-        add(x, p.tok.s)
-        getTok(p, nil)
+      if skipConst(p):
+        isConst = true
 
-      if skipConst(p): isConst = true
+    if not isDone and isTypeDef and (isSigned or isUnsigned) and p.tok.xkind == pxSymbol:
+      add(x, p.tok.s)
+      getTok(p, nil)
+
     if x.len == 0: x = "int"
     let xx = if isSizeT: "csize_t" elif isUnsigned: "cu" & x else: "c" & x
     result = mangledIdent(xx, p, skDontMangle)
+  elif p.tok.s == "size_t":
+    getTok(p, nil)
+    result = mangledIdent("csize_t", p, skDontMangle)
   else:
     result = mangledIdent(p.tok.s, p, skType)
     getTok(p, result)
@@ -706,6 +772,7 @@ proc pointersOf(p: Parser; a: PNode; count: int): PNode =
 proc pointer(p: var Parser, a: PNode): PNode =
   result = a
   var i = 0
+  var isBlock = false
   let isConstA = skipConst(p)
   while true:
     if p.tok.xkind == pxStar:
@@ -713,6 +780,12 @@ proc pointer(p: var Parser, a: PNode): PNode =
       getTok(p, result)
       discard skipConst(p)
       result = newPointerTy(p, result)
+    elif p.tok.xkind == pxHat: # Apple 'block' pointers
+      inc(i)
+      getTok(p, result)
+      discard skipConst(p)
+      result = newPointerTy(p, result)
+      isBlock = true
     elif p.tok.xkind == pxAmp and pfCpp in p.options.flags:
       getTok(p, result)
       let isConstB = skipConst(p)
@@ -731,7 +804,10 @@ proc pointer(p: var Parser, a: PNode): PNode =
         result.add(b)
     else: break
   if i > 0:
+    if isBlock:
+      a.flags.incl nfBlockPtr
     result = pointersOf(p, a, i)
+    skipAttribute(p)
 
 proc newProcPragmas(p: Parser): PNode =
   result = newNodeP(nkPragma, p)
@@ -762,6 +838,8 @@ proc parseFormalParams(p: var Parser, params, pragmas: PNode)
 
 proc parseTypeSuffix(p: var Parser, typ: PNode, isParam: bool = false): PNode =
   result = typ
+
+  let isBlock = nfBlockPtr in typ.flags
   case p.tok.xkind
   of pxBracketLe:
     getTok(p, result)
@@ -803,6 +881,8 @@ proc parseTypeSuffix(p: var Parser, typ: PNode, isParam: bool = false): PNode =
       closeContextB(p)
 
       addSon(procType, params)
+      if isBlock:
+        addSon(pragmas, newIdentNodeP("cblock", p))
       addPragmas(procType, pragmas)
       result = parseTypeSuffix(p, procType)
 
@@ -993,6 +1073,8 @@ proc parseStructBody(p: var Parser, stmtList: PNode,
         baseTyp = typeAtom(p)
       else:
         continue
+    elif skipAttributes(p):
+      continue
     else:
       baseTyp = typeAtom(p)
 
@@ -1011,6 +1093,7 @@ proc parseStructBody(p: var Parser, stmtList: PNode,
     eat(p, pxSemicolon)
 
   eat(p, pxCurlyRi, result)
+  skipAttributes(p);
 
 proc enumPragmas(p: Parser, name: PNode; origName: string): PNode =
   result = newNodeP(nkPragmaExpr, p)
@@ -1080,11 +1163,12 @@ proc declarator(p: var Parser, a: PNode, ident: ptr PNode; origName: var string)
 proc directDeclarator(p: var Parser, a: PNode, ident: ptr PNode; origName: var string): PNode =
   case p.tok.xkind
   of pxSymbol:
+    skipAttribute(p)
     origName = p.tok.s
     ident[] = skipIdent(p, skParam)
   of pxParLe:
     getTok(p, a)
-    if p.tok.xkind in {pxStar, pxAmp, pxAmpAmp, pxSymbol}:
+    if p.tok.xkind in {pxStar, pxAmp, pxAmpAmp, pxSymbol, pxHat}:
       result = declarator(p, a, ident, origName)
       eat(p, pxParRi, result)
   else:
@@ -1116,8 +1200,10 @@ proc parseParam(p: var Parser, params: PNode) =
   elif p.options.isArray.hasKey(origName) and typ.kind == nkPtrTy:
     typ = makeUncheckedArray(p, typ)
 
+  skipAttributes(p)
   var x = newNodeP(nkIdentDefs, p)
   addSon(x, name, typ)
+
   if p.tok.xkind == pxAsgn:
     # for the wxWidgets wrapper we need to transform 'auto x = foo' into
     # 'x = foo' cause 'x: auto = foo' is not really supported by Nim yet...
@@ -1158,14 +1244,14 @@ proc parseCallConv(p: var Parser, pragmas: PNode) =
     of "__syscall": addSon(pragmas, newIdentNodeP("syscall", p))
     of "__fastcall": addSon(pragmas, newIdentNodeP("fastcall", p))
     of "__safecall": addSon(pragmas, newIdentNodeP("safecall", p))
-    of "__declspec":
+    of "__declspec", "__attribute__":
       getTok(p, nil)
       eat(p, pxParLe, nil)
-      while p.tok.xkind notin {pxEof, pxParRi}: getTok(p, nil)
-    of "__attribute__":
-      getTok(p, nil)
-      eat(p, pxParLe, nil)
-      while p.tok.xkind notin {pxEof, pxParRi}: getTok(p, nil)
+      var parcnt = 0
+      while p.tok.xkind notin {pxEof, pxParRi} or parcnt > 0:
+        if p.tok.xkind == pxParLe: parcnt.inc
+        elif p.tok.xkind == pxParRi: parcnt.dec
+        getTok(p, nil)
     else: break
     getTok(p, nil)
 
@@ -1182,12 +1268,39 @@ proc parseFunctionPointerDecl(p: var Parser, rettyp: PNode): PNode =
     eat(p, pxScope)
     addSon(pragmas, newIdentNodeP("memberfuncptr", p))
 
-  if p.tok.xkind == pxStar: getTok(p, params)
+  if p.tok.xkind == pxStar:
+    getTok(p, params)
+  elif p.tok.xkind == pxHat:
+    getTok(p, params)
+    addSon(pragmas, newIdentNodeP("cblock", p))
   #else: parError(p, "expected '*'")
+  discard skipAttributes(p)
   if p.inTypeDef > 0: markTypeIdent(p, nil)
   var name = skipIdentExport(p, if p.inTypeDef > 0: skType else: skVar, true)
+
+  let prevname = name.copyTree()
+  name = parseTypeSuffix(p, name)
   eat(p, pxParRi, name)
+
   parseFormalParams(p, params, pragmas)
+  if name.kind == nkProcTy:
+    # hack: we found another function pointer while
+    # parsing a function pointer. In C these are
+    # defined in reverse.
+    # The easiest solution here is to just
+    # un-reverse using the ProcTy from parseTypeSuffix
+    let newproc = name
+    name = prevname
+    # turn the new returned proc into our return proc
+    newproc[0].delSon(0)
+    let newparams = newproc[0].copyTree()
+    newproc.delSon(0)
+    newproc.sons.insert(params, 0)
+    # now swap the params
+    params = newparams
+    # and set the new proc to be the new return type
+    params.sons.insert(newproc, 0)
+
   addSon(procType, params)
   addPragmas(procType, pragmas)
 
@@ -1306,6 +1419,7 @@ proc enumFields(p: var Parser, constList, stmtList: PNode): PNode =
 
     if fieldsComplete: parError(p, "expected '}'")
     var e = skipIdent(p, skEnumField)
+    discard skipAttributes(p)
     if p.tok.xkind == pxAsgn:
       getTok(p, e)
       var c = constantExpression(p, e)
@@ -1856,6 +1970,7 @@ proc declarationWithoutSemicolon(p: var Parser; genericParams: PNode = emptyNode
       backtrackContextB(p)
       return parseVarDecl(p, baseTyp, rettyp, origName, varKind)
 
+
     if pfCpp in p.options.flags and p.tok.xkind == pxSymbol and
         p.tok.s == "const":
       addSon(pragmas, newIdentNodeP("noSideEffect", p))
@@ -1870,6 +1985,7 @@ proc declarationWithoutSemicolon(p: var Parser; genericParams: PNode = emptyNode
     addSon(result, exportSym(p, name, origName), emptyNode, genericParams)
     addSon(result, params, pragmas, emptyNode) # no exceptions
     skipThrowSpecifier(p, pragmas)
+    skipAttributes(p)
     case p.tok.xkind
     of pxSemicolon:
       getTok(p)
@@ -3569,7 +3685,7 @@ proc parseStrict(p: var Parser): PNode =
       if s.kind != nkEmpty: embedStmts(result, s)
   except ERetryParsing:
     parError(p, getCurrentExceptionMsg())
-    #"Uncaught parsing exception raised")
+    # "Uncaught parsing exception raised")
 
 proc parseWithSyncPoints(p: var Parser): PNode =
   result = newNodeP(nkStmtList, p)
