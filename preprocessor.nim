@@ -700,11 +700,6 @@ proc parseRemoveIncludes*(p: var Parser, infile: string): PNode =
       # echo "last: ", repr result.lastSon()
       # isInFile = infile == gConfig.toProjPath(result.lastSon.info)
       isInFile = infile == lastfile.string
-      echo "PATH: ", isInFile, " id: ", $result.lastSon.info.fileIndex.int, " -> ", gConfig.toFullPath(result.lastSon.info)
-
-    if isInFile:
-      echo "DONE LDIR: ", p.lex.bufpos, " tok: ", $p.tok[]
-      echo "LDIR: ", p.lex.buf[p.lex.bufpos-1..<p.lex.bufpos+10]
 
     var code = newNodeP(nkTripleStrLit, p)
     var lastpos = p.lex.bufpos
@@ -720,19 +715,11 @@ proc parseRemoveIncludes*(p: var Parser, infile: string): PNode =
         code.strVal.add(p.tok.s)
         code.strVal.add("*/\n")
       elif lastpos >= p.lex.bufpos:
-        echo "sentinel:eq: ", lastpos, " lastlen: ", lastlen, " vs ", p.lex.bufpos, " sent: ", p.lex.sentinel
-        echo "sentinel:eq: lastlen: ", lastlen, " lastpos: ", lastpos
         var tmp = ""
-        # tmp.add(p.lex.buf[lastpos..<lastpos+lastlen])
         tmp.add($p.tok[])
-        echo "currline: ", p.lex.getCurrentLine()
-        # tmp.add(p.lex.buf[p.lex.bufpos..<p.lex.sentinel])
         code.strVal.add(tmp)
       else:
-        # echo "sentinel:norm: ", lastpos, " lastlen: ", lastlen, " vs ", p.lex.bufpos, " sent: ", p.lex.sentinel
         let tmp = p.lex.buf[lastpos..<p.lex.bufpos]
-        # echo "norm:tok: ", isInFile, " tok: ", $p.tok[], " :: ", tmp
-        code.strVal.add($tmp)
         code.strVal.add($tmp)
       lastpos = p.lex.bufpos
       lastlen = p.lex.sentinel - lastpos

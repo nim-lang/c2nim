@@ -3,15 +3,13 @@
 // START
 
 // @file
-typedef struct struct rcl_arguments_impl_s rcl_arguments_impl_s rcl_arguments_impl_t rcl_arguments_impl_t;;
+typedef struct rcl_arguments_impl_s rcl_arguments_impl_t;
 // Hold output of parsing command line arguments.
-typedeftypedef struct struct rcl_arguments_s rcl_arguments_s
-{
+typedef struct rcl_arguments_s
 {
 // Private implementation pointer.
-rcl_arguments_impl_trcl_arguments_impl_t * * impl impl;;
-}
-} rcl_arguments_t rcl_arguments_t;;
+rcl_arguments_impl_t * impl;
+} rcl_arguments_t;
 // The command-line flag that delineates the start of ROS arguments.
 
 // The token that delineates the explicit end of ROS arguments.
@@ -44,13 +42,10 @@ rcl_arguments_impl_trcl_arguments_impl_t * * impl impl;;
 // logging (must be preceded with --enable- or --disable-).
 
 //   Return a rcl_arguments_t struct with members initialized to `NULL`.
-__attribute____attribute__ ( (((visibilityvisibility(("default""default"))))))
-__attribute__
-__attribute__((((warn_unused_resultwarn_unused_result))))
+__attribute__ ((visibility("default")))
+__attribute__((warn_unused_result))
 rcl_arguments_t
-rcl_arguments_t
-rcl_get_zero_initialized_arguments
-rcl_get_zero_initialized_arguments((voidvoid));;
+rcl_get_zero_initialized_arguments(void);
 // Parse command line arguments into a structure usable by code.
 
 /*
@@ -74,182 +69,95 @@ rcl_get_zero_initialized_arguments((voidvoid));;
 
 */
 
-__attribute__
-__attribute__ ( (((visibilityvisibility(("default""default"))))))
-__attribute__
-__attribute__((((warn_unused_resultwarn_unused_result))))
+__attribute__ ((visibility("default")))
+__attribute__((warn_unused_result))
 rcl_ret_t
-rcl_ret_t
-rcl_parse_arguments
-rcl_parse_arguments((
-  int
-  int argc argc,,
-  const
-  const char char * * const const * * argv argv,,
-  rcl_allocator_t
-  rcl_allocator_t allocator allocator,,
-  rcl_arguments_t
-  rcl_arguments_t * * args_output args_output));;
+rcl_parse_arguments(
+  int argc,
+  const char * const * argv,
+  rcl_allocator_t allocator,
+  rcl_arguments_t * args_output);
 // Return the number of arguments that were not ROS specific arguments.
 
 /*
 */
 
-RCL_ALIGNAS
-RCL_ALIGNAS((88))
-__attribute__
-__attribute__((((warn_unused_resultwarn_unused_result))))
+RCL_ALIGNAS(8)
+__attribute__((warn_unused_result))
 int
+rcl_arguments_get_count_unparsed(
+  const rcl_arguments_t * args);
+
+__attribute__ ((visibility("default")))
+__attribute__((warn_unused_result))
+rcl_ret_t
+rcl_arguments_get_unparsed(
+  const rcl_arguments_t * args,
+  rcl_allocator_t allocator,
+  int ** output_unparsed_indices);
+
+__attribute__ ((visibility("default")))
+__attribute__((warn_unused_result))
 int
-rcl_arguments_get_count_unparsed
-rcl_arguments_get_count_unparsed((
-  const
-  const rcl_arguments_t rcl_arguments_t * * args args));;
+rcl_arguments_get_count_unparsed_ros(
+  const rcl_arguments_t * args);
 
-__attribute__
-
-__attribute__ ( (((visibilityvisibility(("default""default"))))))
-__attribute__
-__attribute__((((warn_unused_resultwarn_unused_result))))
+__attribute__ ((visibility("default")))
+__attribute__((warn_unused_result))
 rcl_ret_t
-rcl_ret_t
-rcl_arguments_get_unparsed
-rcl_arguments_get_unparsed((
-  const
-  const rcl_arguments_t rcl_arguments_t * * args args,,
-  rcl_allocator_t
-  rcl_allocator_t allocator allocator,,
-  int
-  int * *** output_unparsed_indices output_unparsed_indices));;
+rcl_arguments_get_unparsed_ros(
+  const rcl_arguments_t * args,
+  rcl_allocator_t allocator,
+  int ** output_unparsed_ros_indices);
 
-__attribute__
-
-__attribute__ ( (((visibilityvisibility(("default""default"))))))
-__attribute__
-__attribute__((((warn_unused_resultwarn_unused_result))))
+__attribute__ ((visibility("default")))
+__attribute__((warn_unused_result))
 int
-int
-rcl_arguments_get_count_unparsed_ros
-rcl_arguments_get_count_unparsed_ros((
-  const
-  const rcl_arguments_t rcl_arguments_t * * args args));;
+rcl_arguments_get_param_files_count(
+  const rcl_arguments_t * args);
 
-__attribute__
 
-__attribute__ ( (((visibilityvisibility(("default""default"))))))
-__attribute__
-__attribute__((((warn_unused_resultwarn_unused_result))))
+__attribute__ ((visibility("default")))
+__attribute__((warn_unused_result))
 rcl_ret_t
+rcl_arguments_get_param_files(
+  const rcl_arguments_t * arguments,
+  rcl_allocator_t allocator,
+  char *** parameter_files);
+
+__attribute__ ((visibility("default")))
+__attribute__((warn_unused_result))
 rcl_ret_t
-rcl_arguments_get_unparsed_ros
-rcl_arguments_get_unparsed_ros((
-  const
-  const rcl_arguments_t rcl_arguments_t * * args args,,
-  rcl_allocator_t
-  rcl_allocator_t allocator allocator,,
-  int
-  int * *** output_unparsed_ros_indices output_unparsed_ros_indices));;
+rcl_arguments_get_param_overrides(
+  const rcl_arguments_t * arguments,
+  rcl_params_t ** parameter_overrides);
 
-__attribute__
-
-__attribute__ ( (((visibilityvisibility(("default""default"))))))
-__attribute__
-__attribute__((((warn_unused_resultwarn_unused_result))))
-int
-int
-rcl_arguments_get_param_files_count
-rcl_arguments_get_param_files_count((
-  const
-  const rcl_arguments_t rcl_arguments_t * * args args));;
-
-
-__attribute__
-
-
-__attribute__ ( (((visibilityvisibility(("default""default"))))))
-__attribute__
-__attribute__((((warn_unused_resultwarn_unused_result))))
+__attribute__ ((visibility("default")))
+__attribute__((warn_unused_result))
 rcl_ret_t
-rcl_ret_t
-rcl_arguments_get_param_files
-rcl_arguments_get_param_files((
-  const
-  const rcl_arguments_t rcl_arguments_t * * arguments arguments,,
-  rcl_allocator_t
-  rcl_allocator_t allocator allocator,,
-  char
-  char * ***** parameter_files parameter_files));;
+rcl_remove_ros_arguments(
+  const char * const * argv,
+  const rcl_arguments_t * args,
+  rcl_allocator_t allocator,
+  int * nonros_argc,
+  const char *** nonros_argv);
 
-__attribute__
+__attribute__ ((visibility("default")))
+__attribute__((warn_unused_result))
+rcl_ret_t
+rcl_arguments_get_log_levels(
+  const rcl_arguments_t * arguments,
+  rcl_log_levels_t * log_levels);
 
-__attribute__ ( (((visibilityvisibility(("default""default"))))))
-__attribute__
-__attribute__((((warn_unused_resultwarn_unused_result))))
+__attribute__ ((visibility("default")))
+__attribute__((warn_unused_result))
 rcl_ret_t
-rcl_ret_t
-rcl_arguments_get_param_overrides
-rcl_arguments_get_param_overrides((
-  const
-  const rcl_arguments_t rcl_arguments_t * * arguments arguments,,
-  rcl_params_t
-  rcl_params_t * *** parameter_overrides parameter_overrides));;
+rcl_arguments_copy(
+  const rcl_arguments_t * args,
+  rcl_arguments_t * args_out);
 
-__attribute__
-
-__attribute__ ( (((visibilityvisibility(("default""default"))))))
-__attribute__
-__attribute__((((warn_unused_resultwarn_unused_result))))
+__attribute__ ((visibility("default")))
+__attribute__((warn_unused_result))
 rcl_ret_t
-rcl_ret_t
-rcl_remove_ros_arguments
-rcl_remove_ros_arguments((
-  const
-  const char char * * const const * * argv argv,,
-  const
-  const rcl_arguments_t rcl_arguments_t * * args args,,
-  rcl_allocator_t
-  rcl_allocator_t allocator allocator,,
-  int
-  int * * nonros_argc nonros_argc,,
-  const
-  const char char * ***** nonros_argv nonros_argv));;
-
-__attribute__
-
-__attribute__ ( (((visibilityvisibility(("default""default"))))))
-__attribute__
-__attribute__((((warn_unused_resultwarn_unused_result))))
-rcl_ret_t
-rcl_ret_t
-rcl_arguments_get_log_levels
-rcl_arguments_get_log_levels((
-  const
-  const rcl_arguments_t rcl_arguments_t * * arguments arguments,,
-  rcl_log_levels_t
-  rcl_log_levels_t * * log_levels log_levels));;
-
-__attribute__
-
-__attribute__ ( (((visibilityvisibility(("default""default"))))))
-__attribute__
-__attribute__((((warn_unused_resultwarn_unused_result))))
-rcl_ret_t
-rcl_ret_t
-rcl_arguments_copy
-rcl_arguments_copy((
-  const
-  const rcl_arguments_t rcl_arguments_t * * args args,,
-  rcl_arguments_t
-  rcl_arguments_t * * args_out args_out));;
-
-__attribute__
-
-__attribute__ ( (((visibilityvisibility(("default""default"))))))
-__attribute__
-__attribute__((((warn_unused_resultwarn_unused_result))))
-rcl_ret_t
-rcl_ret_t
-rcl_arguments_fini
-rcl_arguments_fini((
-  rcl_arguments_t
-  rcl_arguments_t * * args args));;
+rcl_arguments_fini(
+  rcl_arguments_t * args);
