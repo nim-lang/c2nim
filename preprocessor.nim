@@ -663,11 +663,8 @@ proc parseDir(p: var Parser; sectionParser: SectionParser): PNode =
     skipLine(p)
 
 proc parseRemoveIncludes*(p: var Parser, infile: string): PNode =
-  # pxVerbatim, pxDirective
-  proc parseSect(p: var Parser): PNode = 
-    echo "parse sect!"
-    result = emptyNode
-  
+  # parse everything but strip extra includes
+
   proc parseLineDir(p: var Parser): (PNode, AbsoluteFile) = 
     try:
       let num = parseInt(p.tok.s)
