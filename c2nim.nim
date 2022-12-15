@@ -142,14 +142,22 @@ proc parseDefineArgs(parserOptions: var PParserOptions, val: string) =
   parserOptions.macros.add(mc)
 
 type
-  CCPreprocessOptions* = ref object
+  CcPreprocOptions* = ref object
     run: bool
     cc: string
+    flags: seq[string]
+    extraFlags: seq[string]
     includes: seq[string]
-    
+
+proc newPPOpts(val: string): CcPreprocOptions =
+  new result
+  if val == "": result.cc = "cc"
+  else: result.cc = val
+  result.flags = @["-E", "-CC", "-dI", "-dD"]
+
 proc ccpreprocess(infile: string,
                   options: PParserOptions;
-                  ppoptions: CCPreprocessOptions
+                  ppoptions: CcPreprocOptions
                  ): AbsoluteFile =
   ## use C compiler to preprocess
   if infile.isAbsolute():
@@ -160,7 +168,8 @@ proc ccpreprocess(infile: string,
   let postfile = infile & ".pp"
   let cc = "/opt/homebrew/bin/gcc-12"
   var args = newSeq[string]()
-  args.add(["-E", "-CC", "-dI", "-dD"])
+  args.add(ppoptions.flags)
+  args.add(ppoptions.extraFlags)
   args.add([infile, "-o", outfile])
   for pth in ppoptions.includes: args.add("-I" & pth)
   let outp = execProcess(cc, args=args, options={poUsePath, poStdErrToStdOut})
@@ -234,13 +243,17 @@ proc myRenderModule(tree: PNode; filename: string, renderFlags: TRenderFlags) =
 proc main(infiles: seq[string], outfile: var string,
           options: PParserOptions,
           concat: bool,
-          preprocessOptions: CCPreprocessOptions) =
+          preprocessOptions: CcPreprocOptions) =
   var start = getTime()
   var dllexport: PNode = nil
+  var infiles = infiles
   if preprocessOptions.run:
-    for fl in infiles:
-      discard ccpreprocess(fl, options, preprocessOptions)
+    let rawfiles = infiles[0..^1]
+    infiles.setLen(0)
+    for fl in rawfiles:
+      infiles.add ccpreprocess(fl, options, preprocessOptions).string
   
+  echo "infiles: ", infiles
   if concat:
     var tree = newNode(nkStmtList)
     for infile in infiles:
@@ -275,7 +288,8 @@ var
   outfile = ""
   concat = false
   parserOptions = newParserOptions()
-  preprocessOptions = new CCPreprocessOptions
+  preprocessOptions: CcPreprocOptions
+
 for kind, key, val in getopt():
   case kind
   of cmdArgument:
@@ -290,7 +304,9 @@ for kind, key, val in getopt():
       quit(0)
     of "o", "out": outfile = val
     of "concat": concat = true
-    of "preprocess": preprocessOptions.run = true
+    of "preprocess":
+      preprocessOptions = newPPOpts(val)
+      preprocessOptions.run = true
     of "spliceheader":
       quit "[Error] 'spliceheader' doesn't exist anymore" &
            " use a list of files and --concat instead"
@@ -298,12 +314,17 @@ for kind, key, val in getopt():
       parserOptions.exportPrefix = val
     of "def":
       parserOptions.parseDefineArgs(val)
+    of "I", "D":
+      if preprocessOptions.isNil:
+        quit("[Error] must specify `--preprocess` first")
+      if key == "I":
+        preprocessOptions.includes.add(val)
+      elif key == "D":
+        preprocessOptions.extraFlags.add("-D" & val)
     else:
       if key.normalize == "render":
         if not parserOptions.renderFlags.setOption(val):
           quit("[Error] unknown option: " & key)
-      elif key == "I":
-        preprocessOptions.includes.add(val)
       elif not parserOptions.setOption(key, val):
         quit("[Error] unknown option: " & key)
   of cmdEnd: assert(false)

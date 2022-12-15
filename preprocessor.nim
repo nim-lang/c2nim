@@ -696,7 +696,7 @@ proc parseRemoveIncludes*(p: var Parser, infile: string): PNode =
       if res[1] != AbsoluteFile "":
         lastfile = res[1]
         isInFile = infile == lastfile.string
-        echo "IS_IN_FILE: ", isInFile, " file: ", lastfile.string
+        # echo "IS_IN_FILE: ", isInFile, " file: ", lastfile.string
 
       if isInFile:
         result.add(res[0])
@@ -730,8 +730,6 @@ proc parseRemoveIncludes*(p: var Parser, infile: string): PNode =
     # add code
     if isInFile:
       result.add(code)
-    else:
-      echo "skipping... ", code
 
   echo "done parsing preprocessed C file"
   echo "file: ", infile

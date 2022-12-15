@@ -120,7 +120,7 @@ rcl_parse_arguments(
 // Return the number of arguments that were not ROS specific arguments.
 /*
 */
-RCL_ALIGNAS(8)
+__attribute__ ((align(8)))
 __attribute__((warn_unused_result))
 int
 rcl_arguments_get_count_unparsed(

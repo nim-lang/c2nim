@@ -5,3 +5,4 @@ testsuite/cextras/*.nim
 testsuite/tester
 *.exe
 /c2nim
+*.h.pre
