@@ -164,17 +164,16 @@ proc ccpreprocess(infile: string,
     gConfig.projectPath = getCurrentDir().AbsoluteDir
   let infile = infile.absolutePath()
   echo "gConfig: ", string gConfig.projectPath
-  let outfile = infile & ".pre"
-  let postfile = infile & ".pp"
-  let cc = "/opt/homebrew/bin/gcc-12"
+  let outfile = infile.changeFileExt(".pre")
+  let postfile = infile.changeFileExt(".pp")
   var args = newSeq[string]()
   args.add(ppoptions.flags)
   args.add(ppoptions.extraFlags)
   args.add([infile, "-o", outfile])
   for pth in ppoptions.includes: args.add("-I" & pth)
-  let outp = execProcess(cc, args=args, options={poUsePath, poStdErrToStdOut})
+  let outp = execProcess(ppoptions.cc, args=args,
+                         options={poUsePath, poStdErrToStdOut})
   echo "OUTP: ", outp
-
   var stream = llStreamOpen(AbsoluteFile outfile, fmRead)
   if stream == nil:
     when declared(NimCompilerApiVersion):
@@ -247,13 +246,12 @@ proc main(infiles: seq[string], outfile: var string,
   var start = getTime()
   var dllexport: PNode = nil
   var infiles = infiles
-  if preprocessOptions.run:
+  if not preprocessOptions.isNil:
     let rawfiles = infiles[0..^1]
     infiles.setLen(0)
     for fl in rawfiles:
       infiles.add ccpreprocess(fl, options, preprocessOptions).string
   
-  echo "infiles: ", infiles
   if concat:
     var tree = newNode(nkStmtList)
     for infile in infiles:
@@ -306,7 +304,6 @@ for kind, key, val in getopt():
     of "concat": concat = true
     of "preprocess":
       preprocessOptions = newPPOpts(val)
-      preprocessOptions.run = true
     of "spliceheader":
       quit "[Error] 'spliceheader' doesn't exist anymore" &
            " use a list of files and --concat instead"
@@ -314,7 +311,10 @@ for kind, key, val in getopt():
       parserOptions.exportPrefix = val
     of "def":
       parserOptions.parseDefineArgs(val)
-    of "I", "D":
+    of "render":
+      if not parserOptions.renderFlags.setOption(val):
+        quit("[Error] unknown option: " & key)
+    of "i", "d":
       if preprocessOptions.isNil:
         quit("[Error] must specify `--preprocess` first")
       if key == "I":
@@ -322,10 +322,7 @@ for kind, key, val in getopt():
       elif key == "D":
         preprocessOptions.extraFlags.add("-D" & val)
     else:
-      if key.normalize == "render":
-        if not parserOptions.renderFlags.setOption(val):
-          quit("[Error] unknown option: " & key)
-      elif not parserOptions.setOption(key, val):
+      if not parserOptions.setOption(key, val):
         quit("[Error] unknown option: " & key)
   of cmdEnd: assert(false)
 if infiles.len == 0:
