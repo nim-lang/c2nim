@@ -200,6 +200,7 @@ proc ccpreprocess(infile: string,
       discard
   tfl.close()
 
+  outfile.removeFile()
   result = AbsoluteFile postfile
 
 var dummy: PNode
