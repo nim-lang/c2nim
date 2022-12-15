@@ -41,6 +41,7 @@ Options:
   --noconv               annotate procs with ``{.noconv.}``
   --stdcall              annotate procs with ``{.stdcall.}``
   --importc              annotate procs with ``{.importc.}``
+  --preprocess:$CC       use $CC preprocessor to expand macros
   --importdefines        import C defines as procs or vars with ``{.importc.}``
   --importfuncdefines    import C define funcs as procs with ``{.importc.}``
   --def:SYM='macro()'    define a C macro that gets replaced with the given
