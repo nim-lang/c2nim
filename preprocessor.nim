@@ -688,7 +688,6 @@ proc parseRemoveIncludes*(p: var Parser, infile: string): PNode =
     if p.tok.xkind == pxEof:
       break
 
-
     while p.tok.xkind in {pxDirective}:
       if p.tok.xkind == pxEof:
         break

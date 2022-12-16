@@ -193,14 +193,14 @@ proc ccpreprocess(infile: string,
     case node.kind:
     of nkComesFrom:
       discard
-      # tfl.write("\n")
+      tfl.write(" ")
     of nkTripleStrLit:
       tfl.write(node.strVal)
     else:
       discard
   tfl.close()
 
-  outfile.removeFile()
+  # outfile.removeFile()
   result = AbsoluteFile postfile
 
 var dummy: PNode
