@@ -30,8 +30,7 @@ type
     typedefs: Table[string, PNode]
     structStructMode: bool
     reorderComments: bool
-    mergeblocks: bool
-    mergeSimilarBlocks: bool
+    mergeBlocks: bool
 
 proc getName(n: PNode): PNode =
   result = n
@@ -125,13 +124,12 @@ var depth = 0
 proc reorderComments(n: PNode) = 
   ## reorder C style comments to Nim style ones
   var j = 1
-  let commentKinds = {nkTypeSection, nkIdentDefs, nkProcDef, nkConstSection}
+  let commentKinds = {nkTypeSection, nkIdentDefs, nkProcDef, nkConstSection, nkVarSection}
   template moveComment(idx, off) =
     if n[idx+off].len > 0:
       n[idx+off][0].comment = n[idx].comment
       delete(n.sons, idx)
   
-
   while j < n.safeLen - 1:
     if n[j].kind == nkCommentStmt:
       # join comments to previous node if line numbers match
@@ -139,6 +137,7 @@ proc reorderComments(n: PNode) =
         if n[j-1].info.line == n[j].info.line:
           moveComment(j, -1)
     inc j
+  
   var i = 0
   while i < n.safeLen - 1:
     if n[i].kind == nkCommentStmt:
@@ -177,7 +176,7 @@ proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
   if c.reorderComments:
     reorderComments(n)
 
-  if c.mergeSimilarBlocks:
+  if c.mergeBlocks:
     mergeSimilarBlocks(n)
 
   case n.kind
@@ -233,9 +232,9 @@ proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
 
 proc postprocess*(n: PNode; flags: set[ParserFlag]): PNode =
   var c = Context(typedefs: initTable[string, PNode](),
-                  reorderComments: pfStructStruct in flags,
-                  mergeblocks: pfMergeBlocks in flags,
-                  structStructMode: pfReorderComments in flags)
+                  structStructMode: pfStructStruct in flags,
+                  reorderComments: pfReorderComments in flags,
+                  mergeBlocks: pfMergeBlocks in flags)
   result = n
   pp(c, result)
 
