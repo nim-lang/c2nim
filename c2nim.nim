@@ -102,10 +102,7 @@ proc parse(infile: string, options: PParserOptions; dllExport: var PNode): PNode
   if isCpp: options.flags.incl pfCpp
   if isPPFile(infile): options.flags.incl pfFileNameIsPP
   openParser(p, infile, stream, options)
-  result = parseUnit(p).postprocess(
-    structStructMode = pfStructStruct in options.flags,
-    reorderComments = pfReorderComments in options.flags
-  )
+  result = parseUnit(p).postprocess(options.flags)
   closeParser(p)
   if isCpp: options.flags.excl pfCpp
   if options.exportPrefix.len > 0:

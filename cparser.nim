@@ -50,6 +50,7 @@ type
     pfStructStruct,     ## do not treat struct Foo Foo as a forward decl
     pfReorderComments   ## reorder comments to match Nim's style
     pfFileNameIsPP      ## fixup pre-processor file name
+    pfMergeBlocks       ## fixup pre-processor file name
 
   Macro* = object
     name*: string
@@ -191,6 +192,7 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "discardableprefix": parserOptions.discardablePrefixes.add(val)
   of "structstruct": incl(parserOptions.flags, pfStructStruct)
   of "reordercomments": incl(parserOptions.flags, pfReorderComments)
+  of "mergeblocks": incl(parserOptions.flags, pfMergeBlocks)
   of "isarray": parserOptions.isArray[val] = "true"
   else: result = false
 

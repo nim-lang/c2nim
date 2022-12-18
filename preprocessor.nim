@@ -716,7 +716,7 @@ proc parseRemoveIncludes*(p: var Parser, infile: string): PNode =
         code.strVal.add(p.tok.s)
         code.strVal.add("*/")
       elif lastpos >= p.lex.bufpos:
-        var tmp = ""
+        var tmp = " "
         tmp.add($p.tok[])
         code.strVal.add(tmp)
       else:

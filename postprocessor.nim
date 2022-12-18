@@ -13,11 +13,12 @@
 ## - Fixes some empty statement sections.
 ## - Tries to rewrite braced initializers to be more accurate.
 
-import std / tables
+import std / [tables, sets]
 
 import compiler/[ast, renderer, idents]
 
 import clexer
+from cparser import ParserFlag
 
 template emptyNode: untyped = newNode(nkEmpty)
 
@@ -29,6 +30,7 @@ type
     typedefs: Table[string, PNode]
     structStructMode: bool
     reorderComments: bool
+    mergeSimilarBlocks: bool
 
 proc getName(n: PNode): PNode =
   result = n
@@ -144,10 +146,38 @@ proc reorderComments(n: PNode) =
         moveComment(i, +1)
     inc i
 
+proc mergeSimilarBlocks(n: PNode) = 
+
+  ## reorder C style comments to Nim style ones
+  let commentKinds = {nkTypeSection, nkIdentDefs, nkProcDef, nkConstSection}
+  template moveBlock(idx, prev) =
+    echo "moveBlock: ", idx, " / ", off
+    for ch in n[idx]:
+      n[prev].add(newNode(nkEmpty))
+      n[prev].add(ch)
+    delete(n.sons, idx)
+  
+  echo "\nblockTypes: ", n.kind
+
+  var i = 0
+  while i < n.safeLen - 1:
+    echo ""
+    echo "blockType: ", n[i].kind, " ", i
+
+    let kind = n[i].kind
+    if kind == nkTypeSection:
+      if n[i+1].kind == kind:
+        moveBlock(i+1, i)
+    inc i
+  
+
 proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
 
   if c.reorderComments:
     reorderComments(n)
+
+  if c.mergeSimilarBlocks:
+    mergeSimilarBlocks(n)
 
   case n.kind
   of nkIdent:
@@ -200,10 +230,10 @@ proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
 
   dec depth
 
-proc postprocess*(n: PNode; structStructMode, reorderComments: bool): PNode =
+proc postprocess*(n: PNode; flags: set[ParserFlag]): PNode =
   var c = Context(typedefs: initTable[string, PNode](),
-                  reorderComments: reorderComments,
-                  structStructMode: structStructMode)
+                  reorderComments: pfStructStruct in flags,
+                  structStructMode: pfReorderComments in flags)
   result = n
   pp(c, result)
 
