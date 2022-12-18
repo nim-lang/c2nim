@@ -318,7 +318,10 @@ for kind, key, val in getopt():
       stdout.write(Version & "\n")
       quit(0)
     of "o", "out": outfile = val
-    of "concat": concat = true
+    of "concat":
+      concat = true
+      if val == "all":
+        incl(parserOptions.flags, pfC2NimInclude)
     of "spliceheader":
       quit "[Error] 'spliceheader' doesn't exist anymore" &
            " use a list of files and --concat instead"

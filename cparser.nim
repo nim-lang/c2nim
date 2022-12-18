@@ -175,7 +175,6 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
     let vals = (r"{u?}int{\d+}_t", r"$1int$2")
     parserOptions.mangleRules.add((parsePeg(vals[0]), vals[1]))
   of "skipinclude": incl(parserOptions.flags, pfSkipInclude)
-  of "includec2nim": incl(parserOptions.flags, pfC2NimInclude)
   of "typeprefixes": incl(parserOptions.flags, pfTypePrefixes)
   of "skipcomments": incl(parserOptions.flags, pfSkipComments)
   of "cpp":
