@@ -47,7 +47,8 @@ type
     pfKeepBodies,       ## do not skip C++ method bodies
     pfAssumeIfIsTrue,   ## assume #if is true
     pfStructStruct,     ## do not treat struct Foo Foo as a forward decl
-    pfReorderComments   ## do not treat struct Foo Foo as a forward decl
+    pfReorderComments   ## reorder comments to match Nim's style
+    pfFileNameIsPP      ## fixup pre-processor file name
 
   Macro* = object
     name*: string
@@ -197,6 +198,8 @@ proc openParser*(p: var Parser, filename: string,
   openLexer(p.lex, filename, inputStream)
   p.options = options
   p.header = filename.extractFilename
+  if pfFileNameIsPP in options.flags:
+    p.header = p.header.splitFile().name
   p.lex.debugMode = options.debugMode
   p.backtrack = @[]
   p.currentNamespace = ""
