@@ -263,7 +263,10 @@ proc main(infiles: seq[string], outfile: var string,
     let rawfiles = infiles[0..^1]
     infiles.setLen(0)
     for fl in rawfiles:
-      infiles.add ccpreprocess(fl, options, preprocessOptions).string
+      if not isC2nimFile(fl):
+        infiles.add ccpreprocess(fl, options, preprocessOptions).string
+      else:
+        infiles.add fl
   
   if concat:
     var tree = newNode(nkStmtList)
