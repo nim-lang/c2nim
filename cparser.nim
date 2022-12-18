@@ -19,7 +19,7 @@
 
 import
   os, compiler/llstream, compiler/renderer, clexer, compiler/idents, strutils,
-  pegs, compiler/ast, compiler/msgs,
+  pegs, tables, compiler/ast, compiler/msgs,
   strtabs, hashes, algorithm, compiler/nversion
 
 when declared(NimCompilerApiVersion):
@@ -66,6 +66,7 @@ type
     privateRules: seq[Peg]
     dynlibSym, headerOverride: string
     macros*: seq[Macro]
+    deletes*: Table[string, string]
     toMangle: StringTableRef
     classes: StringTableRef
     toPreprocess: StringTableRef

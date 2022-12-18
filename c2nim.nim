@@ -7,7 +7,7 @@
 #    distribution, for details about the copyright.
 #
 
-import std / [strutils, os, osproc, times, md5, parseopt, strscans]
+import std / [strutils, os, osproc, times, md5, parseopt, strscans, tables]
 
 import compiler/ [llstream, ast, renderer, options, msgs, nversion]
 
@@ -102,7 +102,7 @@ proc parse(infile: string, options: PParserOptions; dllExport: var PNode): PNode
   if isCpp: options.flags.incl pfCpp
   if isPPFile(infile): options.flags.incl pfFileNameIsPP
   openParser(p, infile, stream, options)
-  result = parseUnit(p).postprocess(options.flags)
+  result = parseUnit(p).postprocess(options.flags, options.deletes)
   closeParser(p)
   if isCpp: options.flags.excl pfCpp
   if options.exportPrefix.len > 0:
@@ -326,6 +326,8 @@ for kind, key, val in getopt():
       parserOptions.exportPrefix = val
     of "def":
       parserOptions.parseDefineArgs(val)
+    of "delete":
+      parserOptions.deletes[val] = "proc"
     of "render":
       if not parserOptions.renderFlags.setOption(val):
         quit("[Error] unknown option: " & key)

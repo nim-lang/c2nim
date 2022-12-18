@@ -28,6 +28,7 @@ proc isEmptyStmtList(n: PNode): bool =
 type
   Context = object
     typedefs: Table[string, PNode]
+    deletes: Table[string, string]
     structStructMode: bool
     reorderComments: bool
     mergeBlocks: bool
@@ -163,12 +164,29 @@ proc mergeSimilarBlocks(n: PNode) =
         moveBlock(i+1, i)
         continue
     inc i
+ 
+proc deletesNode(c: Context, n: var PNode) = 
+  ## merge similar types of blocks
+  let blockKinds = {nkTypeSection, nkConstSection, nkVarSection}
+  template moveBlock(idx, prev) =
+    echo "moveBlock: ", idx, "/", prev
   
+  var i = 0
+  while i < n.safeLen - 1:
+    if n[i].kind in {nkPostfix}:
+      if c.deletes.hasKey($n[i][1]):
+        n = newNode(nkEmpty)
+        break
+    inc i
+
 
 proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
 
   if c.reorderComments:
     reorderComments(n)
+
+  if true:
+    deletesNode(c, n)
 
   if c.mergeBlocks:
     mergeSimilarBlocks(n)
@@ -224,8 +242,9 @@ proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
 
   dec depth
 
-proc postprocess*(n: PNode; flags: set[ParserFlag]): PNode =
+proc postprocess*(n: PNode; flags: set[ParserFlag], deletes: Table[string, string]): PNode =
   var c = Context(typedefs: initTable[string, PNode](),
+                  deletes: deletes,
                   structStructMode: pfStructStruct in flags,
                   reorderComments: pfReorderComments in flags,
                   mergeBlocks: pfMergeBlocks in flags)
