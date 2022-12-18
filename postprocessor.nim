@@ -30,6 +30,7 @@ type
     typedefs: Table[string, PNode]
     structStructMode: bool
     reorderComments: bool
+    mergeblocks: bool
     mergeSimilarBlocks: bool
 
 proc getName(n: PNode): PNode =
@@ -233,6 +234,7 @@ proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
 proc postprocess*(n: PNode; flags: set[ParserFlag]): PNode =
   var c = Context(typedefs: initTable[string, PNode](),
                   reorderComments: pfStructStruct in flags,
+                  mergeblocks: pfMergeBlocks in flags,
                   structStructMode: pfReorderComments in flags)
   result = n
   pp(c, result)
