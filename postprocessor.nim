@@ -172,16 +172,34 @@ proc deletesNode(c: Context, n: var PNode) =
     echo "moveBlock: ", idx, "/", prev
   
   var i = 0
-  while i < n.safeLen - 1:
+  echo "nn: ", n.kind, " ", n
+  while i < n.safeLen:
+    # echo "n[i]: ", n[i].kind, " ", repr n[i]
     # echo "n[i]: ", n[i].kind, " ", n[i]
+
+    # handle postfix -- e.g. types
     if n[i].kind in {nkPostfix}:
       if c.deletes.hasKey($n[i][1]):
         n = newNode(nkEmpty)
         continue
+
+    # handle calls
     if n[i].kind in {nkCall}:
       if c.deletes.hasKey($n[i][0]):
         n[i] = newNode(nkEmpty)
         continue
+    
+    # handle imports
+    if n[i].kind in {nkImportStmt}:
+      deletesNode(c, n[i])
+    if n[i].kind in {nkIdent}:
+      # echo "nkIdent: ", $n[i]
+      if c.deletes.hasKey($n[i]):
+        # echo "\nMATCH: nkIdent: ", n[i]
+        delete(n.sons, i)
+        continue
+      else:
+        echo "\nNOT MATCH: nkIdent: ", n[i]
     inc i
 
 
