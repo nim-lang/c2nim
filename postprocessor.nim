@@ -167,16 +167,21 @@ proc mergeSimilarBlocks(n: PNode) =
  
 proc deletesNode(c: Context, n: var PNode) = 
   ## merge similar types of blocks
-  let blockKinds = {nkTypeSection, nkConstSection, nkVarSection}
+  let blockKinds = {nkPostfix, nkCall}
   template moveBlock(idx, prev) =
     echo "moveBlock: ", idx, "/", prev
   
   var i = 0
   while i < n.safeLen - 1:
+    # echo "n[i]: ", n[i].kind, " ", n[i]
     if n[i].kind in {nkPostfix}:
       if c.deletes.hasKey($n[i][1]):
         n = newNode(nkEmpty)
-        break
+        continue
+    if n[i].kind in {nkCall}:
+      if c.deletes.hasKey($n[i][0]):
+        n[i] = newNode(nkEmpty)
+        continue
     inc i
 
 
