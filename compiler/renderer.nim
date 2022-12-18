@@ -1213,6 +1213,7 @@ proc gsub(g: var TSrcGen, n: PNode, c: TContext) =
     else:
       put(g, tkDistinct, "distinct")
   of nkTypeDef:
+    if renderExtraNewLines in g.flags: putNL(g)
     if n.sons[0].kind == nkPragmaExpr:
       # generate pragma after generic
       gsub(g, n.sons[0], 0)

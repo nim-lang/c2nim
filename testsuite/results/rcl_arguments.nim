@@ -1,5 +1,5 @@
 ##  Copyright 2018 Open Source Robotics Foundation, Inc.
-##
+##  START
 ##  @file
 
 import
@@ -7,9 +7,9 @@ import
   rcl_yaml_param_parser/types
 
 type
+
   rcl_arguments_impl_t* = rcl_arguments_impl_s
 
-type
   rcl_arguments_t* {.importc: "rcl_arguments_t", header: "rcl_arguments.h", bycopy.} = object ##  Hold output of parsing command line arguments.
     impl* {.importc: "impl".}: ptr rcl_arguments_impl_t ##  Private implementation pointer.
 

@@ -18,10 +18,11 @@ import
   rcl/visibility_control
 
 type
+
   rcl_context_instance_id_t* = uint64 ##  A unique ID per context instance.
+
   rcl_context_impl_t* = rcl_context_impl_s
 
-type
   rcl_context_t* {.importc: "rcl_context_t", header: "rcl_context.h", bycopy.} = object ##  Encapsulates the non-global state of an init/shutdown cycle.
                                                                                 ##
                                                                                 ##  The context is used in the creation of top level entities like nodes and

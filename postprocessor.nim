@@ -152,7 +152,7 @@ proc mergeSimilarBlocks(n: PNode) =
   let commentKinds = {nkTypeSection, nkIdentDefs, nkProcDef, nkConstSection}
   template moveBlock(idx, prev) =
     for ch in n[idx]:
-      n[prev].add(newNode(nkEmpty))
+      n[prev].add(newNode(nkStmtList))
       n[prev].add(ch)
     delete(n.sons, idx)
   
