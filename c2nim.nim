@@ -146,6 +146,7 @@ type
   CcPreprocOptions* = ref object
     run: bool
     cc: string
+    skipClean: bool
     flags: seq[string]
     extraFlags: seq[string]
     includes: seq[string]
@@ -200,7 +201,8 @@ proc ccpreprocess(infile: string,
       discard
   tfl.close()
 
-  # outfile.removeFile()
+  if not ppoptions.skipClean:
+    outfile.removeFile()
   result = AbsoluteFile postfile
 
 var dummy: PNode
@@ -304,8 +306,6 @@ for kind, key, val in getopt():
       quit(0)
     of "o", "out": outfile = val
     of "concat": concat = true
-    of "preprocess":
-      preprocessOptions = newPPOpts(val)
     of "spliceheader":
       quit "[Error] 'spliceheader' doesn't exist anymore" &
            " use a list of files and --concat instead"
@@ -316,13 +316,20 @@ for kind, key, val in getopt():
     of "render":
       if not parserOptions.renderFlags.setOption(val):
         quit("[Error] unknown option: " & key)
-    of "i", "d":
+    of "preprocess":
+      preprocessOptions = newPPOpts(val)
+    of "i", "d": # shortcut preprocessor includes
       if preprocessOptions.isNil:
         quit("[Error] must specify `--preprocess` first")
       if key == "I":
         preprocessOptions.includes.add(val)
       elif key == "D":
         preprocessOptions.extraFlags.add("-D" & val)
+    of "pp": # preprocess opts
+      if preprocessOptions.isNil:
+        quit("[Error] must specify `--preprocess` first")
+      if val == "skipclean":
+        preprocessOptions.skipClean = true
     else:
       if not parserOptions.setOption(key, val):
         quit("[Error] unknown option: " & key)

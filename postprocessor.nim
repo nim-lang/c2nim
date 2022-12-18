@@ -124,9 +124,11 @@ proc reorderComments(n: PNode) =
   var j = 1
   let commentKinds = {nkTypeSection, nkIdentDefs, nkProcDef, nkConstSection}
   template moveComment(idx, off) =
-    if n[idx+off].len >= 0:
+    if n[idx+off].len > 0:
+      echo "test: ", n[idx]
       n[idx+off][0].comment = n[idx].comment
       delete(n.sons, idx)
+  
 
   while j < n.safeLen - 1:
     if n[j].kind == nkCommentStmt:
