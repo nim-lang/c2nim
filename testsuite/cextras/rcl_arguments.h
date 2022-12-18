@@ -19,7 +19,7 @@ extern "C"
 #endif
 
 _Static_assert(sizeof((constructrcutils_error_string_t)) ==
-    (768 + (1024 - 768 - 20 - 6 - 1) + 20 + 6 + 1), "Maximum length calculations incorrect")
+    (768 + (1024 - 768 - 20 - 6 - 1) + 20 + 6 + 1), "Maximum length calculations incorrect");
 
 typedef struct rcl_arguments_impl_s rcl_arguments_impl_t;
 

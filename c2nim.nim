@@ -7,7 +7,7 @@
 #    distribution, for details about the copyright.
 #
 
-import std / [strutils, os, osproc, times, md5, parseopt, strscans, tables]
+import std / [strutils, os, osproc, times, md5, parseopt, strscans, sequtils, tables]
 
 import compiler/ [llstream, ast, renderer, options, msgs, nversion]
 
@@ -179,8 +179,10 @@ proc ccpreprocess(infile: string,
   args.add(ppoptions.extraFlags)
   args.add([infile, "-o", outfile])
   for pth in ppoptions.includes: args.add("-I" & pth)
-  discard execProcess(ppoptions.cc, args=args,
+  let res = execCmdEx(ppoptions.cc & " " & args.mapIt(it.quoteShell()).join(" "),
                          options={poUsePath, poStdErrToStdOut})
+  if res.exitCode != 0:
+    raise newException(ValueError, "[c2nim] Error running CC preprocessor: " & res.output)
   var stream = llStreamOpen(AbsoluteFile outfile, fmRead)
   if stream == nil:
     when declared(NimCompilerApiVersion):

@@ -6,6 +6,8 @@ import
   rcl/allocator, rcl/log_level, rcl/macros, rcl/types, rcl/visibility_control,
   rcl_yaml_param_parser/types
 
+_Static_assert(sizeof(((constructrcutils_error_string_t))) ==
+    (768 + (1024 - 768 - 20 - 6 - 1) + 20 + 6 + 1), "Maximum length calculations incorrect")
 type
 
   rcl_arguments_impl_t* = rcl_arguments_impl_s
