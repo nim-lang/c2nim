@@ -40,6 +40,7 @@ type
     pfImportc,          ## annotate procs with importc
     pfNoConv,           ## annotate procs with noconv
     pfSkipInclude,      ## skip all ``#include``
+    pfC2NimInclude,     ## include c2nim in concat mode
     pfTypePrefixes,     ## all generated types start with 'T' or 'P'
     pfSkipComments,     ## do not generate comments
     pfCpp,              ## process C++
@@ -174,6 +175,7 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
     let vals = (r"{u?}int{\d+}_t", r"$1int$2")
     parserOptions.mangleRules.add((parsePeg(vals[0]), vals[1]))
   of "skipinclude": incl(parserOptions.flags, pfSkipInclude)
+  of "includec2nim": incl(parserOptions.flags, pfC2NimInclude)
   of "typeprefixes": incl(parserOptions.flags, pfTypePrefixes)
   of "skipcomments": incl(parserOptions.flags, pfSkipComments)
   of "cpp":

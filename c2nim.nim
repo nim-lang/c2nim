@@ -182,9 +182,8 @@ proc ccpreprocess(infile: string,
   args.add(ppoptions.extraFlags)
   args.add([infile, "-o", outfile])
   for pth in ppoptions.includes: args.add("-I" & pth)
-  let outp = execProcess(ppoptions.cc, args=args,
+  discard execProcess(ppoptions.cc, args=args,
                          options={poUsePath, poStdErrToStdOut})
-  echo "OUTP: ", outp
   var stream = llStreamOpen(AbsoluteFile outfile, fmRead)
   if stream == nil:
     when declared(NimCompilerApiVersion):
@@ -275,6 +274,7 @@ proc main(infiles: seq[string], outfile: var string,
       if not isC2nimFile(infile):
         if outfile.len == 0:
           outfile = changeFileExt(infile.stripPPFile(), "nim")
+      if not isC2nimFile(infile) or pfC2NimInclude in options.flags:
         for n in m: tree.add(n)
     myRenderModule(tree, outfile, options.renderFlags)
   else:
