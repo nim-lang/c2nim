@@ -15,7 +15,8 @@ import
 type
   TRenderFlag* = enum
     renderNone, renderNoBody, renderNoComments, renderDocComments,
-    renderNoPragmas, renderIds, renderNoProcDefs, renderSyms, renderExtraNewLines
+    renderNoPragmas, renderIds, renderNoProcDefs, renderSyms,
+    renderExtraNewLines, renderReindentLongComments
   TRenderFlags* = set[TRenderFlag]
   TRenderTok* = object
     kind*: TTokType
@@ -47,6 +48,7 @@ proc setOption*(renderOptions: var TRenderFlags, val: string): bool =
   result = true
   case val.normalize
   of "extranewlines": incl(renderOptions, renderExtraNewLines)
+  of "reindentlongcomments": incl(renderOptions, renderReindentLongComments)
   else: result = false
 
 # We render the source code in a two phases: The first
@@ -182,6 +184,13 @@ proc putComment(g: var TSrcGen, s: string) =
   var isCode = (len(s) >= 2) and (s[1] != ' ')
   var ind = g.lineLen
   var com = "## "
+
+  if renderReindentLongComments in g.flags and g.lineLen > MaxLineLen:
+    ind = LineCommentColumn
+    put(g, tkComment, com)
+    com = "## "
+    optNL(g, ind)
+
   while i <= hi:
     case s[i]
     of '\0':

@@ -346,6 +346,9 @@ for kind, key, val in getopt():
         quit("[Error] must specify `--preprocess` first")
       if val == "skipclean":
         preprocessOptions.skipClean = true
+      elif val.startsWith("flags="):
+        let flags = val.split("=")[1]
+        preprocessOptions.flags = flags.split()
     else:
       if not parserOptions.setOption(key, val):
         quit("[Error] unknown option: " & key)
