@@ -23,73 +23,75 @@ type
 
   rcl_context_impl_t* = rcl_context_impl_s
 
-  rcl_context_t* {.importc: "rcl_context_t", header: "rcl_context.h", bycopy.} = object ##  Encapsulates the non-global state of an init/shutdown cycle.
-                                                                                ##
-                                                                                ##  The context is used in the creation of top level entities like nodes and
-                                                                                ##  guard conditions, as well as to shutdown a specific instance of init.
-                                                                                ##
-                                                                                ##  Here is a diagram of a typical context's lifecycle:
-                                                                                ##
-                                                                                ##  ```
-                                                                                ##     +---------------+
-                                                                                ##     |               |
-                                                                                ##  +--> uninitialized +---> rcl_get_zero_initialized_context() +
-                                                                                ##  |  |               |                                        |
-                                                                                ##  |  +---------------+                                        |
-                                                                                ##  |                                                           |
-                                                                                ##  |           +-----------------------------------------------+
-                                                                                ##  |           |
-                                                                                ##  |  +--------v---------+                +-----------------------+
-                                                                                ##  |  |                  |                |                       |
-                                                                                ##  |  | zero-initialized +-> rcl_init() +-> initialized and valid +-> rcl_shutdown() +
-                                                                                ##  |  |                  |                |                       |                  |
-                                                                                ##  |  +------------------+                +-----------------------+                  |
-                                                                                ##  |                                                                                 |
-                                                                                ##  |               +-----------------------------------------------------------------+
-                                                                                ##  |               |
-                                                                                ##  |  +------------v------------+
-                                                                                ##  |  |                         |
-                                                                                ##  |  | initialized but invalid +---> finalize all entities, then rcl_context_fini() +
-                                                                                ##  |  |                         |                                                    |
-                                                                                ##  |  +-------------------------+                                                    |
-                                                                                ##  |                                                                                 |
-                                                                                ##  +---------------------------------------------------------------------------------+
-                                                                                ##  ```
-                                                                                ##
-                                                                                ##  A declared but not defined rcl_context_t instance is considered to be
-                                                                                ##  "uninitialized", and passing an uninitialized context to any functions will
-                                                                                ##  result in undefined behavior.
-                                                                                ##  Some functions, like rcl_init() require the context instance to be
-                                                                                ##  zero initialized (all members set to "zero" state) before use.
-                                                                                ##
-                                                                                ##  Zero initialization of an rcl_context_t should be done with
-                                                                                ##  rcl_get_zero_initialized_context(), which ensures the context is in a safe
-                                                                                ##  state for initialization with rcl_init().
-                                                                                ##
-                                                                                ##  Initialization of an rcl_context_t should be done with rcl_init(), after
-                                                                                ##  which the context is considered both initialized and valid.
-                                                                                ##  After initialization it can be used in the creation of other entities like
-                                                                                ##  nodes and guard conditions.
-                                                                                ##
-                                                                                ##  At any time the context can be invalidated by calling rcl_shutdown() on
-                                                                                ##  the rcl_context_t, after which the context is still initialized but now
-                                                                                ##  invalid.
-                                                                                ##
-                                                                                ##  Invalidation indicates to other entities that the context was shutdown, but
-                                                                                ##  is still accessible for use during cleanup of themselves.
-                                                                                ##
-                                                                                ##  After being invalidated, and after all of the entities which used it have
-                                                                                ##  been finalized, the context should be finalized with rcl_context_fini().
-                                                                                ##
-                                                                                ##  Finalizing the context while entities which have copies of it have not yet
-                                                                                ##  been finalized is undefined behavior.
-                                                                                ##  Therefore, the context's lifetime (between calls to rcl_init() and
-                                                                                ##  rcl_context_fini()) should exceed the lifetime of all entities which use
-                                                                                ##  it directly (e.g. nodes and guard conditions) or indirectly (e.g.
-                                                                                ##  subscriptions and topics).
-                                                                                ##
-    global_arguments* {.importc: "global_arguments".}: rcl_arguments_t ##  Global arguments for all nodes which share this context.
-                                                                   ##  Typically generated by the parsing of argc/argv in rcl_init().
+  rcl_context_t* {.importc: "rcl_context_t", header: "rcl_context.h", bycopy.} = object ##
+                              ##  Encapsulates the non-global state of an init/shutdown cycle.
+                              ##
+                              ##  The context is used in the creation of top level entities like nodes and
+                              ##  guard conditions, as well as to shutdown a specific instance of init.
+                              ##
+                              ##  Here is a diagram of a typical context's lifecycle:
+                              ##
+                              ##  ```
+                              ##     +---------------+
+                              ##     |               |
+                              ##  +--> uninitialized +---> rcl_get_zero_initialized_context() +
+                              ##  |  |               |                                        |
+                              ##  |  +---------------+                                        |
+                              ##  |                                                           |
+                              ##  |           +-----------------------------------------------+
+                              ##  |           |
+                              ##  |  +--------v---------+                +-----------------------+
+                              ##  |  |                  |                |                       |
+                              ##  |  | zero-initialized +-> rcl_init() +-> initialized and valid +-> rcl_shutdown() +
+                              ##  |  |                  |                |                       |                  |
+                              ##  |  +------------------+                +-----------------------+                  |
+                              ##  |                                                                                 |
+                              ##  |               +-----------------------------------------------------------------+
+                              ##  |               |
+                              ##  |  +------------v------------+
+                              ##  |  |                         |
+                              ##  |  | initialized but invalid +---> finalize all entities, then rcl_context_fini() +
+                              ##  |  |                         |                                                    |
+                              ##  |  +-------------------------+                                                    |
+                              ##  |                                                                                 |
+                              ##  +---------------------------------------------------------------------------------+
+                              ##  ```
+                              ##
+                              ##  A declared but not defined rcl_context_t instance is considered to be
+                              ##  "uninitialized", and passing an uninitialized context to any functions will
+                              ##  result in undefined behavior.
+                              ##  Some functions, like rcl_init() require the context instance to be
+                              ##  zero initialized (all members set to "zero" state) before use.
+                              ##
+                              ##  Zero initialization of an rcl_context_t should be done with
+                              ##  rcl_get_zero_initialized_context(), which ensures the context is in a safe
+                              ##  state for initialization with rcl_init().
+                              ##
+                              ##  Initialization of an rcl_context_t should be done with rcl_init(), after
+                              ##  which the context is considered both initialized and valid.
+                              ##  After initialization it can be used in the creation of other entities like
+                              ##  nodes and guard conditions.
+                              ##
+                              ##  At any time the context can be invalidated by calling rcl_shutdown() on
+                              ##  the rcl_context_t, after which the context is still initialized but now
+                              ##  invalid.
+                              ##
+                              ##  Invalidation indicates to other entities that the context was shutdown, but
+                              ##  is still accessible for use during cleanup of themselves.
+                              ##
+                              ##  After being invalidated, and after all of the entities which used it have
+                              ##  been finalized, the context should be finalized with rcl_context_fini().
+                              ##
+                              ##  Finalizing the context while entities which have copies of it have not yet
+                              ##  been finalized is undefined behavior.
+                              ##  Therefore, the context's lifetime (between calls to rcl_init() and
+                              ##  rcl_context_fini()) should exceed the lifetime of all entities which use
+                              ##  it directly (e.g. nodes and guard conditions) or indirectly (e.g.
+                              ##  subscriptions and topics).
+                              ##
+    global_arguments* {.importc: "global_arguments".}: rcl_arguments_t ##
+                              ##  Global arguments for all nodes which share this context.
+                              ##  Typically generated by the parsing of argc/argv in rcl_init().
     impl* {.importc: "impl".}: ptr rcl_context_impl_t ##  Implementation specific pointer.
     ##  The assumption that this is big enough for an atomic_uint_least64_t is
     ##  ensured with a static_assert in the context.c file.
@@ -102,25 +104,25 @@ type
     ##  Private storage for instance ID atomic.
     instance_id_storage* {.importc: "instance_id_storage".}: array[
         RCL_CONTEXT_ATOMIC_INSTANCE_ID_STORAGE_SIZE, uint8] ##
-                                                          ##  Accessing the instance id should be done using the function
-                                                          ##
-                                                          ## rcl_context_get_instance_id() because the instance id's type is an
-                                                          ##  atomic and needs to be accessed properly to ensure safety.
-                                                          ##
-                                                          ##  The instance id should not be changed manually - doing so is undefined
-                                                          ##  behavior.
-                                                          ##
-                                                          ##  The instance id cannot be protected within the `impl` pointer's type
-                                                          ##  because it needs to be accessible even when the context is zero
-                                                          ##  initialized and therefore `impl` is `NULL`.
-                                                          ##  Specifically, storing the instance id in the `impl` would introduce a
-                                                          ##  race condition between accessing it and finalizing the context.
-                                                          ##  Additionally, C11 atomics (i.e. "stdatomic.h") cannot be used directly
-                                                          ##  here in the case that this header is included into a C++ program.
-                                                          ##  See this paper for an effort to make this possible in the future:
-                                                          ##
-                                                          ## http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0943r1.html
-                                                          ##
+                              ##
+                              ##  Accessing the instance id should be done using the function
+                              ##  rcl_context_get_instance_id() because the instance id's type is an
+                              ##  atomic and needs to be accessed properly to ensure safety.
+                              ##
+                              ##  The instance id should not be changed manually - doing so is undefined
+                              ##  behavior.
+                              ##
+                              ##  The instance id cannot be protected within the `impl` pointer's type
+                              ##  because it needs to be accessible even when the context is zero
+                              ##  initialized and therefore `impl` is `NULL`.
+                              ##  Specifically, storing the instance id in the `impl` would introduce a
+                              ##  race condition between accessing it and finalizing the context.
+                              ##  Additionally, C11 atomics (i.e. "stdatomic.h") cannot be used directly
+                              ##  here in the case that this header is included into a C++ program.
+                              ##  See this paper for an effort to make this possible in the future:
+                              ##
+                              ## http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0943r1.html
+                              ##
 
 
 

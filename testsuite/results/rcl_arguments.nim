@@ -10,8 +10,10 @@ type
 
   rcl_arguments_impl_t* = rcl_arguments_impl_s
 
-  rcl_arguments_t* {.importc: "rcl_arguments_t", header: "rcl_arguments.h", bycopy.} = object ##  Hold output of parsing command line arguments.
-    impl* {.importc: "impl".}: ptr rcl_arguments_impl_t ##  Private implementation pointer.
+  rcl_arguments_t* {.importc: "rcl_arguments_t", header: "rcl_arguments.h", bycopy.} = object ##
+                              ##  Hold output of parsing command line arguments.
+    impl* {.importc: "impl".}: ptr rcl_arguments_impl_t ##
+                              ##  Private implementation pointer.
 
 
 const
@@ -45,7 +47,8 @@ const
   RCL_LOG_LEVEL_FLAG* = "--log-level" ##  The ROS flag that precedes the ROS logging level to set.
 
 const
-  RCL_EXTERNAL_LOG_CONFIG_FLAG* = "--log-config-file" ##  The ROS flag that precedes the name of a configuration file to configure logging.
+  RCL_EXTERNAL_LOG_CONFIG_FLAG* = "--log-config-file" ##
+                              ##  The ROS flag that precedes the name of a configuration file to configure logging.
 
 const
   RCL_LOG_STDOUT_FLAG_SUFFIX* = "stdout-logs" ##  The suffix of the ROS flag to enable or disable stdout
