@@ -147,9 +147,8 @@ proc reorderComments(n: PNode) =
     inc i
 
 proc mergeSimilarBlocks(n: PNode) = 
-
-  ## reorder C style comments to Nim style ones
-  let commentKinds = {nkTypeSection, nkIdentDefs, nkProcDef, nkConstSection}
+  ## merge similar types of blocks
+  let blockKinds = {nkTypeSection, nkConstSection, nkVarSection}
   template moveBlock(idx, prev) =
     for ch in n[idx]:
       n[prev].add(newNode(nkStmtList))
@@ -159,9 +158,10 @@ proc mergeSimilarBlocks(n: PNode) =
   var i = 0
   while i < n.safeLen - 1:
     let kind = n[i].kind
-    if kind == nkTypeSection:
+    if kind in blockKinds:
       if n[i+1].kind == kind:
         moveBlock(i+1, i)
+        continue
     inc i
   
 
