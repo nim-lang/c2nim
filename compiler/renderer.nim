@@ -185,7 +185,8 @@ proc putComment(g: var TSrcGen, s: string) =
   var ind = g.lineLen
   var com = "## "
 
-  if renderReindentLongComments in g.flags and g.lineLen > MaxLineLen:
+  if renderReindentLongComments in g.flags and
+      g.lineLen > MaxLineLen - LineCommentColumn:
     ind = LineCommentColumn
     put(g, tkComment, com)
     com = "## "
