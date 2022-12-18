@@ -731,5 +731,4 @@ proc parseRemoveIncludes*(p: var Parser, infile: string): PNode =
       result.add(code)
 
   echo "done parsing preprocessed C file"
-  echo "file: ", infile
   
