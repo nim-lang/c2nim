@@ -175,7 +175,9 @@ proc deletesNode(c: Context, n: var PNode) =
 
     # handle let's
     if n[i].kind in {nkIdentDefs}:
-      if c.deletes.hasKey( strip($(n[i][0]), chars={'*'}) ):
+      # echo "N:IDENTS: ", n[i][0]
+      if c.deletes.hasKey( split($(n[i][0]), "*")[0] ):
+        # echo "N:LETS: ", n[i][0]
         delete(n.sons, i)
         continue
 
@@ -199,6 +201,11 @@ proc deletesNode(c: Context, n: var PNode) =
         delete(n.sons, i)
         continue
     inc i
+
+  # if n.kind in {nkLetSection}:
+  #   echo "N:KIND: "
+  #   if n.len() == 0:
+  #     echo "EMPTY LETS"
 
 proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
 
