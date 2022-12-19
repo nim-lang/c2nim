@@ -171,7 +171,7 @@ proc ccpreprocess(infile: string,
   if infile.isAbsolute():
     gConfig.projectPath = getCurrentDir().AbsoluteDir
   let infile = infile.absolutePath()
-  echo "gConfig: ", string gConfig.projectPath
+  # echo "gConfig: ", string gConfig.projectPath
   let outfile = infile & ".pre"
   let postfile = infile & ".pp"
   var args = newSeq[string]()
@@ -328,8 +328,6 @@ for kind, key, val in getopt():
       parserOptions.exportPrefix = val
     of "def":
       parserOptions.parseDefineArgs(val)
-    of "delete":
-      parserOptions.deletes[val] = "proc"
     of "render":
       if not parserOptions.renderFlags.setOption(val):
         quit("[Error] unknown option: " & key)

@@ -113,7 +113,7 @@ type
 
   SectionParser = proc(p: var Parser): PNode {.nimcall.}
 
-proc parseDir(p: var Parser; sectionParser: SectionParser): PNode
+proc parseDir(p: var Parser; sectionParser: SectionParser, recur = false): PNode
 proc addTypeDef(section, name, t, genericParams: PNode)
 proc parseStruct(p: var Parser, stmtList: PNode): PNode
 proc parseStructBody(p: var Parser, stmtList: PNode,
@@ -195,6 +195,7 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "reordercomments": incl(parserOptions.flags, pfReorderComments)
   of "mergeblocks": incl(parserOptions.flags, pfMergeBlocks)
   of "isarray": parserOptions.isArray[val] = "true"
+  of "delete": parserOptions.deletes[val] = ""
   else: result = false
 
 proc openParser*(p: var Parser, filename: string,

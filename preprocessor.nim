@@ -584,9 +584,10 @@ proc parseOverride(p: var Parser; tab: StringTableRef) =
   getTok(p)
   eatNewLine(p, nil)
 
-proc parseDir(p: var Parser; sectionParser: SectionParser): PNode =
+proc parseDir(p: var Parser; sectionParser: SectionParser, recur = false): PNode =
   result = emptyNode
-  assert(p.tok.xkind in {pxDirective, pxDirectiveParLe})
+  if not recur:
+    assert(p.tok.xkind in {pxDirective, pxDirectiveParLe})
   case p.tok.s
   of "define":
     let hasParams = p.tok.xkind == pxDirectiveParLe
@@ -633,7 +634,9 @@ proc parseDir(p: var Parser; sectionParser: SectionParser): PNode =
       getTok(p)
     eatNewLine(p, nil)
     result = emptyNode
-  of "dynlib", "prefix", "suffix", "class", "discardableprefix", "assumedef", "assumendef", "isarray":
+  of "dynlib", "prefix", "suffix", "class", "discardableprefix",
+      "assumedef", "assumendef", "isarray",
+      "delete":
     var key = p.tok.s
     getTok(p)
     if p.tok.xkind != pxStrLit: expectIdent(p)
@@ -641,6 +644,15 @@ proc parseDir(p: var Parser; sectionParser: SectionParser): PNode =
     getTok(p)
     eatNewLine(p, nil)
     result = emptyNode
+  of "pragma":
+    # recursively parse c2nim pragma's
+    # these make it easier to use without using a C2NIM guard
+    getTok(p)
+    if p.tok.s != "c2nim":
+      skipLine(p)
+    else:
+      getTok(p)
+      result = parseDir(p, sectionParser, true)
   of "mangle":
     parseMangleDir(p)
   of "pp":

@@ -28,6 +28,9 @@ enum RCUTILS_LOG_SEVERITY
   RCUTILS_LOG_SEVERITY_FATAL = 50,  ///< The fatal log level
 };
 
+#pragma c2nim delete g_rcutils_log_severity_names
+#pragma c2nim reordercomments
+
 // The names of severity levels.
 __attribute__ ((visibility("default")))
 extern const char * const g_rcutils_log_severity_names[RCUTILS_LOG_SEVERITY_FATAL + 1];
