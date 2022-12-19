@@ -13,7 +13,7 @@
 ## - Fixes some empty statement sections.
 ## - Tries to rewrite braced initializers to be more accurate.
 
-import std / [tables, sets]
+import std / [tables, sets, strutils]
 
 import compiler/[ast, renderer, idents]
 
@@ -173,6 +173,12 @@ proc deletesNode(c: Context, n: var PNode) =
     # echo "n[i]: ", n[i].kind, " ", repr n[i]
     # echo "n[i]: ", n[i].kind, " ", n[i]
 
+    # handle let's
+    if n[i].kind in {nkIdentDefs}:
+      if c.deletes.hasKey( strip($(n[i][0]), chars={'*'}) ):
+        delete(n.sons, i)
+        continue
+
     # handle postfix -- e.g. types
     if n[i].kind in {nkPostfix}:
       if c.deletes.hasKey($n[i][1]):
@@ -189,13 +195,10 @@ proc deletesNode(c: Context, n: var PNode) =
     if n[i].kind in {nkImportStmt}:
       deletesNode(c, n[i])
     if n[i].kind in {nkIdent}:
-      # echo "nkIdent: ", $n[i]
       if c.deletes.hasKey($n[i]):
-        # echo "\nMATCH: nkIdent: ", n[i]
         delete(n.sons, i)
         continue
     inc i
-
 
 proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
 

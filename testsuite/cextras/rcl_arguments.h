@@ -18,6 +18,9 @@ extern "C"
 {
 #endif
 
+// The names of severity levels.
+extern const char * const g_rcutils_log_severity_names[RCUTILS_LOG_SEVERITY_FATAL + 1];
+
 _Static_assert(sizeof((constructrcutils_error_string_t)) ==
     (768 + (1024 - 768 - 20 - 6 - 1) + 20 + 6 + 1), "Maximum length calculations incorrect");
 
