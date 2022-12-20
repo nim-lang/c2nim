@@ -64,7 +64,7 @@ type
     assumeDef, assumenDef: seq[string]
     mangleRules: seq[tuple[pattern: Peg, frmt: string]]
     privateRules: seq[Peg]
-    dynlibSym, headerOverride: string
+    dynlibSym, headerOverride, headerPrefix: string
     macros*: seq[Macro]
     deletes*: Table[string, string]
     toMangle: StringTableRef
@@ -136,6 +136,7 @@ proc newParserOptions*(): PParserOptions =
     renderFlags: {},
     dynlibSym: "",
     headerOverride: "",
+    headerPrefix: "",
     toMangle: newStringTable(modeCaseSensitive),
     classes: newStringTable(modeCaseSensitive),
     toPreprocess: newStringTable(modeCaseSensitive),
@@ -156,6 +157,8 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "header":
     parserOptions.useHeader = true
     if val.len > 0: parserOptions.headerOverride = val
+  of "headerprefix":
+    if val.len > 0: parserOptions.headerPrefix = val
   of "importfuncdefines":
     parserOptions.importfuncdefines = true
   of "importdefines":

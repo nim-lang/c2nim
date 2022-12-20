@@ -92,10 +92,11 @@ proc mangledIdent(ident: string, p: Parser; kind: TSymKind): PNode =
   result.ident = getIdent(mangleName(ident, p, kind))
 
 proc getHeaderPair(p: Parser): PNode =
+  let pre = p.options.headerPrefix
   if p.options.headerOverride.len > 0:
-    newIdentPair("header", p.options.headerOverride, p)
+    newIdentPair("header", pre & p.options.headerOverride, p)
   else:
-    newIdentStrLitPair("header", p.header, p)
+    newIdentStrLitPair("header", pre & p.header, p)
 
 proc addImportToPragma(pragmas: PNode, ident: string, p: Parser) =
   if pfImportc in p.options.flags:

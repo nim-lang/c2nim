@@ -643,7 +643,7 @@ proc parseDir(p: var Parser; sectionParser: SectionParser, recur = false): PNode
     eatNewLine(p, nil)
     result = emptyNode
   of "dynlib", "prefix", "suffix", "class", "discardableprefix",
-      "assumedef", "assumendef", "isarray", "delete":
+      "assumedef", "assumendef", "isarray", "delete", "headerprefix":
     var key = p.tok.s
     getTok(p)
     if p.tok.xkind != pxStrLit: expectIdent(p)
