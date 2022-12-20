@@ -47,6 +47,16 @@ type
 proc setOption*(renderOptions: var TRenderFlags, val: string): bool =
   result = true
   case val.normalize
+  of "renderNone": incl(renderOptions, renderNone)
+  of "renderNoBody": incl(renderOptions, renderNoBody)
+  of "renderNoComments": incl(renderOptions, renderNoComments)
+  of "renderDocComments": incl(renderOptions, renderDocComments)
+  of "renderNoPragmas": incl(renderOptions, renderNoPragmas)
+  of "renderIds": incl(renderOptions, renderIds)
+  of "renderNoProcDefs": incl(renderOptions, renderNoProcDefs)
+  of "renderSyms": incl(renderOptions, renderSyms)
+  of "renderExtraNewLines": incl(renderOptions, renderExtraNewLines)
+  of "renderReindentLongComments": incl(renderOptions, renderReindentLongComments)
   of "extranewlines": incl(renderOptions, renderExtraNewLines)
   of "reindentlongcomments": incl(renderOptions, renderReindentLongComments)
   else: result = false
