@@ -617,7 +617,7 @@ proc parseDir(p: var Parser; sectionParser: SectionParser, recur = false): PNode
   of "if": result = parseIfDir(p, sectionParser)
   of "cdecl", "stdcall", "ref", "skipinclude", "typeprefixes", "skipcomments",
      "keepbodies", "cpp", "nep1", "assumeifistrue", "structstruct",
-     "importfuncdefines", "importdefines", "stdints", "delete":
+     "importfuncdefines", "importdefines", "stdints":
     discard setOption(p.options, p.tok.s)
     getTok(p)
     eatNewLine(p, nil)
@@ -637,8 +637,7 @@ proc parseDir(p: var Parser; sectionParser: SectionParser, recur = false): PNode
     eatNewLine(p, nil)
     result = emptyNode
   of "dynlib", "prefix", "suffix", "class", "discardableprefix",
-      "assumedef", "assumendef", "isarray",
-      "delete":
+      "assumedef", "assumendef", "isarray", "delete":
     var key = p.tok.s
     getTok(p)
     if p.tok.xkind != pxStrLit: expectIdent(p)
