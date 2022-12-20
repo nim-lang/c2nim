@@ -177,7 +177,6 @@ proc deletesNode(c: Context, n: var PNode) =
 
     # handle let's
     if n[i].kind in {nkIdentDefs}:
-      echo "DEL:N:IDENTS: ", n[i]
       if n[i].hasChild() and c.deletes.hasKey( split($(n[i][0]), "*")[0] ):
         # echo "N:LETS: ", n[i][0]
         delete(n.sons, i)
