@@ -617,7 +617,8 @@ proc parseDir(p: var Parser; sectionParser: SectionParser, recur = false): PNode
   of "if": result = parseIfDir(p, sectionParser)
   of "cdecl", "stdcall", "ref", "skipinclude", "typeprefixes", "skipcomments",
      "keepbodies", "cpp", "nep1", "assumeifistrue", "structstruct",
-     "importfuncdefines", "importdefines", "stdints":
+     "importfuncdefines", "importdefines",
+     "stdints", "reordercomments", "mergeblocks":
     discard setOption(p.options, p.tok.s)
     getTok(p)
     eatNewLine(p, nil)
@@ -656,15 +657,7 @@ proc parseDir(p: var Parser; sectionParser: SectionParser, recur = false): PNode
     getTok(p)
     if p.tok.s == "c2nim":
       getTok(p)
-      var key = p.tok.s
-      getTok(p)
-      let res = 
-        if p.tok.xkind == pxNewLine:
-          setOption(p.options, key)
-        else:
-          setOption(p.options, key, p.tok.s)
-      if not res:
-        echo "[warning] ignoring unhandled option: ", key
+      result = parseDir(p, sectionParser, true)
     skipLine(p)
     result = emptyNode
   of "mangle":
@@ -686,6 +679,7 @@ proc parseDir(p: var Parser; sectionParser: SectionParser, recur = false): PNode
     eatNewLine(p, nil)
   else:
     # ignore unimportant/unknown directive ("undef", "pragma", "error")
+    echo "[warning] preprocessor ignoring option: " & p.tok.s
     skipLine(p)
 
 proc parseRemoveIncludes*(p: var Parser, infile: string): PNode =
