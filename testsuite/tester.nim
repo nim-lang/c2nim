@@ -52,6 +52,7 @@ proc test(t, cmd, origin: string) =
   let (_, name, _) = splitFile(t)
   if infiles.len() > 0 and not (name in infiles):
     return
+  echo "TEST: ", name
   exec(cmd % t)
   let nimFile = name & ".nim"
   if readFile(dir & origin / nimFile) != readFile(dir & "results" / nimFile):
