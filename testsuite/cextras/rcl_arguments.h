@@ -28,7 +28,7 @@ enum RCUTILS_LOG_SEVERITY
   RCUTILS_LOG_SEVERITY_FATAL = 50,  ///< The fatal log level
 };
 
-#pragma c2nim mergeblocksafdaf
+#pragma c2nim mergeblocksfda
 #pragma c2nim delete g_rcutils_log_severity_names
 #pragma c2nim reordercomments
 

@@ -653,11 +653,14 @@ proc parseDir(p: var Parser; sectionParser: SectionParser, recur = false): PNode
       getTok(p)
       var key = p.tok.s
       getTok(p)
-      if p.tok.xkind == pxNewLine:
-        discard setOption(p.options, key)
-      else:
-        echo "OPTION: ", key, " ", p.tok.s
-        discard setOption(p.options, key, p.tok.s)
+      let res = 
+        if p.tok.xkind == pxNewLine:
+          setOption(p.options, key)
+        else:
+          echo "OPTION: ", key, " ", p.tok.s
+          setOption(p.options, key, p.tok.s)
+      if not res:
+        echo "[warning] ignoring unhandled option: ", key
     skipLine(p)
     result = emptyNode
   of "mangle":
