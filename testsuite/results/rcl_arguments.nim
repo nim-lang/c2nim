@@ -20,7 +20,6 @@ type
 ##  The names of severity levels.
 
 
-
 proc rcl_get_zero_initialized_arguments*(): rcl_arguments_t {.
     importc: "rcl_get_zero_initialized_arguments", header: "rcl_arguments.h".}
   ##    Return a rcl_arguments_t struct with members initialized to `NULL`.

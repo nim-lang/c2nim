@@ -171,26 +171,31 @@ proc deletesNode(c: Context, n: var PNode) =
 
   let blockKinds = {nkPostfix, nkCall}
   var i = 0
+  # echo "  PRE: ", n.kind, " "
   while i < n.safeLen:
     # echo "n[i]: ", n[i].kind, " ", repr n[i]
     # echo "n[i]: ", n[i].kind, " ", n[i]
+    # echo "    n[i]:PRE: ", n.kind, " "
 
     # handle let's
     if n[i].kind in {nkIdentDefs}:
       if n[i].hasChild() and c.deletes.hasKey( split($(n[i][0]), "*")[0] ):
         # echo "N:LETS: ", n[i][0]
+        echo "DELETE:lets"
         delete(n.sons, i)
         continue
 
     # handle postfix -- e.g. types
     if n[i].kind in {nkPostfix}:
       if c.deletes.hasKey($n[i][1]):
+        echo "DELETE:postfix"
         n = newNode(nkEmpty)
         continue
 
     # handle calls
     if n[i].kind in {nkCall}:
       if c.deletes.hasKey($n[i][0]):
+        # echo "DELETE:calls"
         n[i] = newNode(nkEmpty)
         continue
     
@@ -199,22 +204,31 @@ proc deletesNode(c: Context, n: var PNode) =
       deletesNode(c, n[i])
     if n[i].kind in {nkIdent}:
       if c.deletes.hasKey($n[i]):
+        # echo "DELETE:imports"
         delete(n.sons, i)
         continue
     inc i
 
-  # if n.kind in {nkLetSection}:
-  #   echo "N:KIND: "
-  #   if n.len() == 0:
-  #     echo "EMPTY LETS"
+    # echo "   n[i]:POST: ", n.kind, " ", n
+  # echo "  POST: ", n.kind, " ", n
+
+  block removeBlank:
+    if n.kind in {nkLetSection, nkTypeSection, nkVarSection, nkImportStmt}:
+      for c in n:
+        if c.kind in [nkIdent]:
+          break removeBlank
+        if not (c.kind in [nkEmpty, nkCommentStmt] or c.len() == 0):
+          break removeBlank
+      echo "[warning] postprocessor: removing blank section: ", $n.info
+      n = newNode(nkEmpty)
+
 
 proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
 
   if c.reorderComments:
     reorderComments(n)
 
-  if true:
-    deletesNode(c, n)
+  deletesNode(c, n)
 
   if c.mergeBlocks:
     mergeSimilarBlocks(n)
@@ -269,6 +283,8 @@ proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
     for i in 0 ..< n.safeLen: pp(c, n.sons[i], stmtList, idx)
 
   dec depth
+
+  deletesNode(c, n)
 
 proc postprocess*(n: PNode; flags: set[ParserFlag], deletes: Table[string, string]): PNode =
   var c = Context(typedefs: initTable[string, PNode](),
