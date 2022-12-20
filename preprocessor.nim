@@ -657,7 +657,6 @@ proc parseDir(p: var Parser; sectionParser: SectionParser, recur = false): PNode
         if p.tok.xkind == pxNewLine:
           setOption(p.options, key)
         else:
-          echo "OPTION: ", key, " ", p.tok.s
           setOption(p.options, key, p.tok.s)
       if not res:
         echo "[warning] ignoring unhandled option: ", key
