@@ -621,6 +621,10 @@ proc parseDir(p: var Parser; sectionParser: SectionParser, recur = false): PNode
     discard setOption(p.options, p.tok.s)
     getTok(p)
     eatNewLine(p, nil)
+  of "render":
+    discard setOption(p.options.renderFlags, p.tok.s)
+    getTok(p)
+    eatNewLine(p, nil)
   of "header":
     var key = p.tok.s
     getTok(p)
