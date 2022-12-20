@@ -658,8 +658,9 @@ proc parseDir(p: var Parser; sectionParser: SectionParser, recur = false): PNode
     if p.tok.s == "c2nim":
       getTok(p)
       result = parseDir(p, sectionParser, true)
-    skipLine(p)
-    result = emptyNode
+    else:
+      skipLine(p)
+      result = emptyNode
   of "mangle":
     parseMangleDir(p)
   of "pp":
