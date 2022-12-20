@@ -6,6 +6,24 @@ import
   rcl/allocator, rcl/log_level, rcl/macros, rcl/types, rcl/visibility_control,
   rcl_yaml_param_parser/types
 
+type
+
+  RCUTILS_LOG_SEVERITY* {.size: sizeof(cint).} = enum
+    RCUTILS_LOG_SEVERITY_UNSET = 0, ## < The unset log level
+    RCUTILS_LOG_SEVERITY_DEBUG = 10, ## < The debug log level
+    RCUTILS_LOG_SEVERITY_INFO = 20, ## < The info log level
+    RCUTILS_LOG_SEVERITY_WARN = 30, ## < The warn log level
+    RCUTILS_LOG_SEVERITY_ERROR = 40, ## < The error log level
+    RCUTILS_LOG_SEVERITY_FATAL = 50 ## < The fatal log level
+
+
+##  The names of severity levels.
+
+
+
+proc rcl_get_zero_initialized_arguments*(): rcl_arguments_t {.
+    importc: "rcl_get_zero_initialized_arguments", header: "rcl_arguments.h".}
+  ##    Return a rcl_arguments_t struct with members initialized to `NULL`.
 _Static_assert(sizeof(((constructrcutils_error_string_t))) ==
     (768 + (1024 - 768 - 20 - 6 - 1) + 20 + 6 + 1), "Maximum length calculations incorrect")
 type

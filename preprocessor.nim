@@ -588,7 +588,7 @@ proc parseDir(p: var Parser; sectionParser: SectionParser, recur = false): PNode
   result = emptyNode
   if not recur:
     assert(p.tok.xkind in {pxDirective, pxDirectiveParLe})
-  case p.tok.s
+  case p.tok.s.normalize()
   of "define":
     let hasParams = p.tok.xkind == pxDirectiveParLe
 
