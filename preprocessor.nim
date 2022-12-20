@@ -616,7 +616,8 @@ proc parseDir(p: var Parser; sectionParser: SectionParser, recur = false): PNode
   of "ifndef": result = parseIfndef(p, sectionParser)
   of "if": result = parseIfDir(p, sectionParser)
   of "cdecl", "stdcall", "ref", "skipinclude", "typeprefixes", "skipcomments",
-     "keepbodies", "cpp", "nep1", "assumeifistrue", "structstruct":
+     "keepbodies", "cpp", "nep1", "assumeifistrue", "structstruct",
+     "importfuncdefines", "importdefines", "stdints", "delete":
     discard setOption(p.options, p.tok.s)
     getTok(p)
     eatNewLine(p, nil)
