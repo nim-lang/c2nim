@@ -591,6 +591,7 @@ proc parseDir(p: var Parser; sectionParser: SectionParser, recur = false): PNode
   case p.tok.s
   of "define":
     let hasParams = p.tok.xkind == pxDirectiveParLe
+
     rawGetTok(p) # this is part of m4 define section, which shouldn't expand
     expectIdent(p)
     let isDefOverride = p.options.toPreprocess.hasKey(p.tok.s)
@@ -648,11 +649,17 @@ proc parseDir(p: var Parser; sectionParser: SectionParser, recur = false): PNode
     # recursively parse c2nim pragma's
     # these make it easier to use without using a C2NIM guard
     getTok(p)
-    if p.tok.s != "c2nim":
-      skipLine(p)
-    else:
+    if p.tok.s == "c2nim":
       getTok(p)
-      result = parseDir(p, sectionParser, true)
+      var key = p.tok.s
+      getTok(p)
+      if p.tok.xkind == pxNewLine:
+        discard setOption(p.options, key)
+      else:
+        echo "OPTION: ", key, " ", p.tok.s
+        discard setOption(p.options, key, p.tok.s)
+    skipLine(p)
+    result = emptyNode
   of "mangle":
     parseMangleDir(p)
   of "pp":
