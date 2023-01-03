@@ -307,6 +307,18 @@ used for the same purpose.
 The ``#skipcomments`` directive can be put into the C code to make c2nim
 ignore comments and not copy them into the generated Nim file.
 
+``#headerprefix`` directive
+--------------------------
+**Note**: There is also a ``--headerprefix`` command line option that can be
+used for the same purpose.
+
+The ``#headerPrefix`` directive will append the raw string to beginning of C 
+headers when generating import pragmas. This is useful for prepending the
+include folders that many C projects use.
+
+.. code-block:: C
+  #headerPrefix "c_project/"
+
 ``#mergeBlocks`` directive
 --------------------------
 **Note**: There is also a ``--mergeBlocks`` command line option that can be

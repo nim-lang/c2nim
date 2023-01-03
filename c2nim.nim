@@ -57,7 +57,8 @@ Options:
                          convert C <stdint.h> to Nim equivalents
                          (multiple --mangle options are supported)
   --stdints              Mangle C stdint's into Nim style int's
-  --paramprefix:PREFIX   add prefix to parameter name of the generated Nim proc
+  --paramPrefix:PREFIX   add prefix to parameter name of the generated Nim proc
+  --headerPrefix:PREFIX  add prefix to C header files of generated Nim imports 
   --assumedef:IDENT      skips #ifndef sections for the given C identifier
                          (multiple --assumedef options are supported)
   --assumendef:IDENT     skips #ifdef sections for the given C identifier
