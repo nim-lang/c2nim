@@ -36,21 +36,6 @@ type
 
 const
   RCL_ROS_ARGS_FLAG* = "--ros-args" ##  The command-line flag that delineates the start of ROS arguments.
-  RCL_ROS_ARGS_EXPLICIT_END_TOKEN* = "--" ##  The token that delineates the explicit end of ROS arguments.
-  RCL_PARAM_FLAG* = "--param"   ##  The ROS flag that precedes the setting of a ROS parameter.
-  RCL_SHORT_PARAM_FLAG* = "-p"  ##  The short version of the ROS flag that precedes the setting of a ROS parameter.
-  RCL_PARAM_FILE_FLAG* = "--params-file" ##  The ROS flag that precedes a path to a file containing ROS parameters.
-  RCL_REMAP_FLAG* = "--remap"   ##  The ROS flag that precedes a ROS remapping rule.
-  RCL_SHORT_REMAP_FLAG* = "-r"  ##  The short version of the ROS flag that precedes a ROS remapping rule.
-  RCL_ENCLAVE_FLAG* = "--enclave" ##  The ROS flag that precedes the name of a ROS security enclave.
-  RCL_SHORT_ENCLAVE_FLAG* = "-e" ##  The short version of the ROS flag that precedes the name of a ROS security enclave.
-  RCL_LOG_LEVEL_FLAG* = "--log-level" ##  The ROS flag that precedes the ROS logging level to set.
-  RCL_EXTERNAL_LOG_CONFIG_FLAG* = "--log-config-file" ##
-                              ##  The ROS flag that precedes the name of a configuration file to configure logging.
-  RCL_LOG_STDOUT_FLAG_SUFFIX* = "stdout-logs" ##  The suffix of the ROS flag to enable or disable stdout
-                                           ##  logging (must be preceded with --enable- or --disable-).
-  RCL_LOG_ROSOUT_FLAG_SUFFIX* = "rosout-logs" ##  The suffix of the ROS flag to enable or disable rosout
-                                           ##  logging (must be preceded with --enable- or --disable-).
   RCL_LOG_EXT_LIB_FLAG_SUFFIX* = "external-lib-logs" ##  The suffix of the ROS flag to enable or disable external library
                                                   ##  logging (must be preceded with --enable- or --disable-).
 
