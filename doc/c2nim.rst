@@ -336,10 +336,12 @@ used for the same purpose.
 
 The ``#delete`` directive can be put into the C code to make c2nim delete 
 certain code in the generated Nim code. For example this can be used to delete
-a proc in the generated output. 
+specific variable in the generated Nim output. 
 
-This is useful for removing certain proc's so that they can be manually added
-by adding embedding raw Nim code. 
+This is most useful when setting up scripts to automate updating wrapper files
+for large C projects. Importing large headers can result in unwanted sections of
+C code being translated. You can exclude these sections entirely or use it to embed
+raw Nim code to fix small tricky bits of C code.
 
 Note that the name should match the output Nim identifier names. In this example
 the code produced by importing ``error_string_t`` will be deleted.
@@ -348,7 +350,7 @@ the code produced by importing ``error_string_t`` will be deleted.
   #nep1
   #delete ErrorStringT
   
-  typedef raw_error_string_t error_string_t;
+  typedef error_string_t error_string_t;
 
 
 ``#typeprefixes`` directive
