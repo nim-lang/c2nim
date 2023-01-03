@@ -307,6 +307,37 @@ used for the same purpose.
 The ``#skipcomments`` directive can be put into the C code to make c2nim
 ignore comments and not copy them into the generated Nim file.
 
+``#mergeBlocks`` directive
+--------------------------
+**Note**: There is also a ``--mergeBlocks`` command line option that can be
+used for the same purpose.
+
+The ``#mergeBlocks`` directive can be put into the C code to make c2nim
+merge similar adjacent sections or "blocks" in the generated Nim code. This works for
+a few kinds of blocks like ``let`` or ``var`` sections. This is helpful when importing
+C code which produces lots of separate ``let`` sections.
+
+``#delete`` directive
+---------------------
+**Note**: There is also a ``--delete:INDENT`` command line option that can be
+used for the same purpose.
+
+The ``#delete`` directive can be put into the C code to make c2nim delete 
+certain code in the generated Nim code. For example this can be used to delete
+a proc in the generated output. 
+
+This is useful for removing certain proc's so that they can be manually added
+by adding embedding raw Nim code. 
+
+Note that the name should match the output Nim identifier names. In this example
+the code produced by importing ``error_string_t`` will be deleted.
+
+.. code-block:: C
+  #nep1
+  #delete ErrorStringT
+  
+  typedef raw_error_string_t error_string_t;
+
 
 ``#typeprefixes`` directive
 ---------------------------
