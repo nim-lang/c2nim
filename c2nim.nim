@@ -42,8 +42,8 @@ Options:
   --stdcall              annotate procs with ``{.stdcall.}``
   --importc              annotate procs with ``{.importc.}``
   --preprocess:$CC       use $CC preprocessor to expand macros
-  --importdefines        import C defines as procs or vars with ``{.importc.}``
-  --importfuncdefines    import C define funcs as procs with ``{.importc.}``
+  --importDefines        import C defines as procs or vars with ``{.importc.}``
+  --importFuncDefines    import C define funcs as procs with ``{.importc.}``
   --def:SYM='macro()'    define a C macro that gets replaced with the given
                          definition. It's parsed by the lexer. Use it to fix
                          function attributes: ``--def:PUBLIC='__attribute__ ()'``
@@ -67,6 +67,9 @@ Options:
   --typeprefixes         generate ``T`` and ``P`` type prefixes
   --nep1                 follow 'NEP 1': Style Guide for Nim Code
   --skipcomments         do not copy comments
+  --delete:NAME          post process option to delete nodes with matching
+                         idents for procs, types, or vars           
+  --mergeBlocks          merge similar adjacent blocks like two let sections
   --ignoreRValueRefs     translate C++'s ``T&&`` to ``T`` instead ``of var T``
   --keepBodies           keep C++'s method bodies
   --concat               concat the list of files into a single .nim file
