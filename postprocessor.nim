@@ -149,6 +149,7 @@ proc reorderComments(n: PNode) =
 
 proc mergeSimilarBlocks(n: PNode) = 
   ## merge similar types of blocks
+  ## 
   let blockKinds = {nkTypeSection, nkConstSection, nkVarSection}
   template moveBlock(idx, prev) =
     for ch in n[idx]:
@@ -166,7 +167,8 @@ proc mergeSimilarBlocks(n: PNode) =
     inc i
  
 proc deletesNode(c: Context, n: var PNode) = 
-  ## merge similar types of blocks
+  ## deletes nodes which match the names found in context.deletes
+  ## 
   proc hasChild(n: PNode): bool = n.len() > 0
 
   var i = 0
@@ -180,7 +182,6 @@ proc deletesNode(c: Context, n: var PNode) =
     # handle postfix -- e.g. types
     if n[i].kind in {nkPostfix}:
       if c.deletes.hasKey($n[i][1]):
-        echo "DELETE:postfix"
         n = newNode(nkEmpty)
         continue
 
