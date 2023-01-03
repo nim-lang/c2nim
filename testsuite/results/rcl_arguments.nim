@@ -66,22 +66,6 @@ proc rcl_parse_arguments*(argc: cint; argv: cstringArray; allocator: rcl_allocat
   ##
   ##  \sa rcl_get_zero_initialized_arguments()
   ##
-  ##  ROS arguments are expected to be scoped by a leading `--ros-args` flag and a trailing double
-  ##  dash token `--` which may be elided if no non-ROS arguments follow after the last `--ros-args`.
-  ##
-  ##  Remap rule parsing is supported via `-r/--remap` flags e.g. `--remap from:=to` or `-r from:=to`.
-  ##  Successfully parsed remap rules are stored in the order they were given in `argv`.
-  ##  If given arguments `{"__ns:=/foo", "__ns:=/bar"}` then the namespace used by nodes in this
-  ##  process will be `/foo` and not `/bar`.
-  ##
-  ##  \sa rcl_remap_topic_name()
-  ##  \sa rcl_remap_service_name()
-  ##  \sa rcl_remap_node_name()
-  ##  \sa rcl_remap_node_namespace()
-  ##
-  ##  Parameter override rule parsing is supported via `-p/--param` flags e.g. `--param name:=value`
-  ##  or `-p name:=value`.
-  ##
   ##
 
 proc rcl_arguments_get_count_unparsed*(args: ptr rcl_arguments_t): cint {.
