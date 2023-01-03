@@ -216,7 +216,8 @@ proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
   if c.reorderComments:
     reorderComments(n)
 
-  deletesNode(c, n)
+  if c.deletes.len() > 0:
+    deletesNode(c, n)
 
   if c.mergeBlocks:
     mergeSimilarBlocks(n)
