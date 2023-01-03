@@ -66,7 +66,7 @@ Options:
   --typeprefixes         generate ``T`` and ``P`` type prefixes
   --nep1                 follow 'NEP 1': Style Guide for Nim Code
   --skipcomments         do not copy comments
-  --delete:NAME          post process option to delete nodes with matching
+  --delete:IDENT         post process option to delete nodes with matching
                          idents for procs, types, or vars           
   --mergeBlocks          merge similar adjacent blocks like two let sections
   --ignoreRValueRefs     translate C++'s ``T&&`` to ``T`` instead ``of var T``
