@@ -169,19 +169,11 @@ proc deletesNode(c: Context, n: var PNode) =
   ## merge similar types of blocks
   proc hasChild(n: PNode): bool = n.len() > 0
 
-  let blockKinds = {nkPostfix, nkCall}
   var i = 0
-  # echo "  PRE: ", n.kind, " "
   while i < n.safeLen:
-    # echo "n[i]: ", n[i].kind, " ", repr n[i]
-    # echo "n[i]: ", n[i].kind, " ", n[i]
-    # echo "    n[i]:PRE: ", n.kind, " "
-
     # handle let's
     if n[i].kind in {nkIdentDefs}:
       if n[i].hasChild() and c.deletes.hasKey( split($(n[i][0]), "*")[0] ):
-        # echo "N:LETS: ", n[i][0]
-        echo "DELETE:lets"
         delete(n.sons, i)
         continue
 
@@ -195,7 +187,6 @@ proc deletesNode(c: Context, n: var PNode) =
     # handle calls
     if n[i].kind in {nkCall}:
       if c.deletes.hasKey($n[i][0]):
-        # echo "DELETE:calls"
         n[i] = newNode(nkEmpty)
         continue
     
@@ -204,13 +195,9 @@ proc deletesNode(c: Context, n: var PNode) =
       deletesNode(c, n[i])
     if n[i].kind in {nkIdent}:
       if c.deletes.hasKey($n[i]):
-        # echo "DELETE:imports"
         delete(n.sons, i)
         continue
     inc i
-
-    # echo "   n[i]:POST: ", n.kind, " ", n
-  # echo "  POST: ", n.kind, " ", n
 
   block removeBlank:
     if n.kind in {nkLetSection, nkTypeSection, nkVarSection, nkImportStmt}:
