@@ -78,14 +78,6 @@ Options:
 
 proc isCppFile(s: string): bool =
   splitFile(s).ext.toLowerAscii in [".cpp", ".cxx", ".hpp"]
-proc isPPFile(s: string): bool =
-  splitFile(s).ext.toLowerAscii == ".pp"
-proc stripPPFile(s: string): string =
-  if s.isPPFile():
-    let res = splitFile(s)
-    result = res.dir / res.name
-  else:
-    result = s
 
 when not declared(NimCompilerApiVersion):
   type AbsoluteFile = string
@@ -100,7 +92,6 @@ proc parse(infile: string, options: PParserOptions; dllExport: var PNode): PNode
   let isCpp = pfCpp notin options.flags and isCppFile(infile)
   var p: Parser
   if isCpp: options.flags.incl pfCpp
-  if isPPFile(infile): options.flags.incl pfFileNameIsPP
   openParser(p, infile, stream, options)
   result = parseUnit(p).postprocess(options.flags, options.deletes)
   closeParser(p)
@@ -272,7 +263,7 @@ proc main(infiles: seq[string], outfile: var string,
       let m = parse(infile.addFileExt("h"), options, dllexport)
       if not isC2nimFile(infile):
         if outfile.len == 0:
-          outfile = changeFileExt(infile.stripPPFile(), "nim")
+          outfile = changeFileExt(infile, "nim")
       if not isC2nimFile(infile) or pfC2NimInclude in options.flags:
         for n in m: tree.add(n)
     myRenderModule(tree, outfile, options.renderFlags)
@@ -284,7 +275,7 @@ proc main(infiles: seq[string], outfile: var string,
           myRenderModule(m, outfile, options.renderFlags)
           outfile = ""
         else:
-          let outfile = changeFileExt(infile.stripPPFile(), "nim")
+          let outfile = changeFileExt(infile, "nim")
           myRenderModule(m, outfile, options.renderFlags)
   if dllexport != nil:
     let (path, name, _) = infiles[0].splitFile
