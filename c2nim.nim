@@ -179,7 +179,8 @@ proc myRenderModule(tree: PNode; filename: string, renderFlags: TRenderFlags) =
     inc(i)
   f.close
 
-proc main(infiles: seq[string], outfile: var string,
+proc main(infiles: seq[string],
+          outfile: var string,
           options: PParserOptions,
           concat: bool) =
   var start = getTime()
