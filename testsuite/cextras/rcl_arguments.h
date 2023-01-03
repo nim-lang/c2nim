@@ -1,6 +1,4 @@
 // Copyright 2018 Open Source Robotics Foundation, Inc.
-// START
-//
 
 /// @file
 
