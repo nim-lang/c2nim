@@ -353,6 +353,17 @@ the code produced by importing ``error_string_t`` will be deleted.
   typedef error_string_t error_string_t;
 
 
+Another use case is removing unwanted imports which C includes often
+produce: 
+
+.. code-block:: C
+  #delete c_only_include
+  include "c_only_include.h"
+
+.. code-block:: Nim
+  import c_only_include # this will be deleted
+
+
 ``#typeprefixes`` directive
 ---------------------------
 **Note**: There is also a ``--typeprefixes`` command line option that can be
