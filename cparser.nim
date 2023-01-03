@@ -19,7 +19,7 @@
 
 import
   os, compiler/llstream, compiler/renderer, clexer, compiler/idents, strutils,
-  pegs, compiler/ast, compiler/msgs,
+  pegs, tables, compiler/ast, compiler/msgs,
   strtabs, hashes, algorithm, compiler/nversion
 
 when declared(NimCompilerApiVersion):
@@ -40,6 +40,7 @@ type
     pfImportc,          ## annotate procs with importc
     pfNoConv,           ## annotate procs with noconv
     pfSkipInclude,      ## skip all ``#include``
+    pfC2NimInclude,     ## include c2nim in concat mode
     pfTypePrefixes,     ## all generated types start with 'T' or 'P'
     pfSkipComments,     ## do not generate comments
     pfCpp,              ## process C++
@@ -47,7 +48,9 @@ type
     pfKeepBodies,       ## do not skip C++ method bodies
     pfAssumeIfIsTrue,   ## assume #if is true
     pfStructStruct,     ## do not treat struct Foo Foo as a forward decl
-    pfReorderComments   ## do not treat struct Foo Foo as a forward decl
+    pfReorderComments   ## reorder comments to match Nim's style
+    pfFileNameIsPP      ## fixup pre-processor file name
+    pfMergeBlocks       ## fixup pre-processor file name
 
   Macro* = object
     name*: string
@@ -61,8 +64,9 @@ type
     assumeDef, assumenDef: seq[string]
     mangleRules: seq[tuple[pattern: Peg, frmt: string]]
     privateRules: seq[Peg]
-    dynlibSym, headerOverride: string
+    dynlibSym, headerOverride, headerPrefix: string
     macros*: seq[Macro]
+    deletes*: Table[string, string]
     toMangle: StringTableRef
     classes: StringTableRef
     toPreprocess: StringTableRef
@@ -109,7 +113,7 @@ type
 
   SectionParser = proc(p: var Parser): PNode {.nimcall.}
 
-proc parseDir(p: var Parser; sectionParser: SectionParser): PNode
+proc parseDir(p: var Parser; sectionParser: SectionParser, recur = false): PNode
 proc addTypeDef(section, name, t, genericParams: PNode)
 proc parseStruct(p: var Parser, stmtList: PNode): PNode
 proc parseStructBody(p: var Parser, stmtList: PNode,
@@ -132,6 +136,7 @@ proc newParserOptions*(): PParserOptions =
     renderFlags: {},
     dynlibSym: "",
     headerOverride: "",
+    headerPrefix: "",
     toMangle: newStringTable(modeCaseSensitive),
     classes: newStringTable(modeCaseSensitive),
     toPreprocess: newStringTable(modeCaseSensitive),
@@ -152,6 +157,8 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "header":
     parserOptions.useHeader = true
     if val.len > 0: parserOptions.headerOverride = val
+  of "headerprefix":
+    if val.len > 0: parserOptions.headerPrefix = val
   of "importfuncdefines":
     parserOptions.importfuncdefines = true
   of "importdefines":
@@ -189,7 +196,9 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "discardableprefix": parserOptions.discardablePrefixes.add(val)
   of "structstruct": incl(parserOptions.flags, pfStructStruct)
   of "reordercomments": incl(parserOptions.flags, pfReorderComments)
+  of "mergeblocks": incl(parserOptions.flags, pfMergeBlocks)
   of "isarray": parserOptions.isArray[val] = "true"
+  of "delete": parserOptions.deletes[val] = ""
   else: result = false
 
 proc openParser*(p: var Parser, filename: string,
@@ -197,6 +206,8 @@ proc openParser*(p: var Parser, filename: string,
   openLexer(p.lex, filename, inputStream)
   p.options = options
   p.header = filename.extractFilename
+  if pfFileNameIsPP in options.flags:
+    p.header = p.header.splitFile().name
   p.lex.debugMode = options.debugMode
   p.backtrack = @[]
   p.currentNamespace = ""

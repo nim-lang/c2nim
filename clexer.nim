@@ -977,3 +977,232 @@ proc getTok*(L: var Lexer, tok: var Token) =
       tok.xkind = pxInvalid
       lexMessage(L, errGenerated, "invalid token " & c & " (\\" & $(ord(c)) & ')')
       inc(L.bufpos)
+
+proc getPreprocessorTok*(L: var Lexer, tok: var Token) =
+  tok.xkind = pxInvalid
+  fillToken(tok)
+  skip(L, tok)
+  if tok.xkind == pxNewLine: return
+  var c = L.buf[L.bufpos]
+  tok.lineNumber = L.lineNumber
+  if c in SymStartChars:
+    getSymbol(L, tok)
+    if L.buf[L.bufpos] == '"':
+      if tok.s[^1] == 'R':
+        setLen tok.s, 0
+        getRawString(L, tok)
+      else:
+        setLen tok.s, 0
+        getString(L, tok)
+  elif c == '0':
+    case L.buf[L.bufpos+1]
+    of 'x', 'X': getNumber16(L, tok)
+    of 'b', 'B': getNumber2(L, tok)
+    of '1'..'7': getNumber8(L, tok)
+    else: getNumber(L, tok)
+  elif c in {'1'..'9'} or (c == '.' and L.buf[L.bufpos+1] in {'0'..'9'}):
+    getNumber(L, tok)
+  else:
+    case c
+    of ';':
+      tok.xkind = pxSemicolon
+      inc(L.bufpos)
+    of '/':
+      if L.buf[L.bufpos + 1] == '/':
+        scanLineComment(L, tok)
+      elif L.buf[L.bufpos+1] == '*':
+        inc(L.bufpos, 2)
+        scanStarComment(L, tok)
+      elif L.buf[L.bufpos+1] == '=':
+        inc(L.bufpos, 2)
+        tok.xkind = pxSlashAsgn
+      else:
+        tok.xkind = pxSlash
+        inc(L.bufpos)
+    of ',':
+      tok.xkind = pxComma
+      inc(L.bufpos)
+    of '(':
+      inc(L.bufpos)
+      tok.xkind = pxParLe
+    of '*':
+      inc(L.bufpos)
+      if L.buf[L.bufpos] == '=':
+        inc(L.bufpos)
+        tok.xkind = pxStarAsgn
+      else:
+        tok.xkind = pxStar
+    of ')':
+      inc(L.bufpos)
+      tok.xkind = pxParRi
+    of '[':
+      inc(L.bufpos)
+      if L.buf[L.bufpos] == '[':
+        inc(L.bufpos)
+        scanAttribute(L, tok)
+      else:
+        tok.xkind = pxBracketLe
+    of ']':
+      inc(L.bufpos)
+      tok.xkind = pxBracketRi
+    of '.':
+      inc(L.bufpos)
+      if L.buf[L.bufpos] == '.' and L.buf[L.bufpos+1] == '.':
+        tok.xkind = pxDotDotDot
+        inc(L.bufpos, 2)
+      else:
+        tok.xkind = pxDot
+    of '{':
+      if L.buf[L.bufpos+1] == '|':
+        scanVerbatim(L, tok, true)
+      else:
+        inc(L.bufpos)
+        tok.xkind = pxCurlyLe
+    of '}':
+      inc(L.bufpos)
+      tok.xkind = pxCurlyRi
+    of '+':
+      inc(L.bufpos)
+      if L.buf[L.bufpos] == '=':
+        tok.xkind = pxPlusAsgn
+        inc(L.bufpos)
+      elif L.buf[L.bufpos] == '+':
+        tok.xkind = pxPlusPlus
+        inc(L.bufpos)
+      else:
+        tok.xkind = pxPlus
+    of '-':
+      inc(L.bufpos)
+      case L.buf[L.bufpos]
+      of '>':
+        tok.xkind = pxArrow
+        inc(L.bufpos)
+        if L.buf[L.bufpos] == '*':
+          tok.xkind = pxArrowStar
+          inc(L.bufpos)
+      of '=':
+        tok.xkind = pxMinusAsgn
+        inc(L.bufpos)
+      of '-':
+        tok.xkind = pxMinusMinus
+        inc(L.bufpos)
+      else:
+        tok.xkind = pxMinus
+    of '?':
+      inc(L.bufpos)
+      tok.xkind = pxConditional
+    of ':':
+      inc(L.bufpos)
+      if L.buf[L.bufpos] == ':':
+        tok.xkind = pxScope
+        inc(L.bufpos)
+      else:
+        tok.xkind = pxColon
+    of '!':
+      inc(L.bufpos)
+      if L.buf[L.bufpos] == '=':
+        tok.xkind = pxNeq
+        inc(L.bufpos)
+      else:
+        tok.xkind = pxNot
+    of '<':
+      inc(L.bufpos)
+      if L.buf[L.bufpos] == '=':
+        inc(L.bufpos)
+        tok.xkind = pxLe
+      elif L.buf[L.bufpos] == '<':
+        inc(L.bufpos)
+        if L.buf[L.bufpos] == '=':
+          inc(L.bufpos)
+          tok.xkind = pxShlAsgn
+        else:
+          tok.xkind = pxShl
+      else:
+        tok.xkind = pxLt
+    of '>':
+      inc(L.bufpos)
+      if L.buf[L.bufpos] == '=':
+        inc(L.bufpos)
+        tok.xkind = pxGe
+      elif L.buf[L.bufpos] == '>':
+        inc(L.bufpos)
+        if L.buf[L.bufpos] == '=':
+          inc(L.bufpos)
+          tok.xkind = pxShrAsgn
+        else:
+          tok.xkind = pxShr
+      else:
+        tok.xkind = pxGt
+    of '=':
+      inc(L.bufpos)
+      if L.buf[L.bufpos] == '=':
+        tok.xkind = pxEquals
+        inc(L.bufpos)
+      else:
+        tok.xkind = pxAsgn
+    of '&':
+      inc(L.bufpos)
+      if L.buf[L.bufpos] == '=':
+        tok.xkind = pxAmpAsgn
+        inc(L.bufpos)
+      elif L.buf[L.bufpos] == '&':
+        inc(L.bufpos)
+        if L.buf[L.bufpos] == '=':
+          inc(L.bufpos)
+          tok.xkind = pxAmpAmpAsgn
+        else:
+          tok.xkind = pxAmpAmp
+      else:
+        tok.xkind = pxAmp
+    of '|':
+      inc(L.bufpos)
+      if L.buf[L.bufpos] == '=':
+        tok.xkind = pxBarAsgn
+        inc(L.bufpos)
+      elif L.buf[L.bufpos] == '|':
+        inc(L.bufpos)
+        if L.buf[L.bufpos] == '=':
+          inc(L.bufpos)
+          tok.xkind = pxBarBarAsgn
+        else:
+          tok.xkind = pxBarBar
+      else:
+        tok.xkind = pxBar
+    of '^':
+      inc(L.bufpos)
+      if L.buf[L.bufpos] == '=':
+        tok.xkind = pxHatAsgn
+        inc(L.bufpos)
+      else:
+        tok.xkind = pxHat
+    of '%':
+      inc(L.bufpos)
+      if L.buf[L.bufpos] == '=':
+        tok.xkind = pxModAsgn
+        inc(L.bufpos)
+      else:
+        tok.xkind = pxMod
+    of '~':
+      inc(L.bufpos)
+      if L.buf[L.bufpos] == '=':
+        tok.xkind = pxTildeAsgn
+        inc(L.bufpos)
+      else:
+        tok.xkind = pxTilde
+    of '#':
+      if L.buf[L.bufpos+1] == '#':
+        inc(L.bufpos, 2)
+        tok.xkind = pxDirConc
+      elif L.buf[L.bufpos+1] == '@':
+        scanVerbatim(L, tok, false)
+      else:
+        getDirective(L, tok)
+    of '"': getString(L, tok)
+    of '\'': getCharLit(L, tok)
+    of nimlexbase.EndOfFile:
+      tok.xkind = pxEof
+    else:
+      tok.s = $c
+      tok.xkind = pxInvalid
+      lexMessage(L, errGenerated, "invalid token " & c & " (\\" & $(ord(c)) & ')')
+      inc(L.bufpos)

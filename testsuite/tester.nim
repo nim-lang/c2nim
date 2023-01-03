@@ -9,7 +9,7 @@ const
   cpp2nimCmd = dotslash & "c2nim --cpp $#"
   cpp2nimCmdKeepBodies = dotslash & "c2nim --cpp --keepBodies $#"
   hpp2nimCmd = dotslash & "c2nim --cpp --header $#"
-  c2nimExtrasCmd = dotslash & "c2nim --stdints --strict --header --reordercomments --def:RCL_PUBLIC='__attribute__ (())' --def:RCL_WARN_UNUSED='__attribute__ (())' --def:'RCL_ALIGNAS(N)=__attribute__((align))' --render:extranewlines $#"
+  c2nimExtrasCmd = dotslash & "c2nim --stdints --strict --header --reordercomments --mergeblocks --render:reindentlongcomments --def:RCL_PUBLIC='__attribute__ (())' --def:RCL_WARN_UNUSED='__attribute__ (())' --def:'RCL_ALIGNAS(N)=__attribute__((align))' --render:extranewlines $#"
   dir = "testsuite/"
   usage = """
 c2nim test runner
@@ -52,6 +52,7 @@ proc test(t, cmd, origin: string) =
   let (_, name, _) = splitFile(t)
   if infiles.len() > 0 and not (name in infiles):
     return
+  echo "TEST: ", name
   exec(cmd % t)
   let nimFile = name & ".nim"
   if readFile(dir & origin / nimFile) != readFile(dir & "results" / nimFile):

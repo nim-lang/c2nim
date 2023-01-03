@@ -7,7 +7,7 @@
 #    distribution, for details about the copyright.
 #
 
-import std / [strutils, os, times, md5, parseopt, strscans]
+import std / [strutils, os, osproc, times, md5, parseopt, strscans, sequtils, tables]
 
 import compiler/ [llstream, ast, renderer, options, msgs, nversion]
 
@@ -41,6 +41,7 @@ Options:
   --noconv               annotate procs with ``{.noconv.}``
   --stdcall              annotate procs with ``{.stdcall.}``
   --importc              annotate procs with ``{.importc.}``
+  --preprocess:$CC       use $CC preprocessor to expand macros
   --importdefines        import C defines as procs or vars with ``{.importc.}``
   --importfuncdefines    import C define funcs as procs with ``{.importc.}``
   --def:SYM='macro()'    define a C macro that gets replaced with the given
@@ -77,6 +78,14 @@ Options:
 
 proc isCppFile(s: string): bool =
   splitFile(s).ext.toLowerAscii in [".cpp", ".cxx", ".hpp"]
+proc isPPFile(s: string): bool =
+  splitFile(s).ext.toLowerAscii == ".pp"
+proc stripPPFile(s: string): string =
+  if s.isPPFile():
+    let res = splitFile(s)
+    result = res.dir / res.name
+  else:
+    result = s
 
 when not declared(NimCompilerApiVersion):
   type AbsoluteFile = string
@@ -91,11 +100,9 @@ proc parse(infile: string, options: PParserOptions; dllExport: var PNode): PNode
   let isCpp = pfCpp notin options.flags and isCppFile(infile)
   var p: Parser
   if isCpp: options.flags.incl pfCpp
+  if isPPFile(infile): options.flags.incl pfFileNameIsPP
   openParser(p, infile, stream, options)
-  result = parseUnit(p).postprocess(
-    structStructMode = pfStructStruct in options.flags,
-    reorderComments = pfReorderComments in options.flags
-  )
+  result = parseUnit(p).postprocess(options.flags, options.deletes)
   closeParser(p)
   if isCpp: options.flags.excl pfCpp
   if options.exportPrefix.len > 0:
@@ -141,6 +148,69 @@ proc parseDefineArgs(parserOptions: var PParserOptions, val: string) =
     if m.xkind == pxSymbol: inc mc.params
   parserOptions.macros.add(mc)
 
+type
+  CcPreprocOptions* = ref object
+    run: bool
+    cc: string
+    skipClean: bool
+    flags: seq[string]
+    extraFlags: seq[string]
+    includes: seq[string]
+
+proc newPPOpts(val: string): CcPreprocOptions =
+  new result
+  if val == "": result.cc = "cc"
+  else: result.cc = val
+  result.flags = @["-E", "-CC", "-dI", "-dD"]
+
+proc ccpreprocess(infile: string,
+                  options: PParserOptions;
+                  ppoptions: CcPreprocOptions
+                 ): AbsoluteFile =
+  ## use C compiler to preprocess
+  if infile.isAbsolute():
+    gConfig.projectPath = getCurrentDir().AbsoluteDir
+  let infile = infile.absolutePath()
+  # echo "gConfig: ", string gConfig.projectPath
+  let outfile = infile & ".pre"
+  let postfile = infile & ".pp"
+  var args = newSeq[string]()
+  args.add(ppoptions.flags)
+  args.add(ppoptions.extraFlags)
+  args.add([infile, "-o", outfile])
+  for pth in ppoptions.includes: args.add("-I" & pth)
+  let res = execCmdEx(ppoptions.cc & " " & args.mapIt(it.quoteShell()).join(" "),
+                         options={poUsePath, poStdErrToStdOut})
+  if res.exitCode != 0:
+    raise newException(ValueError, "[c2nim] Error running CC preprocessor: " & res.output)
+  var stream = llStreamOpen(AbsoluteFile outfile, fmRead)
+  if stream == nil:
+    when declared(NimCompilerApiVersion):
+      rawMessage(gConfig, errGenerated, "cannot open file: " & outfile)
+    else:
+      rawMessage(errGenerated, "cannot open file: " & outfile)
+  let isCpp = pfCpp notin options.flags and isCppFile(outfile)
+  var p: Parser
+  if isCpp: options.flags.incl pfCpp
+  openParser(p, outfile, stream, options)
+  let rawNodes = parseRemoveIncludes(p, infile)
+  closeParser(p)
+
+  let tfl = open(postfile, fmWrite)
+  for node in rawNodes:
+    case node.kind:
+    of nkComesFrom:
+      discard
+      tfl.write(" ")
+    of nkTripleStrLit:
+      tfl.write(node.strVal)
+    else:
+      discard
+  tfl.close()
+
+  if not ppoptions.skipClean:
+    outfile.removeFile()
+  result = AbsoluteFile postfile
 
 var dummy: PNode
 
@@ -181,15 +251,29 @@ proc myRenderModule(tree: PNode; filename: string, renderFlags: TRenderFlags) =
   f.close
 
 proc main(infiles: seq[string], outfile: var string,
-          options: PParserOptions, concat: bool) =
+          options: PParserOptions,
+          concat: bool,
+          preprocessOptions: CcPreprocOptions) =
   var start = getTime()
   var dllexport: PNode = nil
+  var infiles = infiles
+  if not preprocessOptions.isNil:
+    let rawfiles = infiles[0..^1]
+    infiles.setLen(0)
+    for fl in rawfiles:
+      if not isC2nimFile(fl):
+        infiles.add ccpreprocess(fl, options, preprocessOptions).string
+      else:
+        infiles.add fl
+  
   if concat:
     var tree = newNode(nkStmtList)
     for infile in infiles:
       let m = parse(infile.addFileExt("h"), options, dllexport)
       if not isC2nimFile(infile):
-        if outfile.len == 0: outfile = changeFileExt(infile, "nim")
+        if outfile.len == 0:
+          outfile = changeFileExt(infile.stripPPFile(), "nim")
+      if not isC2nimFile(infile) or pfC2NimInclude in options.flags:
         for n in m: tree.add(n)
     myRenderModule(tree, outfile, options.renderFlags)
   else:
@@ -200,7 +284,7 @@ proc main(infiles: seq[string], outfile: var string,
           myRenderModule(m, outfile, options.renderFlags)
           outfile = ""
         else:
-          let outfile = changeFileExt(infile, "nim")
+          let outfile = changeFileExt(infile.stripPPFile(), "nim")
           myRenderModule(m, outfile, options.renderFlags)
   if dllexport != nil:
     let (path, name, _) = infiles[0].splitFile
@@ -218,6 +302,8 @@ var
   outfile = ""
   concat = false
   parserOptions = newParserOptions()
+  preprocessOptions: CcPreprocOptions
+
 for kind, key, val in getopt():
   case kind
   of cmdArgument:
@@ -231,7 +317,10 @@ for kind, key, val in getopt():
       stdout.write(Version & "\n")
       quit(0)
     of "o", "out": outfile = val
-    of "concat": concat = true
+    of "concat":
+      concat = true
+      if val == "all":
+        incl(parserOptions.flags, pfC2NimInclude)
     of "spliceheader":
       quit "[Error] 'spliceheader' doesn't exist anymore" &
            " use a list of files and --concat instead"
@@ -239,15 +328,32 @@ for kind, key, val in getopt():
       parserOptions.exportPrefix = val
     of "def":
       parserOptions.parseDefineArgs(val)
+    of "render":
+      if not parserOptions.renderFlags.setOption(val):
+        quit("[Error] unknown option: " & key)
+    of "preprocess":
+      preprocessOptions = newPPOpts(val)
+    of "i", "d": # shortcut preprocessor includes
+      if preprocessOptions.isNil:
+        quit("[Error] must specify `--preprocess` first")
+      if key == "I":
+        preprocessOptions.includes.add(val)
+      elif key == "D":
+        preprocessOptions.extraFlags.add("-D" & val)
+    of "pp": # preprocess opts
+      if preprocessOptions.isNil:
+        quit("[Error] must specify `--preprocess` first")
+      if val == "skipclean":
+        preprocessOptions.skipClean = true
+      elif val.startsWith("flags="):
+        let flags = val.split("=")[1]
+        preprocessOptions.flags = flags.split()
     else:
-      if key.normalize == "render":
-        if not parserOptions.renderFlags.setOption(val):
-          quit("[Error] unknown option: " & key)
-      elif not parserOptions.setOption(key, val):
+      if not parserOptions.setOption(key, val):
         quit("[Error] unknown option: " & key)
   of cmdEnd: assert(false)
 if infiles.len == 0:
   # no filename has been given, so we show the help:
   stdout.write(Usage)
 else:
-  main(infiles, outfile, parserOptions, concat)
+  main(infiles, outfile, parserOptions, concat, preprocessOptions)

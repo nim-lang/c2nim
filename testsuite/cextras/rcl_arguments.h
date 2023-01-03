@@ -1,4 +1,5 @@
 // Copyright 2018 Open Source Robotics Foundation, Inc.
+// START
 //
 
 /// @file
@@ -17,6 +18,33 @@
 extern "C"
 {
 #endif
+
+enum RCUTILS_LOG_SEVERITY
+{
+  RCUTILS_LOG_SEVERITY_UNSET = 0,  ///< The unset log level
+  RCUTILS_LOG_SEVERITY_DEBUG = 10,  ///< The debug log level
+  RCUTILS_LOG_SEVERITY_INFO = 20,  ///< The info log level
+  RCUTILS_LOG_SEVERITY_WARN = 30,  ///< The warn log level
+  RCUTILS_LOG_SEVERITY_ERROR = 40,  ///< The error log level
+  RCUTILS_LOG_SEVERITY_FATAL = 50,  ///< The fatal log level
+};
+
+#pragma c2nim mergeblocks
+#pragma c2nim delete g_rcutils_log_severity_names
+#pragma c2nim reordercomments
+
+// The names of severity levels.
+__attribute__ ((visibility("default")))
+extern const char * const g_rcutils_log_severity_names[RCUTILS_LOG_SEVERITY_FATAL + 1];
+
+///   Return a rcl_arguments_t struct with members initialized to `NULL`.
+RCL_PUBLIC
+RCL_WARN_UNUSED
+rcl_arguments_t
+rcl_get_zero_initialized_arguments(void);
+
+_Static_assert(sizeof((constructrcutils_error_string_t)) ==
+    (768 + (1024 - 768 - 20 - 6 - 1) + 20 + 6 + 1), "Maximum length calculations incorrect");
 
 typedef struct rcl_arguments_impl_s rcl_arguments_impl_t;
 
