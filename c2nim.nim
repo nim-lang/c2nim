@@ -75,6 +75,7 @@ Options:
   --concat               concat the list of files into a single .nim file
   --debug                prints a c2nim stack trace in case of an error
   --exportdll:PREFIX     produce a DLL wrapping the C++ code
+  --render:OPT           various render options. See c2nim.rst for more docs
   -v, --version          write c2nim's version
   -h, --help             show this help
 """

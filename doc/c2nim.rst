@@ -467,6 +467,23 @@ type into Nim's ``ptr UncheckedArray`` type, use the ``#isarray`` directive:
 
   proc sort*(a: ptr UncheckedArray[cint]; len: cint)
 
+``#render`` directive
+---------------------
+**Note**: There is also a ``--render:INDENT`` command line option that can be
+used for the same purpose.
+
+This option allows setting various render options. The list includes: 
+
+* nobody
+* nocomments
+* doccomments
+* nopragmas
+* ids
+* noprocdefs
+* syms
+* extranewlines
+* reindentlongcomments
+
 
 ``#discardableprefix`` directive
 --------------------------------
