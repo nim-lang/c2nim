@@ -29,13 +29,13 @@ jobs:
         uses: alaviss/setup-nim@0.1.1
         with:
           path: nim
-          version: devel
+          version: version-1-6
 
       - name: c2nim
         shell: bash
         run: |
-          nim c --mm:refc c2nim
+          nim c c2nim
           # tester runs c2nim in PATH
           export PATH="$PWD:$PATH"
-          nim c -r --mm:refc testsuite/tester.nim
+          nim c -r testsuite/tester.nim
 
