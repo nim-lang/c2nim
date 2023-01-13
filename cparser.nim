@@ -3208,8 +3208,13 @@ proc parseTemplate(p: var Parser): PNode =
                 var identDefs = newNodeP(nkIdentDefs, p)
                 identDefs.addSon(skipIdent(p, skType), staticTy, emptyNode)
                 result.add identDefs
+          if p.tok.xkind == pxAsgn:
+            getTok(p)
+            result[^1][^1] = mangledIdent(p.tok.s, p, skType)
+            getTok(p)
           if p.tok.xkind != pxComma: break
           getTok(p)
+      # getTok(p)
       eat(p, pxAngleRi)
 
 proc getConverterCppType(p: var Parser): string =
