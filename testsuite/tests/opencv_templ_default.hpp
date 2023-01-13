@@ -1,1 +1,1 @@
-template<typename _Tp, typename _EnumTp = void> struct ParamType {};
+template<typename Tp, typename EnumTp = void> struct ParamType {};
