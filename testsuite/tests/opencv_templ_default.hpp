@@ -1,0 +1,1 @@
+template<typename _Tp, typename _EnumTp = void> struct ParamType {};
