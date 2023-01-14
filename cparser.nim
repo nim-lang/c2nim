@@ -1949,6 +1949,10 @@ proc declarationWithoutSemicolon(p: var Parser; genericParams: PNode = emptyNode
     # best we can do here.
     return parseFunctionPointerDecl(p, rettyp)
 
+  if p.tok.xkind == pxLt:
+    echo "templ:le"
+    # getTok(p)
+
   expectIdent(p)
   var origName = p.tok.s
   if pfCpp in p.options.flags and p.tok.s == "operator":
@@ -3534,6 +3538,17 @@ proc parseStandaloneClass(p: var Parser, isStruct: bool;
     p.currentClass = nil
     p.classHierarchy.add("")
     p.classHierarchyGP.add(emptyNode)
+  
+  if p.tok.xkind == pxLt:
+    # handle type params
+    getTok(p)
+    while true:
+      var identDefs = newNodeP(nkIdentDefs, p)
+      identDefs.addSon(newIdentNodeP("T", p), skipIdent(p, skType), emptyNode)
+      genericParams.add identDefs
+      if p.tok.xkind != pxComma: break
+    eat(p, pxGt)
+
   if p.tok.xkind in {pxCurlyLe, pxSemiColon, pxColon}:
     if p.currentClass != nil:
       p.options.classes[p.currentClassOrig] = p.currentClass.ident.s
@@ -3554,6 +3569,7 @@ proc parseStandaloneClass(p: var Parser, isStruct: bool;
         return result
       addTypeDef(typeSection, structPragmas(p, name, p.currentClassOrig, false, tmplParams), t,
                  genericParams)
+      # echo "typeSection: ", repr typeSection
       parseTrailingDefinedIdents(p, result, name)
     else:
       var t = parseTuple(p, result)
@@ -3566,6 +3582,7 @@ proc parseStandaloneClass(p: var Parser, isStruct: bool;
   p.currentClass = oldClass
   p.currentClassOrig = oldClassOrig
   p.options.toMangle = oldToMangle
+  # echo "kind: ", repr(result)
 
 proc unwrap(a: PNode): PNode =
   if a.kind == nkPar:
