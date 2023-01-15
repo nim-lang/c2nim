@@ -3286,6 +3286,10 @@ proc parseClassEntity(p: var Parser; genericParams: PNode; private: bool): PNode
   result = newNodeP(nkStmtList, p)
   let tmpl = parseTemplate(p)
   var gp: PNode
+  var comm: PNode = nil
+  if p.tok.xkind in {pxStarComment, pxLineComment}:
+    comm = newNodeP(nkCommentStmt, p)
+    skipCom(p, comm)
   if tmpl.kind != nkEmpty:
     if genericParams.kind != nkEmpty:
       gp = genericParams.copyTree
@@ -3410,6 +3414,8 @@ proc parseClassEntity(p: var Parser; genericParams: PNode; private: bool): PNode
           getTok(p, lastSon(result))
         else:
           getTok(p, result)
+  if not comm.isNil and result.len() > 0:
+    result[0].comment = comm.comment
 
 proc parseClassEntityPp(p: var Parser; genericParams: PNode;
                        private: bool): PNode =
