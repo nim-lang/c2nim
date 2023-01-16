@@ -743,7 +743,6 @@ proc typeAtom(p: var Parser; isTypeDef=false): PNode =
       saveContextB(p)
       getTok(p, nil)
       if isUnsigned and not p.tok.s.isBaseIntType():
-        echo "backtrackContext:: ", p.tok.s
         backtrackContextB(p)
         # add(x, p.tok.s)
         # x = ""
@@ -1963,10 +1962,6 @@ proc declarationWithoutSemicolon(p: var Parser; genericParams: PNode = emptyNode
     # Function pointer declaration: This is of course only a heuristic, but the
     # best we can do here.
     return parseFunctionPointerDecl(p, rettyp)
-
-  # if p.tok.xkind == pxLt:
-  #   echo "templ:le"
-  #   # getTok(p)
 
   expectIdent(p)
   var origName = p.tok.s
@@ -3592,7 +3587,6 @@ proc parseStandaloneClass(p: var Parser, isStruct: bool;
         return result
       addTypeDef(typeSection, structPragmas(p, name, p.currentClassOrig, false, tmplParams), t,
                  genericParams)
-      # echo "typeSection: ", repr typeSection
       parseTrailingDefinedIdents(p, result, name)
     else:
       var t = parseTuple(p, result)
@@ -3605,7 +3599,6 @@ proc parseStandaloneClass(p: var Parser, isStruct: bool;
   p.currentClass = oldClass
   p.currentClassOrig = oldClassOrig
   p.options.toMangle = oldToMangle
-  # echo "kind: ", repr(result)
 
 proc unwrap(a: PNode): PNode =
   if a.kind == nkPar:
