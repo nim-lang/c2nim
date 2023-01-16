@@ -3550,7 +3550,9 @@ proc parseStandaloneClass(p: var Parser, isStruct: bool;
     getTok(p)
     while true:
       var identDefs = newNodeP(nkIdentDefs, p)
-      identDefs.addSon(newIdentNodeP("T", p), skipIdent(p, skType), emptyNode)
+      let n = typeAtom(p)
+      # let id = skipIdent(p, skType)
+      identDefs.addSon(newIdentNodeP("T", p), n, emptyNode)
       genericParams.add identDefs
       if p.tok.xkind != pxComma: break
     eat(p, pxGt)

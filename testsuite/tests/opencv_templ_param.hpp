@@ -1,8 +1,7 @@
-
-template<> struct ParamType<bool>
+template<> struct ParamType<std::vector<Mat> >
 {
-    typedef bool const_param_type;
-    typedef bool member_type;
+    typedef const std::vector<Mat>& const_param_type;
+    typedef std::vector<Mat> member_type;
 
-    static const Param type = Param::BOOLEAN;
+    static const Param type = Param::MAT_VECTOR;
 };
