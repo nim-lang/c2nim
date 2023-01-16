@@ -5,3 +5,11 @@ template<> struct ParamType<std::vector<Mat> >
 
     static const Param type = Param::MAT_VECTOR;
 };
+
+template<> struct ParamType<unsigned>
+{
+    typedef unsigned const_param_type;
+    typedef unsigned member_type;
+
+    static const Param type = Param::UNSIGNED_INT;
+};

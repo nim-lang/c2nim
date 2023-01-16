@@ -587,6 +587,8 @@ proc isBaseIntType(s: string): bool =
   case s
   of "short", "int", "long", "float", "double", "signed", "unsigned":
     result = true
+  of "__int16", "__int32", "__int64":
+    result = true
   else: discard
 
 proc isIntType(s: string): bool =
@@ -736,7 +738,20 @@ proc typeAtom(p: var Parser; isTypeDef=false): PNode =
       else:
         isDone = true
         add(x, p.tok.s)
+      
+      ## handle standalone unsigned here using hueristic
+      saveContextB(p)
       getTok(p, nil)
+      if isUnsigned and not p.tok.s.isBaseIntType():
+        echo "backtrackContext:: ", p.tok.s
+        backtrackContextB(p)
+        # add(x, p.tok.s)
+        # x = ""
+        getTok(p, nil)
+        isDone = true
+      else:
+        closeContextB(p)
+      
       if skipConst(p):
         isConst = true
 
@@ -1949,9 +1964,9 @@ proc declarationWithoutSemicolon(p: var Parser; genericParams: PNode = emptyNode
     # best we can do here.
     return parseFunctionPointerDecl(p, rettyp)
 
-  if p.tok.xkind == pxLt:
-    echo "templ:le"
-    # getTok(p)
+  # if p.tok.xkind == pxLt:
+  #   echo "templ:le"
+  #   # getTok(p)
 
   expectIdent(p)
   var origName = p.tok.s
