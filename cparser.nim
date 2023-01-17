@@ -3559,8 +3559,8 @@ proc parseStandaloneClass(p: var Parser, isStruct: bool;
   
   if p.tok.xkind == pxLt:
     # handle type specialization params
-    # Nim doesn't support this directly, but does support `when`
-    # inside type definitions
+    # Nim doesn't support this directly. It does support `when`
+    # inside type definitions, but we just do a literal translation
     # TODO: should this print a warning or just error out?
     getTok(p)
     var letter = 'T'
