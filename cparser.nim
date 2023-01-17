@@ -3588,7 +3588,7 @@ proc parseStandaloneClass(p: var Parser, isStruct: bool;
         var n = typeAtom(p, true)
         # otherTypeDef(p, identDefs, t)
         # let id = skipIdent(p, skType)
-        identDefs.addSon(n, emptyNode, emptyNode)
+        identDefs.addSon(lt, n, emptyNode)
         letter.inc()
         genericParams.addSon identDefs
       echo "IDENTS:genericParams: "
