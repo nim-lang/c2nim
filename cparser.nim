@@ -3585,7 +3585,7 @@ proc parseStandaloneClass(p: var Parser, isStruct: bool;
     eat(p, pxGt)
     # let res = ($(genericParams)).strip(chars = {'{','}','[',']','(',')'})
     var postfix = $(genericParams)
-    for l in [":"," ","{","}","[","]","(",")"]:
+    for l in [" ",";", ":","{","}","[","]","(",")"]:
       postfix = postfix.replace(l, "")
     p.currentClassOrig &= "_" & postfix
     p.currentClass = newIdentNodeP(p.currentClassOrig, p)
