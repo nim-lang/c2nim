@@ -3561,6 +3561,7 @@ proc parseStandaloneClass(p: var Parser, isStruct: bool;
     # handle type specialization params
     # Nim doesn't support this directly, but does support `when`
     # inside type definitions
+    # TODO: should this print a warning or just error out?
     getTok(p)
     var letter = 'T'
     genericParams.sons = @[]
