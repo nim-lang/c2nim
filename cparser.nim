@@ -3558,47 +3558,29 @@ proc parseStandaloneClass(p: var Parser, isStruct: bool;
     p.classHierarchyGP.add(emptyNode)
   
   if p.tok.xkind == pxLt:
-    # handle type params
+    # handle type specialization params
+    # Nim doesn't support this directly, but does support `when`
+    # inside type definitions
     getTok(p)
     var letter = 'T'
-    echo "\nGEN PARAMS: "
-    echo "genStart: "
-    echo treeRepr(genericParams)
     genericParams.sons = @[]
     while true:
-      echo "GEN PARAMS LOOP: "
-      # echo "P: ", p.tok.xkind, " ", p.tok.s
       var identDefs = newNodeP(nkIdentDefs, p)
-      # identDefs.add newIdentNodeP("TP", p)
-      # let n = typeAtom(p)
       let lt = newIdentNodeP($letter, p)
       if p.tok.s == "typename":
-        echo "TYPENAME:parse: ", p.tok.s
         let n = newNodeP(nkStmtList, p)
         parseTypename(p, n, false)
-        echo "parseTypename:: "
-        # identDefs.add n[0][^1]
-        echo treeRepr(n)
-        echo "parseTypename::ident: "
         identDefs.addSon(lt, n[0][^1], emptyNode)
-        echo treeRepr(identDefs)
         genericParams.addSon identDefs
       else:
-        echo "TYPENAME:ident: ", p.tok.s
         var n = typeAtom(p, true)
-        # otherTypeDef(p, identDefs, t)
-        # let id = skipIdent(p, skType)
         identDefs.addSon(lt, n, emptyNode)
         letter.inc()
         genericParams.addSon identDefs
-      echo "IDENTS:genericParams: "
-      echo treeRepr(genericParams)
       if p.tok.xkind != pxComma:
         break
       else:
         getTok(p)
-    echo "\nGenParams: "
-    echo treeRepr(genericParams)
     eat(p, pxGt)
 
   if p.tok.xkind in {pxCurlyLe, pxSemiColon, pxColon}:
