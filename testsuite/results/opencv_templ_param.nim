@@ -1,16 +1,13 @@
 type
-  ParamType*[T: vector[Mat]] {.importcpp: "ParamType<\'0>",
-                             header: "opencv_templ_param.hpp", bycopy.} = object
+  ParamType_TvectorMat*[T: vector[Mat]] {.bycopy.} = object
 
-  ParamTypeconst_param_type* = vector[Mat]
-  ParamTypemember_type* = vector[Mat]
-  ParamType*[T: cuint] {.importcpp: "ParamType<\'0>",
-                       header: "opencv_templ_param.hpp", bycopy.} = object
+  ParamType_TvectorMatconst_param_type* = vector[Mat]
+  ParamType_TvectorMatmember_type* = vector[Mat]
+  ParamType_Tcuint*[T: cuint] {.bycopy.} = object
 
-  ParamTypeconst_param_type* = cuint
-  ParamTypemember_type* = cuint
-  ParamType*[T: _Tp; U: `type`[value[_Tp]]] {.importcpp: "ParamType<\'0,\'1>",
-      header: "opencv_templ_param.hpp", bycopy.} = object
+  ParamType_Tcuintconst_param_type* = cuint
+  ParamType_Tcuintmember_type* = cuint
+  ParamType_T_Tp;Utypevalue_Tp*[T: _Tp; U: `type`[value[_Tp]]] {.bycopy.} = object
 
-  ParamTypeconst_param_type* = `type`[_Tp]
-  ParamTypemember_type* = `type`[_Tp]
+  ParamType_T_Tp;Utypevalue_Tpconst_param_type* = `type`[_Tp]
+  ParamType_T_Tp;Utypevalue_Tpmember_type* = `type`[_Tp]
