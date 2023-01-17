@@ -13,3 +13,12 @@ template<> struct ParamType<unsigned>
 
     static const Param type = Param::UNSIGNED_INT;
 };
+
+template<typename _Tp>
+struct ParamType<_Tp, typename std::enable_if< std::is_enum<_Tp>::value >::type>
+{
+    typedef typename std::underlying_type<_Tp>::type const_param_type;
+    typedef typename std::underlying_type<_Tp>::type member_type;
+
+    static const Param type = Param::INT;
+};
