@@ -3561,21 +3561,44 @@ proc parseStandaloneClass(p: var Parser, isStruct: bool;
     # handle type params
     getTok(p)
     var letter = 'T'
+    echo "\nGEN PARAMS: "
+    echo "genStart: "
+    echo treeRepr(genericParams)
+    genericParams.sons = @[]
     while true:
+      echo "GEN PARAMS LOOP: "
+      # echo "P: ", p.tok.xkind, " ", p.tok.s
       var identDefs = newNodeP(nkIdentDefs, p)
+      # identDefs.add newIdentNodeP("TP", p)
+      # let n = typeAtom(p)
+      let lt = newIdentNodeP($letter, p)
       if p.tok.s == "typename":
+        echo "TYPENAME:parse: ", p.tok.s
         let n = newNodeP(nkStmtList, p)
         parseTypename(p, n, false)
-        identDefs.addSon(n[0][^1], emptyNode)
+        echo "parseTypename:: "
+        # identDefs.add n[0][^1]
+        echo treeRepr(n)
+        echo "parseTypename::ident: "
+        identDefs.addSon(lt, n[0][^1], emptyNode)
+        echo treeRepr(identDefs)
+        genericParams.addSon identDefs
       else:
+        echo "TYPENAME:ident: ", p.tok.s
         var n = typeAtom(p, true)
-        identDefs.addSon(newIdentNodeP($letter, p), n, emptyNode)
+        # otherTypeDef(p, identDefs, t)
+        # let id = skipIdent(p, skType)
+        identDefs.addSon(n, emptyNode, emptyNode)
         letter.inc()
-      genericParams.add identDefs
+        genericParams.addSon identDefs
+      echo "IDENTS:genericParams: "
+      echo treeRepr(genericParams)
       if p.tok.xkind != pxComma:
         break
       else:
         getTok(p)
+    echo "\nGenParams: "
+    echo treeRepr(genericParams)
     eat(p, pxGt)
 
   if p.tok.xkind in {pxCurlyLe, pxSemiColon, pxColon}:
