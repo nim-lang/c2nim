@@ -15,7 +15,8 @@ import
 type
   TRenderFlag* = enum
     renderNone, renderNoBody, renderNoComments, renderDocComments,
-    renderNoPragmas, renderIds, renderNoProcDefs, renderSyms, renderExtraNewLines
+    renderNoPragmas, renderIds, renderNoProcDefs, renderSyms,
+    renderExtraNewLines, renderReindentLongComments
   TRenderFlags* = set[TRenderFlag]
   TRenderTok* = object
     kind*: TTokType
@@ -46,7 +47,16 @@ type
 proc setOption*(renderOptions: var TRenderFlags, val: string): bool =
   result = true
   case val.normalize
+  of "none": incl(renderOptions, renderNone)
+  of "nobody": incl(renderOptions, renderNoBody)
+  of "nocomments": incl(renderOptions, renderNoComments)
+  of "doccomments": incl(renderOptions, renderDocComments)
+  of "nopragmas": incl(renderOptions, renderNoPragmas)
+  of "ids": incl(renderOptions, renderIds)
+  of "noprocdefs": incl(renderOptions, renderNoProcDefs)
+  of "syms": incl(renderOptions, renderSyms)
   of "extranewlines": incl(renderOptions, renderExtraNewLines)
+  of "reindentlongcomments": incl(renderOptions, renderReindentLongComments)
   else: result = false
 
 # We render the source code in a two phases: The first
@@ -182,6 +192,14 @@ proc putComment(g: var TSrcGen, s: string) =
   var isCode = (len(s) >= 2) and (s[1] != ' ')
   var ind = g.lineLen
   var com = "## "
+
+  if renderReindentLongComments in g.flags and
+      g.lineLen > MaxLineLen - LineCommentColumn:
+    ind = LineCommentColumn
+    put(g, tkComment, com)
+    com = "## "
+    optNL(g, ind)
+
   while i <= hi:
     case s[i]
     of '\0':
@@ -1203,6 +1221,7 @@ proc gsub(g: var TSrcGen, n: PNode, c: TContext) =
     else:
       put(g, tkDistinct, "distinct")
   of nkTypeDef:
+    if renderExtraNewLines in g.flags: putNL(g)
     if n.sons[0].kind == nkPragmaExpr:
       # generate pragma after generic
       gsub(g, n.sons[0], 0)

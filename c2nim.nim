@@ -7,7 +7,7 @@
 #    distribution, for details about the copyright.
 #
 
-import std / [strutils, os, times, md5, parseopt, strscans]
+import std / [strutils, os, osproc, times, md5, parseopt, strscans, sequtils, tables]
 
 import compiler/ [llstream, ast, renderer, options, msgs, nversion]
 
@@ -41,8 +41,8 @@ Options:
   --noconv               annotate procs with ``{.noconv.}``
   --stdcall              annotate procs with ``{.stdcall.}``
   --importc              annotate procs with ``{.importc.}``
-  --importdefines        import C defines as procs or vars with ``{.importc.}``
-  --importfuncdefines    import C define funcs as procs with ``{.importc.}``
+  --importDefines        import C defines as procs or vars with ``{.importc.}``
+  --importFuncDefines    import C define funcs as procs with ``{.importc.}``
   --def:SYM='macro()'    define a C macro that gets replaced with the given
                          definition. It's parsed by the lexer. Use it to fix
                          function attributes: ``--def:PUBLIC='__attribute__ ()'``
@@ -57,7 +57,8 @@ Options:
                          convert C <stdint.h> to Nim equivalents
                          (multiple --mangle options are supported)
   --stdints              Mangle C stdint's into Nim style int's
-  --paramprefix:PREFIX   add prefix to parameter name of the generated Nim proc
+  --paramPrefix:PREFIX   add prefix to parameter name of the generated Nim proc
+  --headerPrefix:PREFIX  add prefix to C header files of generated Nim imports 
   --assumedef:IDENT      skips #ifndef sections for the given C identifier
                          (multiple --assumedef options are supported)
   --assumendef:IDENT     skips #ifdef sections for the given C identifier
@@ -66,11 +67,16 @@ Options:
   --typeprefixes         generate ``T`` and ``P`` type prefixes
   --nep1                 follow 'NEP 1': Style Guide for Nim Code
   --skipcomments         do not copy comments
+  --delete:IDENT         post process option to delete nodes with matching
+                         idents for procs, types, or vars           
+  --mergeBlocks          merge similar adjacent blocks like two let sections
   --ignoreRValueRefs     translate C++'s ``T&&`` to ``T`` instead ``of var T``
   --keepBodies           keep C++'s method bodies
   --concat               concat the list of files into a single .nim file
+  --concat:all           concat the list of files including c2nim files
   --debug                prints a c2nim stack trace in case of an error
   --exportdll:PREFIX     produce a DLL wrapping the C++ code
+  --render:OPT           various render options. See c2nim.rst for more docs
   -v, --version          write c2nim's version
   -h, --help             show this help
 """
@@ -92,10 +98,7 @@ proc parse(infile: string, options: PParserOptions; dllExport: var PNode): PNode
   var p: Parser
   if isCpp: options.flags.incl pfCpp
   openParser(p, infile, stream, options)
-  result = parseUnit(p).postprocess(
-    structStructMode = pfStructStruct in options.flags,
-    reorderComments = pfReorderComments in options.flags
-  )
+  result = parseUnit(p).postprocess(options.flags, options.deletes)
   closeParser(p)
   if isCpp: options.flags.excl pfCpp
   if options.exportPrefix.len > 0:
@@ -141,7 +144,6 @@ proc parseDefineArgs(parserOptions: var PParserOptions, val: string) =
     if m.xkind == pxSymbol: inc mc.params
   parserOptions.macros.add(mc)
 
-
 var dummy: PNode
 
 when not compiles(renderModule(dummy, "")):
@@ -180,16 +182,22 @@ proc myRenderModule(tree: PNode; filename: string, renderFlags: TRenderFlags) =
     inc(i)
   f.close
 
-proc main(infiles: seq[string], outfile: var string,
-          options: PParserOptions, concat: bool) =
+proc main(infiles: seq[string],
+          outfile: var string,
+          options: PParserOptions,
+          concat: bool) =
   var start = getTime()
   var dllexport: PNode = nil
+  var infiles = infiles
+  
   if concat:
     var tree = newNode(nkStmtList)
     for infile in infiles:
       let m = parse(infile.addFileExt("h"), options, dllexport)
       if not isC2nimFile(infile):
-        if outfile.len == 0: outfile = changeFileExt(infile, "nim")
+        if outfile.len == 0:
+          outfile = changeFileExt(infile, "nim")
+      if not isC2nimFile(infile) or pfC2NimInclude in options.flags:
         for n in m: tree.add(n)
     myRenderModule(tree, outfile, options.renderFlags)
   else:
@@ -218,6 +226,7 @@ var
   outfile = ""
   concat = false
   parserOptions = newParserOptions()
+
 for kind, key, val in getopt():
   case kind
   of cmdArgument:
@@ -231,7 +240,10 @@ for kind, key, val in getopt():
       stdout.write(Version & "\n")
       quit(0)
     of "o", "out": outfile = val
-    of "concat": concat = true
+    of "concat":
+      concat = true
+      if val == "all":
+        incl(parserOptions.flags, pfC2NimInclude)
     of "spliceheader":
       quit "[Error] 'spliceheader' doesn't exist anymore" &
            " use a list of files and --concat instead"
@@ -239,11 +251,11 @@ for kind, key, val in getopt():
       parserOptions.exportPrefix = val
     of "def":
       parserOptions.parseDefineArgs(val)
+    of "render":
+      if not parserOptions.renderFlags.setOption(val):
+        quit("[Error] unknown option: " & key)
     else:
-      if key.normalize == "render":
-        if not parserOptions.renderFlags.setOption(val):
-          quit("[Error] unknown option: " & key)
-      elif not parserOptions.setOption(key, val):
+      if not parserOptions.setOption(key, val):
         quit("[Error] unknown option: " & key)
   of cmdEnd: assert(false)
 if infiles.len == 0:

@@ -7,6 +7,8 @@
 #    distribution, for details about the copyright.
 #
 
+import compiler / pathutils
+
 # Preprocessor support
 const
   c2nimSymbol = "C2NIM"
@@ -582,12 +584,14 @@ proc parseOverride(p: var Parser; tab: StringTableRef) =
   getTok(p)
   eatNewLine(p, nil)
 
-proc parseDir(p: var Parser; sectionParser: SectionParser): PNode =
+proc parseDir(p: var Parser; sectionParser: SectionParser, recur = false): PNode =
   result = emptyNode
-  assert(p.tok.xkind in {pxDirective, pxDirectiveParLe})
-  case p.tok.s
+  if not recur:
+    assert(p.tok.xkind in {pxDirective, pxDirectiveParLe})
+  case p.tok.s.normalize()
   of "define":
     let hasParams = p.tok.xkind == pxDirectiveParLe
+
     rawGetTok(p) # this is part of m4 define section, which shouldn't expand
     expectIdent(p)
     let isDefOverride = p.options.toPreprocess.hasKey(p.tok.s)
@@ -612,8 +616,15 @@ proc parseDir(p: var Parser; sectionParser: SectionParser): PNode =
   of "ifndef": result = parseIfndef(p, sectionParser)
   of "if": result = parseIfDir(p, sectionParser)
   of "cdecl", "stdcall", "ref", "skipinclude", "typeprefixes", "skipcomments",
-     "keepbodies", "cpp", "nep1", "assumeifistrue", "structstruct":
+     "keepbodies", "cpp", "nep1", "assumeifistrue", "structstruct",
+     "importfuncdefines", "importdefines", "strict",
+     "stdints", "reordercomments", "mergeblocks":
     discard setOption(p.options, p.tok.s)
+    getTok(p)
+    eatNewLine(p, nil)
+  of "render":
+    getTok(p)
+    discard setOption(p.options.renderFlags, p.tok.s)
     getTok(p)
     eatNewLine(p, nil)
   of "header":
@@ -631,7 +642,8 @@ proc parseDir(p: var Parser; sectionParser: SectionParser): PNode =
       getTok(p)
     eatNewLine(p, nil)
     result = emptyNode
-  of "dynlib", "prefix", "suffix", "class", "discardableprefix", "assumedef", "assumendef", "isarray":
+  of "dynlib", "prefix", "suffix", "class", "discardableprefix",
+      "assumedef", "assumendef", "isarray", "delete", "headerprefix":
     var key = p.tok.s
     getTok(p)
     if p.tok.xkind != pxStrLit: expectIdent(p)
@@ -639,6 +651,16 @@ proc parseDir(p: var Parser; sectionParser: SectionParser): PNode =
     getTok(p)
     eatNewLine(p, nil)
     result = emptyNode
+  of "pragma":
+    # recursively parse c2nim pragma's
+    # these make it easier to use without using a C2NIM guard
+    getTok(p)
+    if p.tok.s == "c2nim":
+      getTok(p)
+      result = parseDir(p, sectionParser, true)
+    else:
+      skipLine(p)
+      result = emptyNode
   of "mangle":
     parseMangleDir(p)
   of "pp":
@@ -658,5 +680,75 @@ proc parseDir(p: var Parser; sectionParser: SectionParser): PNode =
     eatNewLine(p, nil)
   else:
     # ignore unimportant/unknown directive ("undef", "pragma", "error")
+    echo "[warning] preprocessor ignoring option: " & p.tok.s
     skipLine(p)
 
+proc parseRemoveIncludes*(p: var Parser, infile: string): PNode =
+  # parse everything but strip extra includes
+
+  proc parseLineDir(p: var Parser): (PNode, AbsoluteFile) = 
+    try:
+      let num = parseInt(p.tok.s)
+      # ignore unimportant/unknown directive ("undef", "pragma", "error")
+      rawGetTok(p)
+      let li = newLineInfo(gConfig, AbsoluteFile p.tok.s, num, 0)
+      # echo "SKIP: ", num, " :: ", toProjPath(gConfig, li)
+      result = (newNodeI(nkComesFrom, li), AbsoluteFile p.tok.s)
+    except ValueError:
+      var code = newNodeP(nkTripleStrLit, p)
+      code.strVal.add(p.lex.getCurrentLine(false))
+      result = (code, AbsoluteFile "")
+    skipLine(p)
+    # eatNewLine(p, nil)
+  
+  var lastfile = AbsoluteFile ""
+  result = newNode(nkStmtList)
+  var isInFile = false
+
+  while true:
+    if p.tok.xkind == pxEof:
+      break
+
+    while p.tok.xkind in {pxDirective}:
+      if p.tok.xkind == pxEof:
+        break
+      let res = parseLineDir(p)
+      if res[1] != AbsoluteFile "":
+        lastfile = res[1]
+        isInFile = infile == lastfile.string
+        # echo "IS_IN_FILE: ", isInFile, " file: ", lastfile.string
+
+      if isInFile:
+        result.add(res[0])
+
+    var code = newNodeP(nkTripleStrLit, p)
+    var lastpos = p.lex.bufpos
+    var lastlen = p.lex.sentinel - lastpos
+    while p.tok.xkind notin {pxEof, pxDirective}:
+      if p.tok.xkind == pxLineComment:
+        code.strVal.add("\n")
+        for line in p.tok.s.splitLines():
+          code.strVal.add("\n")
+          code.strVal.add("//")
+          code.strVal.add(line)
+        code.strVal.add("\n")
+      elif p.tok.xkind == pxStarComment:
+        code.strVal.add("/*")
+        code.strVal.add(p.tok.s)
+        code.strVal.add("*/")
+      elif lastpos >= p.lex.bufpos:
+        var tmp = " "
+        tmp.add($p.tok[])
+        code.strVal.add(tmp)
+      else:
+        let tmp = p.lex.buf[lastpos..<p.lex.bufpos]
+        code.strVal.add($tmp)
+      lastpos = p.lex.bufpos
+      lastlen = p.lex.sentinel - lastpos
+      getTok(p)
+    
+    # add code
+    if isInFile:
+      result.add(code)
+
+  

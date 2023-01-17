@@ -153,7 +153,7 @@ proc openBaseLexer(L: var TBaseLexer, inputstream: PLLStream, bufLen = 8192) =
 proc getColNumber(L: TBaseLexer, pos: int): int =
   result = abs(pos - L.lineStart)
 
-proc getCurrentLine(L: TBaseLexer, marker: bool = true): string =
+proc getCurrentLine*(L: TBaseLexer, marker: bool = true): string =
   result = ""
   var i = L.lineStart
   while not (L.buf[i] in {CR, LF, EndOfFile}):

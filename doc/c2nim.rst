@@ -307,6 +307,62 @@ used for the same purpose.
 The ``#skipcomments`` directive can be put into the C code to make c2nim
 ignore comments and not copy them into the generated Nim file.
 
+``#headerprefix`` directive
+--------------------------
+**Note**: There is also a ``--headerprefix`` command line option that can be
+used for the same purpose.
+
+The ``#headerPrefix`` directive will append the raw string to beginning of C 
+headers when generating import pragmas. This is useful for prepending the
+include folders that many C projects use.
+
+.. code-block:: C
+  #headerPrefix "c_project/"
+
+``#mergeBlocks`` directive
+--------------------------
+**Note**: There is also a ``--mergeBlocks`` command line option that can be
+used for the same purpose.
+
+The ``#mergeBlocks`` directive can be put into the C code to make c2nim
+merge similar adjacent sections or "blocks" in the generated Nim code. This works for
+a few kinds of blocks like ``let`` or ``var`` sections. This is helpful when importing
+C code which produces lots of separate ``let`` sections.
+
+``#delete`` directive
+---------------------
+**Note**: There is also a ``--delete:INDENT`` command line option that can be
+used for the same purpose.
+
+The ``#delete`` directive can be put into the C code to make c2nim delete 
+certain code in the generated Nim code. For example this can be used to delete
+specific variable in the generated Nim output. 
+
+This is most useful when setting up scripts to automate updating wrapper files
+for large C projects. Importing large headers can result in unwanted sections of
+C code being translated. You can exclude these sections entirely or use it to embed
+raw Nim code to fix small tricky bits of C code.
+
+Note that the name should match the output Nim identifier names. In this example
+the code produced by importing ``error_string_t`` will be deleted.
+
+.. code-block:: C
+  #nep1
+  #delete ErrorStringT
+  
+  typedef error_string_t error_string_t;
+
+
+Another use case is removing unwanted imports which C includes often
+produce: 
+
+.. code-block:: C
+  #delete c_only_include
+  include "c_only_include.h"
+
+.. code-block:: Nim
+  import c_only_include # this will be deleted
+
 
 ``#typeprefixes`` directive
 ---------------------------
@@ -423,6 +479,23 @@ type into Nim's ``ptr UncheckedArray`` type, use the ``#isarray`` directive:
 .. code-block:: Nim
 
   proc sort*(a: ptr UncheckedArray[cint]; len: cint)
+
+``#render`` directive
+---------------------
+**Note**: There is also a ``--render:INDENT`` command line option that can be
+used for the same purpose.
+
+This option allows setting various render options. The list includes: 
+
+* nobody
+* nocomments
+* doccomments
+* nopragmas
+* ids
+* noprocdefs
+* syms
+* extranewlines
+* reindentlongcomments
 
 
 ``#discardableprefix`` directive

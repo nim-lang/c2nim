@@ -13,11 +13,12 @@
 ## - Fixes some empty statement sections.
 ## - Tries to rewrite braced initializers to be more accurate.
 
-import std / tables
+import std / [tables, sets, strutils]
 
 import compiler/[ast, renderer, idents]
 
 import clexer
+from cparser import ParserFlag
 
 template emptyNode: untyped = newNode(nkEmpty)
 
@@ -27,8 +28,10 @@ proc isEmptyStmtList(n: PNode): bool =
 type
   Context = object
     typedefs: Table[string, PNode]
+    deletes: Table[string, string]
     structStructMode: bool
     reorderComments: bool
+    mergeBlocks: bool
 
 proc getName(n: PNode): PNode =
   result = n
@@ -122,12 +125,12 @@ var depth = 0
 proc reorderComments(n: PNode) = 
   ## reorder C style comments to Nim style ones
   var j = 1
-  let commentKinds = {nkTypeSection, nkIdentDefs, nkProcDef, nkConstSection}
+  let commentKinds = {nkTypeSection, nkIdentDefs, nkProcDef, nkConstSection, nkVarSection}
   template moveComment(idx, off) =
-    if n[idx+off].len >= 0:
+    if n[idx+off].len > 0:
       n[idx+off][0].comment = n[idx].comment
       delete(n.sons, idx)
-
+  
   while j < n.safeLen - 1:
     if n[j].kind == nkCommentStmt:
       # join comments to previous node if line numbers match
@@ -135,6 +138,7 @@ proc reorderComments(n: PNode) =
         if n[j-1].info.line == n[j].info.line:
           moveComment(j, -1)
     inc j
+  
   var i = 0
   while i < n.safeLen - 1:
     if n[i].kind == nkCommentStmt:
@@ -143,10 +147,80 @@ proc reorderComments(n: PNode) =
         moveComment(i, +1)
     inc i
 
+proc mergeSimilarBlocks(n: PNode) = 
+  ## merge similar types of blocks
+  ## 
+  let blockKinds = {nkTypeSection, nkConstSection, nkVarSection}
+  template moveBlock(idx, prev) =
+    for ch in n[idx]:
+      n[prev].add(newNode(nkStmtList))
+      n[prev].add(ch)
+    delete(n.sons, idx)
+  
+  var i = 0
+  while i < n.safeLen - 1:
+    let kind = n[i].kind
+    if kind in blockKinds:
+      if n[i+1].kind == kind:
+        moveBlock(i+1, i)
+        continue
+    inc i
+ 
+proc deletesNode(c: Context, n: var PNode) = 
+  ## deletes nodes which match the names found in context.deletes
+  ## 
+  proc hasChild(n: PNode): bool = n.len() > 0
+
+  var i = 0
+  while i < n.safeLen:
+    # handle let's
+    if n[i].kind in {nkIdentDefs}:
+      if n[i].hasChild() and c.deletes.hasKey( split($(n[i][0]), "*")[0] ):
+        delete(n.sons, i)
+        continue
+
+    # handle postfix -- e.g. types
+    if n[i].kind in {nkPostfix}:
+      if c.deletes.hasKey($n[i][1]):
+        n = newNode(nkEmpty)
+        continue
+
+    # handle calls
+    if n[i].kind in {nkCall}:
+      if c.deletes.hasKey($n[i][0]):
+        n[i] = newNode(nkEmpty)
+        continue
+    
+    # handle imports
+    if n[i].kind in {nkImportStmt}:
+      deletesNode(c, n[i])
+    if n[i].kind in {nkIdent}:
+      if c.deletes.hasKey($n[i]):
+        delete(n.sons, i)
+        continue
+    inc i
+
+  block removeBlank:
+    if n.kind in {nkLetSection, nkTypeSection, nkVarSection, nkImportStmt}:
+      for c in n:
+        if c.kind in [nkIdent]:
+          break removeBlank
+        if not (c.kind in [nkEmpty, nkCommentStmt] or c.len() == 0):
+          break removeBlank
+      echo "[warning] postprocessor: removing blank section: ", $n.info
+      n = newNode(nkEmpty)
+
+
 proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
 
   if c.reorderComments:
     reorderComments(n)
+
+  if c.deletes.len() > 0:
+    deletesNode(c, n)
+
+  if c.mergeBlocks:
+    mergeSimilarBlocks(n)
 
   case n.kind
   of nkIdent:
@@ -199,10 +273,14 @@ proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
 
   dec depth
 
-proc postprocess*(n: PNode; structStructMode, reorderComments: bool): PNode =
+  deletesNode(c, n)
+
+proc postprocess*(n: PNode; flags: set[ParserFlag], deletes: Table[string, string]): PNode =
   var c = Context(typedefs: initTable[string, PNode](),
-                  reorderComments: reorderComments,
-                  structStructMode: structStructMode)
+                  deletes: deletes,
+                  structStructMode: pfStructStruct in flags,
+                  reorderComments: pfReorderComments in flags,
+                  mergeBlocks: pfMergeBlocks in flags)
   result = n
   pp(c, result)
 
