@@ -1678,7 +1678,7 @@ proc inheritedGenericParams(p: Parser) : PNode =
   else:
     result = emptyNode
 
-proc parseTypename(p: var Parser, result: PNode) =
+proc parseTypename(p: var Parser, result: PNode, skipIdent = true) =
   getTok(p) #skip "typename"
   let t = typeAtom(p)
   let genericParams = inheritedGenericParams(p)
@@ -1690,7 +1690,9 @@ proc parseTypename(p: var Parser, result: PNode) =
         if t[i].kind == nkIdent and findGenericParam(genericParams, t.sons[i]):
           gpl.add(t.sons[i])
     if gpl.len < 1: gpl = emptyNode
-  let lname = skipIdentExport(p, skType, true)
+  let lname =
+    if skipIdent: skipIdentExport(p, skType, true)
+    else: newNodeP(nkStmtList, p)
   addTypeDef(result, lname, t, gpl)
 
 proc parseTypeBody(p: var Parser; result, typeSection, afterStatements: PNode) =
@@ -3561,9 +3563,24 @@ proc parseStandaloneClass(p: var Parser, isStruct: bool;
     while true:
       # echo "P: ", p.tok.xkind, " ", p.tok.s
       var identDefs = newNodeP(nkIdentDefs, p)
-      let n = typeAtom(p)
-      # let id = skipIdent(p, skType)
-      identDefs.addSon(newIdentNodeP("T", p), n, emptyNode)
+      identDefs.add newIdentNodeP("TP", p)
+      # let n = typeAtom(p)
+      if p.tok.s == "typename":
+        echo "TYPENAME:parse: ", p.tok.s
+        let nn = newNodeP(nkEmpty, p)
+        parseTypename(p, nn, false)
+        identDefs.add newIdentNodeP("R1", p)
+        identDefs.add newIdentNodeP("R2", p)
+        echo "parseTypename:: " #, repr identDefs
+        # echo treeRepr(identDefs)
+        # echo identDefs.strVal
+        echo treeRepr(identDefs)
+      else:
+        echo "TYPENAME:ident: ", p.tok.s
+        var n = typeAtom(p, true)
+        # otherTypeDef(p, identDefs, t)
+        # let id = skipIdent(p, skType)
+        identDefs.addSon(newIdentNodeP("T", p), n, emptyNode)
       genericParams.add identDefs
       if p.tok.xkind != pxComma:
         break
