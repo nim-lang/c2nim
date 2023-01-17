@@ -3560,27 +3560,17 @@ proc parseStandaloneClass(p: var Parser, isStruct: bool;
   if p.tok.xkind == pxLt:
     # handle type params
     getTok(p)
+    var letter = 'T'
     while true:
-      # echo "P: ", p.tok.xkind, " ", p.tok.s
       var identDefs = newNodeP(nkIdentDefs, p)
-      identDefs.add newIdentNodeP("TP", p)
-      # let n = typeAtom(p)
       if p.tok.s == "typename":
-        echo "TYPENAME:parse: ", p.tok.s
-        let nn = newNodeP(nkEmpty, p)
-        parseTypename(p, nn, false)
-        identDefs.add newIdentNodeP("R1", p)
-        identDefs.add newIdentNodeP("R2", p)
-        echo "parseTypename:: " #, repr identDefs
-        # echo treeRepr(identDefs)
-        # echo identDefs.strVal
-        echo treeRepr(identDefs)
+        let n = newNodeP(nkStmtList, p)
+        parseTypename(p, n, false)
+        identDefs.addSon(n[0][^1], emptyNode)
       else:
-        echo "TYPENAME:ident: ", p.tok.s
         var n = typeAtom(p, true)
-        # otherTypeDef(p, identDefs, t)
-        # let id = skipIdent(p, skType)
-        identDefs.addSon(newIdentNodeP("T", p), n, emptyNode)
+        identDefs.addSon(newIdentNodeP($letter, p), n, emptyNode)
+        letter.inc()
       genericParams.add identDefs
       if p.tok.xkind != pxComma:
         break
