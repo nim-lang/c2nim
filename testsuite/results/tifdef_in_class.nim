@@ -1,8 +1,6 @@
 type
   failClass1* {.bycopy.} = object
     tmpI*: cint
-    when 0:
-      atLeastSkipThis*: cint
 
 
 proc someProc*(this: var failClass1; x: cint)
