@@ -546,7 +546,7 @@ proc parseIfDir(p: var Parser; sectionParser: SectionParser): PNode =
   getTok(p)
   let condition = ppCondExpr(p)
   let simplified = p.simplify(condition)
-  if simplified.isIdent("false"):
+  if simplified.isIdent("false") or $simplified == "0":
     skipUntilEndif(p)
     result = emptyNode
   else:
