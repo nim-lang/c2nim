@@ -414,6 +414,17 @@ proc eat(p: var Parser, tok: string, n: PNode) =
   if p.tok.s == tok: getTok(p, n)
   else: parError(p, "token expected: " & tok & " but got: " & tokKindToStr(p.tok.xkind))
 
+proc skipBody*(p: var Parser): bool =
+  ## skip bodies
+  if p.tok.xkind == pxCurlyLe:
+    eat(p, pxCurlyLe)
+    while p.tok.xkind != pxCurlyRi:
+      getTok(p)
+      if p.tok.xkind == pxCurlyLe:
+        discard skipBody(p)
+    eat(p, pxCurlyRi)
+    return true
+
 proc opt(p: var Parser, xkind: Tokkind, n: PNode) =
   if p.tok.xkind == xkind: getTok(p, n)
 
@@ -3312,8 +3323,14 @@ proc parseClassEntity(p: var Parser; genericParams: PNode; private: bool): PNode
     gp = genericParams
   if p.tok.xkind == pxSymbol and p.tok.s == "friend":
     # we skip friend declarations:
-    while p.tok.xkind notin {pxEof, pxSemicolon}: getTok(p)
-    eat(p, pxSemicolon)
+    var hasBody = false
+    while p.tok.xkind notin {pxEof, pxSemicolon}:
+      if skipBody(p): 
+        hasBody = true
+        break
+      getTok(p)
+    if not hasBody:
+      eat(p, pxSemicolon)
   elif p.tok.xkind == pxSymbol and p.tok.s == "using":
     result = usingStatement(p)
   elif p.tok.xkind == pxSymbol and p.tok.s == "enum":
