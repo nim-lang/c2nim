@@ -750,6 +750,4 @@ proc parseRemoveIncludes*(p: var Parser, infile: string): PNode =
     # add code
     if isInFile:
       result.add(code)
-
-  echo "done parsing preprocessed C file"
   
