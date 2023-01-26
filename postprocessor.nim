@@ -18,7 +18,7 @@ import std / [tables, sets, strutils]
 import compiler/[ast, renderer, idents]
 
 import clexer
-from cparser import ParserFlag
+from cparser import ParserFlag, dumpTree
 
 template emptyNode: untyped = newNode(nkEmpty)
 
@@ -176,26 +176,38 @@ proc deletesNode(c: Context, n: var PNode) =
     # handle let's
     if n[i].kind in {nkIdentDefs}:
       if n[i].hasChild() and c.deletes.hasKey( split($(n[i][0]), "*")[0] ):
+        echo "DEL:Ident"
+        delete(n.sons, i)
+        continue
+
+    if n[i].kind in {nkProcDef}:
+      if n[i].hasChild() and c.deletes.hasKey( $(n[i][0]) ):
+        echo "DEL:Proc"
         delete(n.sons, i)
         continue
 
     # handle postfix -- e.g. types
     if n[i].kind in {nkPostfix}:
       if c.deletes.hasKey($n[i][1]):
+        echo "DEL:PostFix"
         n = newNode(nkEmpty)
         continue
 
     # handle calls
     if n[i].kind in {nkCall}:
       if c.deletes.hasKey($n[i][0]):
+        echo "DEL:Call"
         n[i] = newNode(nkEmpty)
         continue
     
     # handle imports
     if n[i].kind in {nkImportStmt}:
       deletesNode(c, n[i])
+    
+    # handle generic identifier
     if n[i].kind in {nkIdent}:
       if c.deletes.hasKey($n[i]):
+        echo "DEL:import"
         delete(n.sons, i)
         continue
     inc i
