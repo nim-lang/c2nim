@@ -44,6 +44,7 @@ type
     pfTypePrefixes,     ## all generated types start with 'T' or 'P'
     pfSkipComments,     ## do not generate comments
     pfCpp,              ## process C++
+    pfCppAllOps,        ## do not skip C++ trivial operators
     pfIgnoreRValueRefs, ## transform C++'s 'T&&' to 'T'
     pfKeepBodies,       ## do not skip C++ method bodies
     pfAssumeIfIsTrue,   ## assume #if is true
@@ -185,6 +186,7 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "cpp":
     incl(parserOptions.flags, pfCpp)
     parserOptions.importcLit = "importcpp"
+  of "cppallops": incl(parserOptions.flags, pfCppAllOps)
   of "keepbodies": incl(parserOptions.flags, pfKeepBodies)
   of "ignorervaluerefs": incl(parserOptions.flags, pfIgnoreRValueRefs)
   of "class": parserOptions.classes[val] = "true"
@@ -1985,7 +1987,8 @@ proc declarationWithoutSemicolon(p: var Parser; genericParams: PNode = emptyNode
                          emptyNode, emptyNode)
     if isConverter: result.kind = nkConverterDef
     # don't add trivial operators that Nim ends up using anyway:
-    if origName in ["=", "!=", ">", ">="]:
+    if pfCppAllOps notin p.options.flags and
+        origName in ["=", "!=", ">", ">="]:
       result = emptyNode
     return
   else:
