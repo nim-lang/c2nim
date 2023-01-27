@@ -1412,7 +1412,6 @@ proc extractNumber(s: string, values: TableRef[string, BiggestInt] = nil): tuple
 
 proc exprToNumber(n: PNode, values: TableRef[string, BiggestInt]): tuple[succ: bool, val: BiggestInt] =
   result = (false, 0.BiggestInt)
-  echo "exprToNumber: ", n.kind
   case n.kind:
   of nkPrefix:
     # Check for negative/positive numbers  -3  or  +6
@@ -1430,7 +1429,6 @@ proc exprToNumber(n: PNode, values: TableRef[string, BiggestInt]): tuple[succ: b
   of nkInfix:
     let n1 = extractNumber($n[1], values)
     let n2 = extractNumber($n[2], values)
-    echo "n1: ", n1, " n2: ", n2
     case $n[0]:
     of "shl": result = (true, n1[1] shl n2[1])
     of "shr": result = (true, n1[1] shr n2[1])
@@ -1464,7 +1462,6 @@ proc enumFields(p: var Parser, constList, stmtList: PNode): PNode =
   var fields = newSeq[type(field)]()
   var fieldsComplete = false
   var fieldValues = newTable[string, BiggestInt]()
-  echo "\nenum result: ", treeRepr result
   while p.tok.xkind != pxCurlyRi:
     if p.tok.xkind == pxDirective or p.tok.xkind == pxDirectiveParLe:
       var define = parseDir(p, statement)
@@ -1483,7 +1480,6 @@ proc enumFields(p: var Parser, constList, stmtList: PNode): PNode =
       skipCom(p, e)
       field.value = c
       var (success, number) = exprToNumber(c, fieldValues)
-      echo "enum: ", (success, number), " a: ", a
       fieldValues[$a] = number
       if success:
         i = number
@@ -1508,7 +1504,6 @@ proc enumFields(p: var Parser, constList, stmtList: PNode): PNode =
   var lastIdent: PNode
   const outofOrder = "failed to sort enum fields"
   for count, f in fields:
-    echo "f.kind: ", f.kind, " id: ", f.id, " f: ", $f.node
     case f.kind
     of isNormal:
       addSon(result, f.node)
