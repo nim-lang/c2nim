@@ -148,6 +148,38 @@ proc reorderComments(n: PNode) =
         moveComment(i, +1)
     inc i
 
+proc removeBlankSections(n: var PNode) =
+  if n.kind in {nkLetSection, nkTypeSection, nkVarSection, nkImportStmt}:
+    for c in n:
+      if c.kind in [nkIdent]:
+        return
+      if not (c.kind in [nkEmpty, nkCommentStmt] or c.len() == 0):
+        return
+    echo "[warning] postprocessor: removing blank section: ", $n.info
+    n = newNode(nkEmpty)
+
+proc reorderTypes(n: var PNode) = 
+  ## reorder C types to be at start of file
+  var
+    firstTypeSection = -1
+    typeSections: seq[PNode]
+
+  for idx in 0..<n.safeLen:
+    if n[idx].kind == nkTypeSection:
+      firstTypeSection = idx
+      break
+  
+  var idx = n.safeLen - 1
+  while idx > max(firstTypeSection, 0):
+    if n[idx].kind == nkTypeSection:
+      typeSections.add(n[idx])
+      n.delSon(idx)
+    dec(idx)
+  
+  for st in typeSections:
+    n.sons.insert(st, firstTypeSection+1)
+
+
 proc mergeSimilarBlocks(n: PNode) = 
   ## merge similar types of blocks
   ## 
@@ -213,16 +245,7 @@ proc deletesNode(c: Context, n: var PNode) =
         continue
     inc i
 
-  block removeBlank:
-    if n.kind in {nkLetSection, nkTypeSection, nkVarSection, nkImportStmt}:
-      for c in n:
-        if c.kind in [nkIdent]:
-          break removeBlank
-        if not (c.kind in [nkEmpty, nkCommentStmt] or c.len() == 0):
-          break removeBlank
-      echo "[warning] postprocessor: removing blank section: ", $n.info
-      n = newNode(nkEmpty)
-
+  n.removeBlankSections()
 
 proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
 
@@ -232,9 +255,6 @@ proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
   if c.deletes.len() > 0:
     deletesNode(c, n)
 
-  if c.reorderTypes:
-    mergeSimilarBlocks(n)
-  
   if c.mergeBlocks:
     mergeSimilarBlocks(n)
 
@@ -299,6 +319,10 @@ proc postprocess*(n: PNode; flags: set[ParserFlag], deletes: Table[string, strin
                   reorderTypes: pfReorderTypes in flags,
                   mergeBlocks: pfMergeBlocks in flags)
   result = n
+
+  if c.reorderTypes:
+    reorderTypes(result)
+  
   pp(c, result)
 
 proc newIdentNode(s: string; n: PNode): PNode =
