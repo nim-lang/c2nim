@@ -53,6 +53,7 @@ type
     pfReorderTypes       ## reorder types to be at top of file
     pfFileNameIsPP      ## fixup pre-processor file name
     pfMergeBlocks       ## merge similar blocks
+    pfCppSpecialization ## parse c++ template specializations
 
   Macro* = object
     name*: string
@@ -201,6 +202,7 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "reordercomments": incl(parserOptions.flags, pfReorderComments)
   of "reordertypes": incl(parserOptions.flags, pfReorderTypes)
   of "mergeblocks": incl(parserOptions.flags, pfMergeBlocks)
+  of "cppspecialization": incl(parserOptions.flags, pfCppSpecialization)
   of "isarray": parserOptions.isArray[val] = "true"
   of "delete": parserOptions.deletes[val] = ""
   else: result = false
@@ -3565,35 +3567,7 @@ proc parseClass(p: var Parser; isStruct: bool;
 
   eat(p, pxCurlyRi, result)
 
-proc parseStandaloneClass(p: var Parser, isStruct: bool;
-                          genericParams: PNode,
-                          tmplParams: PNode = emptyNode): PNode =
-  result = newNodeP(nkStmtList, p)
-  saveContext(p)
-  getTok(p, result) # skip "class" or "struct"
-  let oldClass = p.currentClass
-  var oldClassOrig = p.currentClassOrig
-  var oldToMangle: StringTableRef
-  p.currentClassOrig = ""
-  if p.tok.xkind == pxSymbol:
-    markTypeIdent(p, nil)
-    p.currentClassOrig = p.tok.s
-    getTok(p, result)
-    if not oldClass.isNil and oldClass.kind == nkIdent:
-      p.currentClass = mangledIdent(oldClass.ident.s &
-                                    p.currentClassOrig, p, skType)
-      p.options.toMangle[p.currentClassOrig] = p.currentClass.ident.s
-    else:
-      p.currentClass = mangledIdent(p.currentClassOrig, p, skType)
-    deepCopy(oldToMangle, p.options.toMangle)
-    p.classHierarchy.add(p.currentClassOrig)
-    p.classHierarchyGP.add(tmplParams)
-  else:
-    p.currentClass = nil
-    p.classHierarchy.add("")
-    p.classHierarchyGP.add(emptyNode)
-  
-  if p.tok.xkind == pxLt:
+proc parseTemplateSpecialization(p: var Parser, genericParams: PNode) =
     # handle type specialization params
     # Nim doesn't support this directly. It does support `when`
     # inside type definitions, but we just do a literal translation
@@ -3619,12 +3593,45 @@ proc parseStandaloneClass(p: var Parser, isStruct: bool;
       else:
         getTok(p)
     eat(p, pxGt)
-    # let res = ($(genericParams)).strip(chars = {'{','}','[',']','(',')'})
+
     var postfix = $(genericParams)
     for l in [" ",";", ":","{","}","[","]","(",")"]:
       postfix = postfix.replace(l, "")
     p.currentClassOrig &= "_" & postfix
     p.currentClass = newIdentNodeP(p.currentClassOrig, p)
+
+proc parseStandaloneClass(p: var Parser, isStruct: bool;
+                          genericParams: PNode,
+                          tmplParams: PNode = emptyNode): PNode =
+  result = newNodeP(nkStmtList, p)
+  saveContext(p)
+  getTok(p, result) # skip "class" or "struct"
+  let oldClass = p.currentClass
+  var oldClassOrig = p.currentClassOrig
+  var oldToMangle: StringTableRef
+  var isSpecialization = false
+  p.currentClassOrig = ""
+  if p.tok.xkind == pxSymbol:
+    markTypeIdent(p, nil)
+    p.currentClassOrig = p.tok.s
+    getTok(p, result)
+    if not oldClass.isNil and oldClass.kind == nkIdent:
+      p.currentClass = mangledIdent(oldClass.ident.s &
+                                    p.currentClassOrig, p, skType)
+      p.options.toMangle[p.currentClassOrig] = p.currentClass.ident.s
+    else:
+      p.currentClass = mangledIdent(p.currentClassOrig, p, skType)
+    deepCopy(oldToMangle, p.options.toMangle)
+    p.classHierarchy.add(p.currentClassOrig)
+    p.classHierarchyGP.add(tmplParams)
+  else:
+    p.currentClass = nil
+    p.classHierarchy.add("")
+    p.classHierarchyGP.add(emptyNode)
+  
+  if p.tok.xkind == pxLt:
+    isSpecialization = true
+    parseTemplateSpecialization(p, genericParams)
 
   if p.tok.xkind in {pxCurlyLe, pxSemiColon, pxColon}:
     if p.currentClass != nil:
@@ -3658,6 +3665,12 @@ proc parseStandaloneClass(p: var Parser, isStruct: bool;
   p.currentClass = oldClass
   p.currentClassOrig = oldClassOrig
   p.options.toMangle = oldToMangle
+
+  if isSpecialization and pfCppSpecialization notin p.options.flags:
+    let spec = result
+    result = newNodeP(nkCommentStmt, p)
+    result.comment = "# ignored specialization: "
+    result.comment.add $spec
 
 proc unwrap(a: PNode): PNode =
   if a.kind == nkPar:

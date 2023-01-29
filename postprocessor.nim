@@ -160,6 +160,8 @@ proc removeBlankSections(n: var PNode) =
 
 proc reorderTypes(n: var PNode) = 
   ## reorder C types to be at start of file
+  
+  # reorder type sections
   var
     firstTypeSection = -1
     typeSections: seq[PNode]
@@ -175,17 +177,20 @@ proc reorderTypes(n: var PNode) =
   for st in typeSections:
     n.sons.insert(st, firstTypeSection+1)
 
+  # reorder const sections
   var
     firstConstSection = -1
     constSections: seq[PNode]
   for j in 0..<n.safeLen:
     if n[j].kind == nkConstSection:
       firstConstSection = j; break
-  if firstConstSection > firstTypeSection:
-    let cs = n[firstConstSection]
-    n.delSon(firstConstSection)
-    n.sons.insert(cs, firstTypeSection)
-    firstConstSection = firstTypeSection
+
+  # # special case const
+  # if firstConstSection > firstTypeSection:
+  #   let cs = n[firstConstSection]
+  #   n.delSon(firstConstSection)
+  #   n.sons.insert(cs, firstTypeSection)
+  #   firstConstSection = firstTypeSection
   
   var j = n.safeLen - 1
   while j > max(firstConstSection, 0):
