@@ -163,21 +163,43 @@ proc reorderTypes(n: var PNode) =
   var
     firstTypeSection = -1
     typeSections: seq[PNode]
-
-  for idx in 0..<n.safeLen:
-    if n[idx].kind == nkTypeSection:
-      firstTypeSection = idx
-      break
-  
-  var idx = n.safeLen - 1
-  while idx > max(firstTypeSection, 0):
-    if n[idx].kind == nkTypeSection:
-      typeSections.add(n[idx])
-      n.delSon(idx)
-    dec(idx)
-  
+  for i in 0..<n.safeLen:
+    if n[i].kind == nkTypeSection:
+      firstTypeSection = i; break
+  var i = n.safeLen - 1
+  while i > max(firstTypeSection, 0):
+    if n[i].kind == nkTypeSection:
+      typeSections.add(n[i])
+      n.delSon(i)
+    dec(i)
   for st in typeSections:
     n.sons.insert(st, firstTypeSection+1)
+
+  var
+    firstConstSection = -1
+    constSections: seq[PNode]
+  for j in 0..<n.safeLen:
+    if n[j].kind == nkConstSection:
+      echo "firstConstSection:j: ", j
+      firstConstSection = j; break
+  if firstConstSection > firstTypeSection:
+    let cs = n[firstConstSection]
+    n.delSon(firstConstSection)
+    n.sons.insert(cs, firstTypeSection)
+    firstConstSection = firstTypeSection
+  
+  var j = n.safeLen - 1
+  while j > max(firstConstSection, 0):
+    echo "CONST: ", n[j].kind
+    if n[j].kind == nkConstSection:
+      constSections.add(n[j])
+      n.delSon(j)
+    dec(j)
+  for st in constSections:
+    echo "add:CONSTS: ", firstConstSection
+    n.sons.insert(st, firstConstSection+1)
+  echo "len:CONSTS: ", constSections
+  echo "first:CONSTS: ", firstConstSection
 
 
 proc mergeSimilarBlocks(n: PNode) = 
