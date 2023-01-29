@@ -31,6 +31,7 @@ type
     deletes: Table[string, string]
     structStructMode: bool
     reorderComments: bool
+    reorderTypes: bool
     mergeBlocks: bool
 
 proc getName(n: PNode): PNode =
@@ -231,6 +232,9 @@ proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
   if c.deletes.len() > 0:
     deletesNode(c, n)
 
+  if c.reorderTypes:
+    mergeSimilarBlocks(n)
+  
   if c.mergeBlocks:
     mergeSimilarBlocks(n)
 
@@ -292,6 +296,7 @@ proc postprocess*(n: PNode; flags: set[ParserFlag], deletes: Table[string, strin
                   deletes: deletes,
                   structStructMode: pfStructStruct in flags,
                   reorderComments: pfReorderComments in flags,
+                  reorderTypes: pfReorderTypes in flags,
                   mergeBlocks: pfMergeBlocks in flags)
   result = n
   pp(c, result)
