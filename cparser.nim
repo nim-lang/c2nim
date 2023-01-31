@@ -2007,10 +2007,10 @@ proc declarationWithoutSemicolon(p: var Parser; genericParams: PNode = emptyNode
                          genericParams, emptyNode)
     if isConverter: result.kind = nkConverterDef
     # don't add trivial operators that Nim ends up using anyway:
-    if pfCppAllOps notin p.options.flags and
-        origName in ["=", "!=", ">", ">="]:
+    if isConverter and pfCppSkipConverter in p.options.flags:
       result = emptyNode
-    elif pfCppSkipConverter in p.options.flags:
+    elif pfCppAllOps notin p.options.flags and
+        origName in ["=", "!=", ">", ">="]:
       result = emptyNode
     return
   else:
@@ -3434,8 +3434,9 @@ proc parseClassEntity(p: var Parser; genericParams: PNode; private: bool): PNode
             if not private or pfKeepBodies in p.options.flags:
               if isConverter: meth.kind = nkConverterDef
               # don't add trivial operators that Nim ends up using anyway:
-              if origName notin ["=", "!=", ">", ">="] and
-                  pfCppSkipConverter notin p.options.flags:
+              if isConverter and pfCppSkipConverter in p.options.flags:
+                discard
+              elif origName notin ["=", "!=", ">", ">="]:
                 result.add(meth)
             break
           origName = p.tok.s
