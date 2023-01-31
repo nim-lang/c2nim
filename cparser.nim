@@ -50,11 +50,12 @@ type
     pfAssumeIfIsTrue,   ## assume #if is true
     pfStructStruct,     ## do not treat struct Foo Foo as a forward decl
     pfReorderComments,  ## reorder comments to match Nim's style
-    pfReorderTypes,      ## reorder types to be at top of file
+    pfReorderTypes,     ## reorder types to be at top of file
     pfFileNameIsPP,     ## fixup pre-processor file name
     pfMergeBlocks,      ## merge similar blocks
     pfCppSpecialization, ## parse c++ template specializations
-    pfCppSkipConverter ## skip C++ converters
+    pfCppSkipConverter  ## skip C++ converters
+    pfCppSkipCallOp     ## skip C++ converters
 
   Macro* = object
     name*: string
@@ -205,6 +206,7 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "mergeblocks": incl(parserOptions.flags, pfMergeBlocks)
   of "cppskipconverter": incl(parserOptions.flags, pfCppSkipConverter)
   of "cppspecialization":incl(parserOptions.flags, pfCppSpecialization)
+  of "cppskipcallop":incl(parserOptions.flags, pfCppSkipCallOp)
   of "isarray": parserOptions.isArray[val] = "true"
   of "delete": parserOptions.deletes[val] = ""
   else: result = false
@@ -665,6 +667,17 @@ proc isTemplateAngleBracket(p: var Parser): bool =
 proc hasValue(t: StringTableRef, s: string): bool =
   for v in t.values:
     if v == s: return true
+
+proc skipOperator(p: Parser, s: string, isConverter: bool): bool =
+  # don't add trivial operators that Nim ends up using anyway:
+  if pfCppAllOps in p.options.flags:
+    return false
+  elif isConverter and pfCppSkipConverter in p.options.flags:
+    return true
+  elif s == "()" and pfCppSkipCallOp in p.options.flags:
+    return true
+  elif s in ["=", "!=", ">", ">="]:
+    return true
 
 proc optScope(p: var Parser, n: PNode; kind: TSymKind): PNode =
   result = n
@@ -2007,10 +2020,7 @@ proc declarationWithoutSemicolon(p: var Parser; genericParams: PNode = emptyNode
                          genericParams, emptyNode)
     if isConverter: result.kind = nkConverterDef
     # don't add trivial operators that Nim ends up using anyway:
-    if isConverter and pfCppSkipConverter in p.options.flags:
-      result = emptyNode
-    elif pfCppAllOps notin p.options.flags and
-        origName in ["=", "!=", ">", ">="]:
+    if skipOperator(p, origName, isConverter):
       result = emptyNode
     return
   else:
@@ -3413,8 +3423,7 @@ proc parseClassEntity(p: var Parser; genericParams: PNode; private: bool): PNode
       if not private or pfKeepBodies in p.options.flags:
         meth.kind = nkConverterDef
         # don't add trivial operators that Nim ends up using anyway:
-        if origName notin ["=", "!=", ">", ">="] and
-            pfCppSkipConverter notin p.options.flags:
+        if not skipOperator(p, origName, true):
           result.add(meth)
     else:
       # field declaration or method:
@@ -3435,9 +3444,7 @@ proc parseClassEntity(p: var Parser; genericParams: PNode; private: bool): PNode
             if not private or pfKeepBodies in p.options.flags:
               if isConverter: meth.kind = nkConverterDef
               # don't add trivial operators that Nim ends up using anyway:
-              if isConverter and pfCppSkipConverter in p.options.flags:
-                discard
-              elif origName notin ["=", "!=", ">", ">="]:
+              if not skipOperator(p, origName, isConverter):
                 result.add(meth)
             break
           origName = p.tok.s
