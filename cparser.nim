@@ -3413,7 +3413,8 @@ proc parseClassEntity(p: var Parser; genericParams: PNode; private: bool): PNode
       if not private or pfKeepBodies in p.options.flags:
         meth.kind = nkConverterDef
         # don't add trivial operators that Nim ends up using anyway:
-        if origName notin ["=", "!=", ">", ">="]:
+        if origName notin ["=", "!=", ">", ">="] and
+            pfCppSkipConverter notin p.options.flags:
           result.add(meth)
     else:
       # field declaration or method:
