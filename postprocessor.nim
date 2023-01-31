@@ -151,7 +151,7 @@ proc reorderComments(n: PNode) =
 proc removeBlankSections(n: var PNode) =
   if n.kind in {nkLetSection, nkTypeSection, nkVarSection, nkImportStmt}:
     for c in n:
-      if c.kind in [nkIdent]:
+      if c.kind in {[nkIdent}:
         return
       if not (c.kind in [nkEmpty, nkCommentStmt] or c.len() == 0):
         return
