@@ -1416,7 +1416,7 @@ proc extractNumber(s: string, values: TableRef[string, BiggestInt] = nil): tuple
 
 proc exprToNumber(n: PNode, values: TableRef[string, BiggestInt]): tuple[succ: bool, val: BiggestInt] =
   result = (false, 0.BiggestInt)
-  case n.kind:
+  case n.kind
   of nkPrefix:
     # Check for negative/positive numbers  -3  or  +6
     if n.sons.len == 2 and n.sons[0].kind == nkIdent and n.sons[1].kind == nkIntLit:
@@ -1433,7 +1433,7 @@ proc exprToNumber(n: PNode, values: TableRef[string, BiggestInt]): tuple[succ: b
   of nkInfix:
     let n1 = extractNumber($n[1], values)
     let n2 = extractNumber($n[2], values)
-    case $n[0]:
+    case $n[0]
     of "shl": result = (true, n1[1] shl n2[1])
     of "shr": result = (true, n1[1] shr n2[1])
     of "+": result = (true, n1[1] + n2[1])
@@ -1514,7 +1514,7 @@ proc enumFields(p: var Parser, constList, stmtList: PNode): PNode =
     of isNumber:
       if f.id == lastId and count > 0:
         var currentIdent: PNode
-        case f.node.kind:
+        case f.node.kind
         of nkEnumFieldDef:
           if f.node.sons.len > 0 and f.node.sons[0].kind == nkIdent:
             currentIdent = f.node.sons[0]
@@ -1526,7 +1526,7 @@ proc enumFields(p: var Parser, constList, stmtList: PNode): PNode =
       else:
         addSon(result, f.node)
         lastId = f.id
-        case f.node.kind:
+        case f.node.kind
         of nkEnumFieldDef:
           if f.node.sons.len > 0 and f.node.sons[0].kind == nkIdent:
             lastIdent = f.node.sons[0]
@@ -2001,13 +2001,18 @@ proc declarationWithoutSemicolon(p: var Parser; genericParams: PNode = emptyNode
   if pfCpp in p.options.flags and p.tok.s == "operator":
     origName = ""
     var isConverter = parseOperator(p, origName)
+    echo "isConverter: ", isConverter
+    echo "baseTyp: ", treeRepr baseTyp
+    echo "genericParams: ", treeRepr genericParams
+    echo "retTyp: ", treeRepr retTyp
     result = parseMethod(p, origName, rettyp, pragmas, true, true,
-                         emptyNode, emptyNode)
+                         genericParams, emptyNode)
     if isConverter: result.kind = nkConverterDef
     # don't add trivial operators that Nim ends up using anyway:
     if pfCppAllOps notin p.options.flags and
         origName in ["=", "!=", ">", ">="]:
       result = emptyNode
+    # echo "result:: ", treeRepr result
     return
   else:
     getTok(p) # skip identifier
@@ -3401,6 +3406,7 @@ proc parseClassEntity(p: var Parser; genericParams: PNode; private: bool): PNode
       else:
         parError(p, "invalid destructor")
     elif p.tok.xkind == pxSymbol and p.tok.s == "operator":
+      echo "OPERATOR::A"
       let origName = getConverterCppType(p)
       var baseTyp = typeAtom(p)
       var t = pointer(p, baseTyp)
@@ -3423,6 +3429,7 @@ proc parseClassEntity(p: var Parser; genericParams: PNode; private: bool): PNode
         var origName: string
         if p.tok.xkind == pxSymbol:
           if p.tok.s == "operator":
+            echo "OPERATOR::B"
             origName = ""
             var isConverter = parseOperator(p, origName)
             let meth = parseMethod(p, origName, t, pragmas, isStatic, true,

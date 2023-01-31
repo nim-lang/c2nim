@@ -1,9 +1,3 @@
-const
-  fooF1* = 33
-
-const
-  barB1* = 44
-
 type
   foo* {.importcpp: "foo", header: "reordertypes.hpp", bycopy.} = object
     val* {.importc: "val".}: cint
@@ -16,5 +10,11 @@ type
 
 converter `int`*(this: foo): cint {.noSideEffect, importcpp: "foo::operator int",
                                 header: "reordertypes.hpp".}
+const
+  fooF1* = 33
+
+const
+  barB1* = 44
+
 proc `+`*(this: var bar; b: cint): cint {.importcpp: "(# + #)",
                                    header: "reordertypes.hpp".}

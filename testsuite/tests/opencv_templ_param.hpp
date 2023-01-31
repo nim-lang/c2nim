@@ -1,3 +1,5 @@
+#cppspecialization
+
 template<> struct ParamType<std::vector<Mat> >
 {
     typedef const std::vector<Mat>& const_param_type;
