@@ -49,11 +49,12 @@ type
     pfKeepBodies,       ## do not skip C++ method bodies
     pfAssumeIfIsTrue,   ## assume #if is true
     pfStructStruct,     ## do not treat struct Foo Foo as a forward decl
-    pfReorderComments   ## reorder comments to match Nim's style
-    pfReorderTypes       ## reorder types to be at top of file
-    pfFileNameIsPP      ## fixup pre-processor file name
-    pfMergeBlocks       ## merge similar blocks
-    pfCppSpecialization ## parse c++ template specializations
+    pfReorderComments,  ## reorder comments to match Nim's style
+    pfReorderTypes,      ## reorder types to be at top of file
+    pfFileNameIsPP,     ## fixup pre-processor file name
+    pfMergeBlocks,      ## merge similar blocks
+    pfCppSpecialization, ## parse c++ template specializations
+    pfCppSkipConverter ## skip C++ converters
 
   Macro* = object
     name*: string
@@ -202,7 +203,8 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "reordercomments": incl(parserOptions.flags, pfReorderComments)
   of "reordertypes": incl(parserOptions.flags, pfReorderTypes)
   of "mergeblocks": incl(parserOptions.flags, pfMergeBlocks)
-  of "cppspecialization": incl(parserOptions.flags, pfCppSpecialization)
+  of "cppskipconverter": incl(parserOptions.flags, pfCppSkipConverter)
+  of "cppspecialization":incl(parserOptions.flags, pfCppSpecialization)
   of "isarray": parserOptions.isArray[val] = "true"
   of "delete": parserOptions.deletes[val] = ""
   else: result = false
@@ -2001,10 +2003,6 @@ proc declarationWithoutSemicolon(p: var Parser; genericParams: PNode = emptyNode
   if pfCpp in p.options.flags and p.tok.s == "operator":
     origName = ""
     var isConverter = parseOperator(p, origName)
-    echo "isConverter: ", isConverter
-    echo "baseTyp: ", treeRepr baseTyp
-    echo "genericParams: ", treeRepr genericParams
-    echo "retTyp: ", treeRepr retTyp
     result = parseMethod(p, origName, rettyp, pragmas, true, true,
                          genericParams, emptyNode)
     if isConverter: result.kind = nkConverterDef
@@ -2012,7 +2010,8 @@ proc declarationWithoutSemicolon(p: var Parser; genericParams: PNode = emptyNode
     if pfCppAllOps notin p.options.flags and
         origName in ["=", "!=", ">", ">="]:
       result = emptyNode
-    # echo "result:: ", treeRepr result
+    elif pfCppSkipConverter in p.options.flags:
+      result = emptyNode
     return
   else:
     getTok(p) # skip identifier
@@ -3406,7 +3405,6 @@ proc parseClassEntity(p: var Parser; genericParams: PNode; private: bool): PNode
       else:
         parError(p, "invalid destructor")
     elif p.tok.xkind == pxSymbol and p.tok.s == "operator":
-      echo "OPERATOR::A"
       let origName = getConverterCppType(p)
       var baseTyp = typeAtom(p)
       var t = pointer(p, baseTyp)
@@ -3429,7 +3427,6 @@ proc parseClassEntity(p: var Parser; genericParams: PNode; private: bool): PNode
         var origName: string
         if p.tok.xkind == pxSymbol:
           if p.tok.s == "operator":
-            echo "OPERATOR::B"
             origName = ""
             var isConverter = parseOperator(p, origName)
             let meth = parseMethod(p, origName, t, pragmas, isStatic, true,
@@ -3437,7 +3434,8 @@ proc parseClassEntity(p: var Parser; genericParams: PNode; private: bool): PNode
             if not private or pfKeepBodies in p.options.flags:
               if isConverter: meth.kind = nkConverterDef
               # don't add trivial operators that Nim ends up using anyway:
-              if origName notin ["=", "!=", ">", ">="]:
+              if origName notin ["=", "!=", ">", ">="] and
+                  pfCppSkipConverter notin p.options.flags:
                 result.add(meth)
             break
           origName = p.tok.s
