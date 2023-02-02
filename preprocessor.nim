@@ -298,7 +298,7 @@ proc parseInclude(p: var Parser): PNode =
       eatNewLine(p, nil)
     else:
       skipLine(p)
-  if sonsLen(result) == 0:
+  if result.len == 0:
     # we only parsed includes that we chose to ignore:
     result = emptyNode
 

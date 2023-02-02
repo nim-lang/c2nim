@@ -99,7 +99,7 @@ proc patchBracket(c: Context; t: PNode; n: var PNode) =
   if t.kind == nkBracketExpr and t.len == 3 and t[0].kind == nkIdent and t[0].ident.s == "array":
     for i in 0..<n.len:
       patchBracket(c, t[2], n.sons[i])
-    if n.kind == nkTupleConstr: n.kind = nkBracket
+    if n.kind == nkTupleConstr: n.transitionSonsKind(nkBracket)
 
   elif t.kind == nkObjectTy and obj.kind == nkIdent:
     var nn = newTree(nkObjConstr, obj)

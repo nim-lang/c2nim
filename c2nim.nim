@@ -9,14 +9,10 @@
 
 import std / [strutils, os, times, md5, parseopt, strscans]
 
-import compiler/ [llstream, ast, renderer, options, msgs, nversion]
-
+import compiler / [llstream, ast, renderer, options, msgs, lineinfos, pathutils]
 import clexer, cparser, postprocessor
 
-when declared(NimCompilerApiVersion):
-  import compiler / [lineinfos, pathutils]
-
-proc extractVersion(): string {.compileTime.} =
+proc extractVersion(): string =
   let nimbleFile = staticRead("c2nim.nimble")
   for line in splitLines(nimbleFile):
     if scanf(line, "version$s=$s\"$+\"", result): break
@@ -78,24 +74,27 @@ Options:
 proc isCppFile(s: string): bool =
   splitFile(s).ext.toLowerAscii in [".cpp", ".cxx", ".hpp"]
 
-when not declared(NimCompilerApiVersion):
-  type AbsoluteFile = string
+type
+  CustomPostProcessor* = proc (n: PNode; cfilename: string): PNode
 
-proc parse(infile: string, options: PParserOptions; dllExport: var PNode): PNode =
+proc parse(infile: string, options: PParserOptions; dllExport: var PNode;
+           postProcessor: CustomPostProcessor): PNode =
   var stream = llStreamOpen(AbsoluteFile infile, fmRead)
   if stream == nil:
-    when declared(NimCompilerApiVersion):
-      rawMessage(gConfig, errGenerated, "cannot open file: " & infile)
-    else:
-      rawMessage(errGenerated, "cannot open file: " & infile)
+    rawMessage(gConfig, errGenerated, "cannot open file: " & infile)
   let isCpp = pfCpp notin options.flags and isCppFile(infile)
   var p: Parser
   if isCpp: options.flags.incl pfCpp
   openParser(p, infile, stream, options)
+<<<<<<< Updated upstream
   result = parseUnit(p).postprocess(
     structStructMode = pfStructStruct in options.flags,
     reorderComments = pfReorderComments in options.flags
   )
+=======
+  result = parseUnit(p).postprocess(pfStructStruct in options.flags)
+  result = postProcessor(result, infile)
+>>>>>>> Stashed changes
   closeParser(p)
   if isCpp: options.flags.excl pfCpp
   if options.exportPrefix.len > 0:
@@ -150,7 +149,11 @@ when not compiles(renderModule(dummy, "")):
   proc renderModule(tree: PNode; filename: string, renderFlags: TRenderFlags) =
     renderModule(tree, filename, filename, renderFlags)
 
+<<<<<<< Updated upstream
 proc myRenderModule(tree: PNode; filename: string, renderFlags: TRenderFlags) =
+=======
+proc myRenderModule*(tree: PNode; filename: string) =
+>>>>>>> Stashed changes
   # also ensure we produced no trailing whitespace:
   let tmpFile = filename & ".tmp"
   renderModule(tree, tmpFile, renderFlags)
@@ -181,20 +184,21 @@ proc myRenderModule(tree: PNode; filename: string, renderFlags: TRenderFlags) =
   f.close
 
 proc main(infiles: seq[string], outfile: var string,
-          options: PParserOptions, concat: bool) =
+          options: PParserOptions, concat: bool;
+          postProcessor: CustomPostProcessor) =
   var start = getTime()
   var dllexport: PNode = nil
   if concat:
     var tree = newNode(nkStmtList)
     for infile in infiles:
-      let m = parse(infile.addFileExt("h"), options, dllexport)
+      let m = parse(infile.addFileExt("h"), options, dllexport, postProcessor)
       if not isC2nimFile(infile):
         if outfile.len == 0: outfile = changeFileExt(infile, "nim")
         for n in m: tree.add(n)
     myRenderModule(tree, outfile, options.renderFlags)
   else:
     for infile in infiles:
-      let m = parse(infile, options, dllexport)
+      let m = parse(infile, options, dllexport, postProcessor)
       if not isC2nimFile(infile):
         if outfile.len > 0:
           myRenderModule(m, outfile, options.renderFlags)
@@ -205,6 +209,7 @@ proc main(infiles: seq[string], outfile: var string,
   if dllexport != nil:
     let (path, name, _) = infiles[0].splitFile
     let outfile = path / name & "_dllimpl" & ".nim"
+<<<<<<< Updated upstream
     myRenderModule(dllexport, outfile, options.renderFlags)
   when declared(NimCompilerApiVersion):
     rawMessage(gConfig, hintSuccessX, [$gLinesCompiled, $(getTime() - start),
@@ -251,3 +256,46 @@ if infiles.len == 0:
   stdout.write(Usage)
 else:
   main(infiles, outfile, parserOptions, concat)
+=======
+    myRenderModule(dllexport, outfile)
+  rawMessage(gConfig, hintSuccessX, [$gLinesCompiled, $(getTime() - start),
+             formatSize(getTotalMem()), ""])
+
+proc handleCmdLine*(postProcessor: CustomPostProcessor) =
+  var
+    infiles = newSeq[string](0)
+    outfile = ""
+    concat = false
+    parserOptions = newParserOptions()
+  for kind, key, val in getopt():
+    case kind
+    of cmdArgument:
+      infiles.add key
+    of cmdLongOption, cmdShortOption:
+      case key.normalize
+      of "help", "h":
+        stdout.write(Usage)
+        quit(0)
+      of "version", "v":
+        stdout.write(Version & "\n")
+        quit(0)
+      of "o", "out": outfile = val
+      of "concat": concat = true
+      of "spliceheader":
+        quit "[Error] 'spliceheader' doesn't exist anymore" &
+            " use a list of files and --concat instead"
+      of "exportdll":
+        parserOptions.exportPrefix = val
+      else:
+        if not parserOptions.setOption(key, val):
+          quit("[Error] unknown option: " & key)
+    of cmdEnd: assert(false)
+  if infiles.len == 0:
+    # no filename has been given, so we show the help:
+    stdout.write(Usage)
+  else:
+    main(infiles, outfile, parserOptions, concat, postProcessor)
+
+handleCmdLine proc (n: PNode; cfilename: string): PNode =
+  result = n
+>>>>>>> Stashed changes

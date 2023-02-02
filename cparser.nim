@@ -17,16 +17,13 @@
 ## easily go back. The token list is patched so that `>>` is converted to
 ## `> >` for C++ template support.
 
-import
-  os, compiler/llstream, compiler/renderer, clexer, compiler/idents, strutils,
-  pegs, compiler/ast, compiler/msgs,
-  strtabs, hashes, algorithm, compiler/nversion
+import clexer
 
-when declared(NimCompilerApiVersion):
-  import compiler / lineinfos
+import compiler/[ast, msgs, llstream, renderer, idents, lineinfos]
+import std/[os, strutils, strtabs, algorithm]
 
-  proc getIdent(s: string): PIdent = getIdent(identCache, s)
-  template emptyNode: untyped = newNode(nkEmpty)
+proc getIdent(s: string): PIdent = getIdent(identCache, s)
+template emptyNode: untyped = newNode(nkEmpty)
 
 import pegs except Token, Tokkind
 
@@ -495,7 +492,11 @@ proc markTypeIdent(p: var Parser, typ: PNode) =
 # purposes.
 
 proc expression(p: var Parser, rbp: int = 0; parent: PNode = nil): PNode
+<<<<<<< Updated upstream
 proc constantExpression(p: var Parser; parent: PNode = nil): PNode = expression(p, 40, parent)
+=======
+proc constantExpression(p: var Parser, parent: PNode = nil): PNode = expression(p, 40, parent)
+>>>>>>> Stashed changes
 proc assignmentExpression(p: var Parser): PNode = expression(p, 30)
 proc compoundStatement(p: var Parser; newScope=true): PNode
 proc statement(p: var Parser): PNode
@@ -819,7 +820,7 @@ proc newProcPragmas(p: Parser): PNode =
     addSon(result, newIdentNodeP("noconv", p))
 
 proc addPragmas(father, pragmas: PNode) =
-  if sonsLen(pragmas) > 0: addSon(father, pragmas)
+  if pragmas.len > 0: addSon(father, pragmas)
   else: addSon(father, emptyNode)
 
 proc addReturnType(params, rettyp: PNode): bool =
@@ -1195,7 +1196,7 @@ proc parseParam(p: var Parser, params: PNode) =
   var origName = ""
   typ = declarator(p, typ, addr name, origName)
   if name == nil:
-    var idx = sonsLen(params)
+    var idx = params.len
     name = newIdentNodeP(p.options.paramPrefix & $idx, p)
   elif p.options.isArray.hasKey(origName) and typ.kind == nkPtrTy:
     typ = makeUncheckedArray(p, typ)
@@ -1777,7 +1778,7 @@ proc parseInitializer(p: var Parser; kind: TNodeKind; isArray: var bool): PNode 
       addSon(result, parseInitializer(p, kind, isArray))
       opt(p, pxComma, nil)
     eat(p, pxCurlyRi, result)
-    if isArray: result.kind = nkBracket
+    if isArray: result.transitionSonsKind(nkBracket)
   of pxDot:
     # designated initializer?
     result = newNodeP(nkExprColonExpr, p)
@@ -1945,7 +1946,7 @@ proc declarationWithoutSemicolon(p: var Parser; genericParams: PNode = emptyNode
     var isConverter = parseOperator(p, origName)
     result = parseMethod(p, origName, rettyp, pragmas, true, true,
                          emptyNode, emptyNode)
-    if isConverter: result.kind = nkConverterDef
+    if isConverter: result.transitionSonsKind(nkConverterDef)
     # don't add trivial operators that Nim ends up using anyway:
     if origName in ["=", "!=", ">", ">="]:
       result = emptyNode
@@ -2004,7 +2005,7 @@ proc declarationWithoutSemicolon(p: var Parser; genericParams: PNode = emptyNode
         addSon(result, compoundStatement(p))
     else:
       parError(p, "expected ';'")
-    if sonsLen(result.sons[pragmasPos]) == 0:
+    if result.sons[pragmasPos].len == 0:
       result.sons[pragmasPos] = emptyNode
   of pxScope:
     # outlined C++ method:
@@ -2336,7 +2337,7 @@ proc startExpression(p: var Parser, tok: Token): PNode =
       # addSon(result, expression(p, 11)) # XXX
       if p.tok.xkind == pxComma: getTok(p, result[^1])
     eat(p, pxCurlyRi)
-    if isArray: result.kind = nkBracket
+    if isArray: result.transitionSonsKind(nkBracket)
   of pxBracketLe:
     if pfCpp in p.options.flags:
       result = newTree(nkPar, parseLambda(p))
@@ -2526,7 +2527,11 @@ proc leftExpression(p: var Parser, tok: Token, left: PNode): PNode =
   else:
     result = left
 
+<<<<<<< Updated upstream
 proc expression(p: var Parser, rbp: int = 0; parent: PNode = nil): PNode =
+=======
+proc expression(p: var Parser, rbp: int = 0, parent: PNode = nil): PNode =
+>>>>>>> Stashed changes
   var tok = p.tok[]
   getTok(p, parent)
 
@@ -2738,7 +2743,7 @@ proc parseTrailingDefinedIdents(p: var Parser, result, baseTyp: PNode) =
     if p.tok.xkind != pxComma: break
     getTok(p, def)
   eat(p, pxSemicolon)
-  if sonsLen(varSection) > 0:
+  if varSection.len > 0:
     addSon(result, varSection)
 
 proc parseStandaloneStruct(p: var Parser, isUnion: bool;
@@ -2863,7 +2868,7 @@ proc switchStatement(p: var Parser): PNode =
       break
     else: discard
     addSon(result, statement(p))
-  if sonsLen(result) == 0:
+  if result.len == 0:
     # translate empty statement list to Nim's ``discard`` statement
     result = newNodeP(nkDiscardStmt, p)
     result.add(emptyNode)
@@ -2917,18 +2922,18 @@ proc parseSwitch(p: var Parser): PNode =
 
 proc addStmt(sl, a: PNode) =
   # merge type sections if possible:
-  if a.kind != nkTypeSection or sonsLen(sl) == 0 or
+  if a.kind != nkTypeSection or sl.len == 0 or
       lastSon(sl).kind != nkTypeSection:
     addSon(sl, a)
   else:
     var ts = lastSon(sl)
-    for i in 0..sonsLen(a)-1: addSon(ts, a.sons[i])
+    for i in 0..<a.len: addSon(ts, a.sons[i])
 
 proc embedStmts(sl, a: PNode) =
   if a.kind != nkStmtList:
     addStmt(sl, a)
   else:
-    for i in 0..sonsLen(a)-1:
+    for i in 0..<a.len:
       if a[i].kind != nkEmpty: embedStmts(sl, a[i])
 
 proc skipToSemicolon(p: var Parser; err: string; exitForCurlyRi=true): PNode =
@@ -2976,7 +2981,7 @@ proc compoundStatement(p: var Parser; newScope=true): PNode =
         # skip to the next sync point (which is a not-nested ';')
         result.add skipToSemicolon(p, m)
 
-  if sonsLen(result) == 0:
+  if result.len == 0:
     # translate ``{}`` to Nim's ``discard`` statement
     result = newNodeP(nkDiscardStmt, p)
     result.add(emptyNode)
@@ -3074,7 +3079,7 @@ proc parseConstructor(p: var Parser, pragmas: PNode, isDestructor: bool;
       doImportCpp(iname & "(@)", pragmas, p)
   elif isDestructor:
     addSon(pragmas, newIdentNodeP("destructor", p))
-  if sonsLen(result.sons[pragmasPos]) == 0:
+  if result.sons[pragmasPos].len == 0:
     result.sons[pragmasPos] = emptyNode
 
 proc parseMethod(p: var Parser, origName: string, rettyp, pragmas: PNode,
@@ -3161,7 +3166,7 @@ proc parseMethod(p: var Parser, origName: string, rettyp, pragmas: PNode,
                   origName & "(@)", pragmas, p)
     else:
       doImportCpp(origName, pragmas, p)
-  if sonsLen(result.sons[pragmasPos]) == 0:
+  if result.sons[pragmasPos].len == 0:
     result.sons[pragmasPos] = emptyNode
 
 proc parseStandaloneClass(p: var Parser, isStruct: bool;
@@ -3333,7 +3338,7 @@ proc parseClassEntity(p: var Parser; genericParams: PNode; private: bool): PNode
       let meth = parseMethod(p, origName, t, pragmas, isStatic, true,
                               gp, genericParams)
       if not private or pfKeepBodies in p.options.flags:
-        meth.kind = nkConverterDef
+        meth.transitionSonsKind(nkConverterDef)
         # don't add trivial operators that Nim ends up using anyway:
         if origName notin ["=", "!=", ">", ">="]:
           result.add(meth)
@@ -3354,7 +3359,7 @@ proc parseClassEntity(p: var Parser; genericParams: PNode; private: bool): PNode
             let meth = parseMethod(p, origName, t, pragmas, isStatic, true,
                                    gp, genericParams)
             if not private or pfKeepBodies in p.options.flags:
-              if isConverter: meth.kind = nkConverterDef
+              if isConverter: meth.transitionSonsKind(nkConverterDef)
               # don't add trivial operators that Nim ends up using anyway:
               if origName notin ["=", "!=", ">", ">="]:
                 result.add(meth)

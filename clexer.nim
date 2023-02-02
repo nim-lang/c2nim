@@ -13,11 +13,8 @@
 
 
 import strutils
-import compiler / [options, msgs, nimlexbase, llstream, nversion,
-  idents]
-
-when declared(NimCompilerApiVersion):
-  import compiler / [lineinfos, pathutils]
+import compiler / [options, msgs, nimlexbase, llstream,
+  idents, lineinfos, pathutils]
 
 const
   MaxLineLength* = 80         # lines longer than this lead to a warning
@@ -125,18 +122,14 @@ proc fillToken(L: var Token) =
   L.s = ""
   L.base = base10
 
-when declared(NimCompilerApiVersion):
-  var gConfig* = newConfigRef() # XXX make this part of the lexer
-  var identCache* = newIdentCache()
+var gConfig* = newPartialConfigRef() # XXX make this part of the lexer
+var identCache* = newIdentCache()
 
-  template toFilename*(idx: FileIndex): string = toFilename(gConfig, idx)
+template toFilename*(idx: FileIndex): string = toFilename(gConfig, idx)
 
 proc openLexer*(lex: var Lexer, filename: string, inputstream: PLLStream) =
   openBaseLexer(lex, inputstream)
-  when declared(NimCompilerApiVersion):
-    lex.fileIdx = fileInfoIdx(gConfig, AbsoluteFile filename)
-  else:
-    lex.fileIdx = filename.fileInfoIdx
+  lex.fileIdx = fileInfoIdx(gConfig, AbsoluteFile filename)
 
 proc closeLexer*(lex: var Lexer) =
   inc(gLinesCompiled, lex.lineNumber)
@@ -150,18 +143,12 @@ proc getLineInfo*(L: Lexer): TLineInfo =
 
 proc lexMessage*(L: Lexer, msg: TMsgKind, arg = "") =
   if L.debugMode: writeStackTrace()
-  when declared(NimCompilerApiVersion):
-    msgs.globalError(gConfig, getLineInfo(L), msg, arg)
-  else:
-    msgs.globalError(getLineInfo(L), msg, arg)
+  msgs.globalError(gConfig, getLineInfo(L), msg, arg)
 
 proc lexMessagePos(L: var Lexer, msg: TMsgKind, pos: int, arg = "") =
   var info = newLineInfo(L.fileIdx, L.linenumber, pos - L.lineStart)
   if L.debugMode: writeStackTrace()
-  when declared(NimCompilerApiVersion):
-    msgs.globalError(gConfig, info, msg, arg)
-  else:
-    msgs.globalError(info, msg, arg)
+  msgs.globalError(gConfig, info, msg, arg)
 
 proc tokKindToStr*(k: Tokkind): string =
   case k
