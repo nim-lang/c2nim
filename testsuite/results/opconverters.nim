@@ -3,5 +3,6 @@ type
     val* {.importc: "val".}: cint
 
 
-converter `int`*(this: foo): cint {.noSideEffect, importcpp: "foo::operator int",
-                                header: "opconverters.hpp".}
+converter `int`*(this: foo): cint {.noSideEffect,
+                                    importcpp: "foo::operator int",
+                                    header: "opconverters.hpp".}

@@ -17,7 +17,8 @@ type
                               ##  limitations under the License.
 
   rosidl_message_type_support_t* {.importc: "rosidl_message_type_support_t",
-                                  header: "message_type_support_struct.h", bycopy.} = object ##
+                                   header: "message_type_support_struct.h",
+                                   bycopy.} = object ##
                               ##  Contains rosidl message type support data
     typesupport_identifier* {.importc: "typesupport_identifier".}: cstring ##
                               ##  String identifier for the type_support.
