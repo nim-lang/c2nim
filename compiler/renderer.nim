@@ -1322,9 +1322,15 @@ proc gsub(g: var TSrcGen, n: PNode, c: TContext, fromStmtList = false) =
     else:
       put(g, tkPtr, "ptr")
   of nkVarTy:
-    if sonsLen(n) > 0:
+    if sonsLen(n) > 2 and n.sons[1].kind == nkPragma:
       putWithSpace(g, tkVar, "var")
-      gsub(g, n[0])
+      gsub(g, n.sons[0])
+      gsub(g, n.sons[1])
+      putWithSpace(g, tkColon, ":")
+      gsub(g, n.sons[2])
+    elif sonsLen(n) > 0:
+      putWithSpace(g, tkVar, "var")
+      gsub(g, n.sons[0])
     else:
       put(g, tkVar, "var")
   of nkDistinctTy:
