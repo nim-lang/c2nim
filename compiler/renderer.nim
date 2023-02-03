@@ -615,11 +615,11 @@ proc gsons(g: var TSrcGen, n: PNode, c: TContext, start: int = 0,
 proc gsection(g: var TSrcGen, n: PNode, c: TContext, kind: TTokType,
               k: string) =
   if sonsLen(n) == 0: return # empty var sections are possible
-  # var count = 0
-  # for i in 0 ..< sonsLen(n):
-  #   if n[i].kind != nkEmpty:
-  #     inc count
-  # if count == 0: return
+  var count = 0
+  for i in 0 ..< sonsLen(n):
+    if n[i].kind != nkEmpty:
+      inc count
+  if count == 0: return
   putWithSpace(g, kind, k)
   gcoms(g)
   indentNL(g)
