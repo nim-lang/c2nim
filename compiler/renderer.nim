@@ -651,7 +651,7 @@ proc gstmts(g: var TSrcGen, n: PNode, c: TContext, doIndent=true) =
       if n[i].kind in {nkStmtList, nkStmtListExpr, nkStmtListType}:
         gstmts(g, n[i], c, doIndent=false)
       else:
-        gsub(g, n[i])
+        gsub(g, n[i], fromStmtList = true)
       gcoms(g)
     if doIndent: dedent(g)
   else:
