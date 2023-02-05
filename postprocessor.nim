@@ -163,8 +163,12 @@ proc hasIdentChildren(n: PNode): bool =
   case n.kind
   of nkCharLit..nkUInt64Lit, nkFloatLit..nkFloat128Lit, nkStrLit..nkTripleStrLit:
     return false
-  of nkSym, nkIdent:
+  of nkSym:
+    return false
+  of nkIdent:
     return true
+  of nkInfix:
+    return hasIdentChildren(n[1]) or hasIdentChildren(n[2])
   else:
     for c in n:
       if hasIdentChildren(c):
@@ -233,6 +237,8 @@ proc reorderTypes(n: var PNode) =
       if litType:
         n[preTypeConstSection].sons.insert(st, 0)
       else:
+        echo "ST: ", " valKind: ", litType, " childIdent: ", hasIdentChildren(st[^1])
+        dumpTree(st[^1])
         n[postTypeConstSection].sons.insert(st, 0)
 
 
