@@ -225,6 +225,7 @@ proc mergeSimilarBlocks(n: PNode) =
 proc mergeDuplicates(n: PNode) = 
   ## merge similar types of blocks
   ## 
+  echo "mergeDuplicates"
   let blockKinds = {nkTypeSection, nkConstSection, nkVarSection}
   template moveBlock(idx, prev) =
     for ch in n[idx]:
