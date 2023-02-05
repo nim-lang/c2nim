@@ -259,7 +259,8 @@ proc mergeSimilarBlocks(n: PNode) =
         continue
     inc i
  
-var duplicateNodeCheck: HashSet[string]
+var
+  duplicateNodeCheck: Table[string, int]
 
 proc deletesNode(c: Context, n: var PNode) = 
   ## deletes nodes which match the names found in context.deletes
@@ -291,11 +292,13 @@ proc deletesNode(c: Context, n: var PNode) =
       # delete duplicates
       if c.mergeDuplicates:
         if def in duplicateNodeCheck:
-          # echo "DEL:DUPE: ", def
-          delete(n.sons, i)
-          continue
+          let idx = duplicateNodeCheck[def]
+          if idx != n[i].info.line.int:
+            # echo "DEL:DUPE: ", "idx: ", idx, " n.idx: ", n[i].info.line, " def: ", def
+            delete(n.sons, i)
+            continue
         else:
-          duplicateNodeCheck.incl(def)
+          duplicateNodeCheck[def] = n[i].info.line.int
 
     # handle postfix -- e.g. types
     if n[i].kind in {nkPostfix}:
