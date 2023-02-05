@@ -231,12 +231,8 @@ proc reorderTypes(n: var PNode) =
       # echo "ST: ", " valKind: ", litType, " childIdent: ", hasIdentChildren(st[^1])
       # dumpTree(st[^1])
       if litType:
-        # echo "ADD to preTypeSection: ", $st
-        # dumpTree(n[preTypeConstSection])
         n[preTypeConstSection].sons.insert(st, 0)
       else:
-        # echo "ADD to firstConstSection: ", $st
-        # dumpTree(n[firstConstSection])
         n[postTypeConstSection].sons.insert(st, 0)
 
 
