@@ -13,3 +13,8 @@ public:
   int val;
   enum { B1 = 44 };
 };
+
+class baz{
+public:
+  enum { Z1 = bar::B1 };
+};

@@ -165,6 +165,7 @@ proc reorderTypes(n: var PNode) =
   # reorder type sections
   var
     firstTypeSection = -1
+    postTypeSection = -1
     typeSections: seq[PNode]
   for i in 0..<n.safeLen:
     if n[i].kind == nkTypeSection:
@@ -175,32 +176,56 @@ proc reorderTypes(n: var PNode) =
       typeSections.add(n[i])
       n.delSon(i)
     dec(i)
+  postTypeSection = firstTypeSection
   for st in typeSections:
     n.sons.insert(st, firstTypeSection+1)
+    postTypeSection.inc() 
 
   # reorder const sections
   var
     firstConstSection = -1
+    postTypeConstSection = -1
+    preTypeConstSection = -1
     constSections: seq[PNode]
   for j in 0..<n.safeLen:
     if n[j].kind == nkConstSection:
       firstConstSection = j; break
 
-  # # special case const
-  # if firstConstSection > firstTypeSection:
-  #   let cs = n[firstConstSection]
-  #   n.delSon(firstConstSection)
-  #   n.sons.insert(cs, firstTypeSection)
-  #   firstConstSection = firstTypeSection
+  if firstTypeSection == -1:
+    return
+
+  let csPost = nkConstSection.newTree()
+  let csPre = nkConstSection.newTree()
+  n.sons.insert(csPost, postTypeSection)
+  n.sons.insert(csPre, firstTypeSection)
+  preTypeConstSection = firstTypeSection
+  firstTypeSection.inc()
+  postTypeSection.inc()
+  postTypeConstSection = postTypeSection
+  firstConstSection.inc(2)
   
+  # find const sections
   var j = n.safeLen - 1
-  while j > max(firstConstSection, 0):
+  while j >= max(firstConstSection, 0):
     if n[j].kind == nkConstSection:
       constSections.add(n[j])
       n.delSon(j)
     dec(j)
-  for st in constSections:
-    n.sons.insert(st, firstConstSection+1)
+
+  for sect in constSections:
+    for st in sect:
+      let vk = st[^1].kind
+      let litType = vk in {nkCharLit..nkNilLit} or vk == nkCallStrLit
+      # echo "ST: ", " valKind: ", litType
+      # dumpTree(st)
+      if litType:
+        # echo "ADD to preTypeSection: ", $st
+        # dumpTree(n[preTypeConstSection])
+        n[preTypeConstSection].sons.insert(st, 0)
+      else:
+        # echo "ADD to firstConstSection: ", $st
+        # dumpTree(n[firstConstSection])
+        n[postTypeConstSection].sons.insert(st, 0)
 
 
 proc mergeSimilarBlocks(n: PNode) = 
