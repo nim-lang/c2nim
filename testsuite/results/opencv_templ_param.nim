@@ -15,3 +15,9 @@ type
 
   ParamType_T_TpUtypevalue_Tpconst_param_type* = `type`[_Tp]
   ParamType_T_TpUtypevalue_Tpmember_type* = `type`[_Tp]
+
+proc normDecl*(a: ptr Tp; b: ptr Tp; n: cint): _AccTp {.importcpp: "normDecl",
+    importcpp: "normDecl(@)", header: "opencv_templ_param.hpp".}
+proc normRegular*(a: ptr Tp; b: ptr Tp; n: cint): _AccTp {.importcpp: "normRegular".}
+proc normL2Sqr*[_Tp; _AccTp](a: ptr _Tp; b: ptr _Tp; n: cint): _AccTp {.
+    importcpp: "normL2Sqr".}

@@ -2051,7 +2051,7 @@ proc declarationWithoutSemicolon(p: var Parser; genericParams: PNode = emptyNode
         p.tok.s == "const":
       addSon(pragmas, newIdentNodeP("noSideEffect", p))
       getTok(p)
-    if pfCDecl in p.options.flags:
+    if pfCDecl in p.options.flags and pfKeepBodies notin p.options.flags:
       addSon(pragmas, newIdentNodeP("cdecl", p))
     elif pfStdcall in p.options.flags:
       addSon(pragmas, newIdentNodeP("stdcall", p))
@@ -2074,7 +2074,10 @@ proc declarationWithoutSemicolon(p: var Parser; genericParams: PNode = emptyNode
     of pxCurlyLe:
       if {pfCpp, pfKeepBodies} * p.options.flags == {pfCpp}:
         discard compoundStatement(p)
-        addSon(result, newNodeP(nkDiscardStmt, p))
+        if pfCDecl in p.options.flags or pfImportc in p.options.flags:
+          addSon(result, emptyNode)
+        else:
+          addSon(result, newNodeP(nkDiscardStmt, p))
         addSon(result.lastSon, emptyNode)
       else:
         addSon(result, compoundStatement(p))
