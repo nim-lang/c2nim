@@ -21,6 +21,7 @@ import
   os, compiler/llstream, compiler/renderer, clexer, compiler/idents, strutils,
   pegs, tables, compiler/ast, compiler/msgs,
   strtabs, hashes, algorithm, compiler/nversion
+from sequtils import mapIt
 
 when declared(NimCompilerApiVersion):
   import compiler / lineinfos
@@ -3581,6 +3582,8 @@ proc parseClass(p: var Parser; isStruct: bool;
 
   eat(p, pxCurlyRi, result)
 
+let tmplTypeMangleChars = @[" ",";", ":","{","}","[","]","(",")"].mapIt((it, ""))
+
 proc parseTemplateSpecialization(p: var Parser, genericParams: PNode) =
   # handle type specialization params
   # Nim doesn't support this directly. It does support `when`
@@ -3609,8 +3612,7 @@ proc parseTemplateSpecialization(p: var Parser, genericParams: PNode) =
   eat(p, pxGt)
 
   var postfix = $(genericParams)
-  for l in [" ",";", ":","{","}","[","]","(",")"]:
-    postfix = postfix.replace(l, "")
+  postfix = postfix.multiReplace(tmplTypeMangleChars)
   p.currentClassOrig &= "_" & postfix
   p.currentClass = newIdentNodeP(p.currentClassOrig, p)
 
