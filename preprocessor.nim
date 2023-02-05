@@ -389,6 +389,14 @@ proc defines(p: Parser, s: string): bool =
 proc isIdent(n: PNode, id: string): bool =
   n.kind == nkIdent and n.ident.s == id
 
+proc isZeroValue(n: PNode): bool =
+  if n.kind in {nkIntLit..nkInt64Lit}:
+    result = 0 == n.strVal.parseBiggestInt()
+  elif n.kind in {nkUIntLit..nkUInt64Lit}:
+    result = 0 == n.strVal.parseBiggestUInt()
+  elif n.kind == nkNilLit:
+    result = true
+
 proc definedGuard(n: PNode): string =
   if n.len == 2:
     let call = n.sons[0]
@@ -546,7 +554,7 @@ proc parseIfDir(p: var Parser; sectionParser: SectionParser): PNode =
   getTok(p)
   let condition = ppCondExpr(p)
   let simplified = p.simplify(condition)
-  if simplified.isIdent("false") or $simplified == "0":
+  if simplified.isIdent("false") or simplified.isZeroValue():
     skipUntilEndif(p)
     result = emptyNode
   else:
