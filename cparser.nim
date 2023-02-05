@@ -3582,37 +3582,37 @@ proc parseClass(p: var Parser; isStruct: bool;
   eat(p, pxCurlyRi, result)
 
 proc parseTemplateSpecialization(p: var Parser, genericParams: PNode) =
-    # handle type specialization params
-    # Nim doesn't support this directly. It does support `when`
-    # inside type definitions, but we just do a literal translation
-    # TODO: should this print a warning or just error out?
-    getTok(p)
-    var letter = 'T'
-    genericParams.sons = @[]
-    while true:
-      var identDefs = newNodeP(nkIdentDefs, p)
-      let lt = newIdentNodeP($letter, p)
-      if p.tok.s == "typename":
-        let n = newNodeP(nkStmtList, p)
-        parseTypename(p, n, false)
-        identDefs.addSon(lt, n[0][^1], emptyNode)
-        genericParams.addSon identDefs
-      else:
-        var n = typeAtom(p, true)
-        identDefs.addSon(lt, n, emptyNode)
-        letter.inc()
-        genericParams.addSon identDefs
-      if p.tok.xkind != pxComma:
-        break
-      else:
-        getTok(p)
-    eat(p, pxGt)
+  # handle type specialization params
+  # Nim doesn't support this directly. It does support `when`
+  # inside type definitions, but we just do a literal translation
+  # TODO: should this print a warning or just error out?
+  getTok(p)
+  var letter = 'T'
+  genericParams.sons = @[]
+  while true:
+    var identDefs = newNodeP(nkIdentDefs, p)
+    let lt = newIdentNodeP($letter, p)
+    if p.tok.s == "typename":
+      let n = newNodeP(nkStmtList, p)
+      parseTypename(p, n, false)
+      identDefs.addSon(lt, n[0][^1], emptyNode)
+      genericParams.addSon identDefs
+    else:
+      var n = typeAtom(p, true)
+      identDefs.addSon(lt, n, emptyNode)
+      letter.inc()
+      genericParams.addSon identDefs
+    if p.tok.xkind != pxComma:
+      break
+    else:
+      getTok(p)
+  eat(p, pxGt)
 
-    var postfix = $(genericParams)
-    for l in [" ",";", ":","{","}","[","]","(",")"]:
-      postfix = postfix.replace(l, "")
-    p.currentClassOrig &= "_" & postfix
-    p.currentClass = newIdentNodeP(p.currentClassOrig, p)
+  var postfix = $(genericParams)
+  for l in [" ",";", ":","{","}","[","]","(",")"]:
+    postfix = postfix.replace(l, "")
+  p.currentClassOrig &= "_" & postfix
+  p.currentClass = newIdentNodeP(p.currentClassOrig, p)
 
 proc parseStandaloneClass(p: var Parser, isStruct: bool;
                           genericParams: PNode,
