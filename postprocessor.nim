@@ -222,26 +222,8 @@ proc mergeSimilarBlocks(n: PNode) =
         continue
     inc i
  
-proc mergeDuplicates(n: PNode) = 
-  ## merge similar types of blocks
-  ## 
-  echo "mergeDuplicates"
-  let blockKinds = {nkTypeSection, nkConstSection, nkVarSection}
-  template moveBlock(idx, prev) =
-    for ch in n[idx]:
-      n[prev].add(newNode(nkStmtList))
-      n[prev].add(ch)
-    delete(n.sons, idx)
-  
-  var i = 0
-  while i < n.safeLen - 1:
-    let kind = n[i].kind
-    if kind in blockKinds:
-      if n[i+1].kind == kind:
-        moveBlock(i+1, i)
-        continue
-    inc i
- 
+var duplicateNodeCheck: HashSet[string]
+
 proc deletesNode(c: Context, n: var PNode) = 
   ## deletes nodes which match the names found in context.deletes
   ## 
@@ -257,10 +239,26 @@ proc deletesNode(c: Context, n: var PNode) =
         continue
 
     if n[i].kind in {nkProcDef}:
+      # delete proc
       if n[i].hasChild() and c.deletes.hasKey( $(n[i][0]) ):
         # echo "DEL:Proc"
         delete(n.sons, i)
         continue
+
+      let def = $n[i]
+      if c.deletes.hasKey( def ):
+        # echo "DEL:Proc"
+        delete(n.sons, i)
+        continue
+
+      # delete duplicates
+      if c.mergeDuplicates:
+        if def in duplicateNodeCheck:
+          # echo "DEL:DUPE: ", def
+          delete(n.sons, i)
+          continue
+        else:
+          duplicateNodeCheck.incl(def)
 
     # handle postfix -- e.g. types
     if n[i].kind in {nkPostfix}:
@@ -301,8 +299,6 @@ proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
   if c.mergeBlocks:
     mergeSimilarBlocks(n)
 
-  if c.mergeDuplicates:
-    mergeDuplicates(n)
   
   case n.kind
   of nkIdent:

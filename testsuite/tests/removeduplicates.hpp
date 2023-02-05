@@ -1,4 +1,5 @@
 #render nobody
+#mergeDuplicates
 
 class Test {
 
