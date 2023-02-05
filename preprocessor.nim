@@ -626,7 +626,7 @@ proc parseDir(p: var Parser; sectionParser: SectionParser, recur = false): PNode
   of "cdecl", "stdcall", "ref", "skipinclude", "typeprefixes", "skipcomments",
      "keepbodies", "cpp", "cppallops", "nep1", "assumeifistrue", "structstruct",
      "importfuncdefines", "importdefines", "strict",
-     "stdints", "reordercomments", "reordertypes", "mergeblocks",
+     "stdints", "reordercomments", "reordertypes", "mergeblocks", "mergeduplicates",
      "cppspecialization", "cppskipconverter", "cppskipcallop":
     discard setOption(p.options, p.tok.s)
     getTok(p)

@@ -33,6 +33,7 @@ type
     reorderComments: bool
     reorderTypes: bool
     mergeBlocks: bool
+    mergeDuplicates: bool
 
 proc getName(n: PNode): PNode =
   result = n
@@ -221,6 +222,25 @@ proc mergeSimilarBlocks(n: PNode) =
         continue
     inc i
  
+proc mergeDuplicates(n: PNode) = 
+  ## merge similar types of blocks
+  ## 
+  let blockKinds = {nkTypeSection, nkConstSection, nkVarSection}
+  template moveBlock(idx, prev) =
+    for ch in n[idx]:
+      n[prev].add(newNode(nkStmtList))
+      n[prev].add(ch)
+    delete(n.sons, idx)
+  
+  var i = 0
+  while i < n.safeLen - 1:
+    let kind = n[i].kind
+    if kind in blockKinds:
+      if n[i+1].kind == kind:
+        moveBlock(i+1, i)
+        continue
+    inc i
+ 
 proc deletesNode(c: Context, n: var PNode) = 
   ## deletes nodes which match the names found in context.deletes
   ## 
@@ -280,6 +300,9 @@ proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
   if c.mergeBlocks:
     mergeSimilarBlocks(n)
 
+  if c.mergeDuplicates:
+    mergeDuplicates(n)
+  
   case n.kind
   of nkIdent:
     if renderer.isKeyword(n.ident):
@@ -339,7 +362,8 @@ proc postprocess*(n: PNode; flags: set[ParserFlag], deletes: Table[string, strin
                   structStructMode: pfStructStruct in flags,
                   reorderComments: pfReorderComments in flags,
                   reorderTypes: pfReorderTypes in flags,
-                  mergeBlocks: pfMergeBlocks in flags)
+                  mergeBlocks: pfMergeBlocks in flags,
+                  mergeDuplicates: pfMergeDuplicates in flags)
   result = n
 
   if c.reorderTypes:

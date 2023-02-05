@@ -70,6 +70,7 @@ Options:
   --delete:IDENT         post process option to delete nodes with matching
                          idents for procs, types, or vars           
   --mergeBlocks          merge similar adjacent blocks like two let sections
+  --mergeDuplicates      merge similar adjacent blocks like two let sections
   --ignoreRValueRefs     translate C++'s ``T&&`` to ``T`` instead ``of var T``
   --keepBodies           keep C++'s method bodies
   --concat               concat the list of files into a single .nim file

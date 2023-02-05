@@ -54,6 +54,7 @@ type
     pfReorderTypes,     ## reorder types to be at top of file
     pfFileNameIsPP,     ## fixup pre-processor file name
     pfMergeBlocks,      ## merge similar blocks
+    pfMergeDuplicates,  ## merge similar blocks
     pfCppSpecialization, ## parse c++ template specializations
     pfCppSkipConverter  ## skip C++ converters
     pfCppSkipCallOp     ## skip C++ converters
@@ -205,6 +206,7 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "reordercomments": incl(parserOptions.flags, pfReorderComments)
   of "reordertypes": incl(parserOptions.flags, pfReorderTypes)
   of "mergeblocks": incl(parserOptions.flags, pfMergeBlocks)
+  of "mergeduplicates": incl(parserOptions.flags, pfMergeDuplicates)
   of "cppskipconverter": incl(parserOptions.flags, pfCppSkipConverter)
   of "cppspecialization":incl(parserOptions.flags, pfCppSpecialization)
   of "cppskipcallop":incl(parserOptions.flags, pfCppSkipCallOp)
