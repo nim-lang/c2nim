@@ -156,8 +156,19 @@ proc removeBlankSections(n: var PNode) =
         return
       if not (c.kind in {nkEmpty, nkCommentStmt} or c.len() == 0):
         return
-    echo "[warning] postprocessor: removing blank section: ", $n.info
+    # echo "[warning] postprocessor: removing blank section: ", $n.info
     n = newNode(nkEmpty)
+
+proc hasIdentChildren(n: PNode): bool = 
+  case n.kind
+  of nkCharLit..nkUInt64Lit, nkFloatLit..nkFloat128Lit, nkStrLit..nkTripleStrLit:
+    return false
+  of nkSym, nkIdent:
+    return true
+  else:
+    for c in n:
+      if hasIdentChildren(c):
+        return true
 
 proc reorderTypes(n: var PNode) = 
   ## reorder C types to be at start of file
@@ -194,17 +205,19 @@ proc reorderTypes(n: var PNode) =
   if firstTypeSection == -1:
     return
 
+  # always create new const sects... this merge them together
   let csPost = nkConstSection.newTree()
   let csPre = nkConstSection.newTree()
   n.sons.insert(csPost, postTypeSection)
   n.sons.insert(csPre, firstTypeSection)
+  # adjust nodes after the inserts
   preTypeConstSection = firstTypeSection
   firstTypeSection.inc()
   postTypeSection.inc()
   postTypeConstSection = postTypeSection
   firstConstSection.inc(2)
   
-  # find const sections
+  # find any normal const sections
   var j = n.safeLen - 1
   while j >= max(firstConstSection, 0):
     if n[j].kind == nkConstSection:
@@ -214,10 +227,9 @@ proc reorderTypes(n: var PNode) =
 
   for sect in constSections:
     for st in sect:
-      let vk = st[^1].kind
-      let litType = vk in {nkCharLit..nkNilLit} or vk == nkCallStrLit
-      # echo "ST: ", " valKind: ", litType
-      # dumpTree(st)
+      let litType = not st[^1].hasIdentChildren()
+      # echo "ST: ", " valKind: ", litType, " childIdent: ", hasIdentChildren(st[^1])
+      # dumpTree(st[^1])
       if litType:
         # echo "ADD to preTypeSection: ", $st
         # dumpTree(n[preTypeConstSection])
