@@ -290,7 +290,7 @@ proc deletesNode(c: Context, n: var PNode) =
         delete(n.sons, i)
         continue
 
-    if n[i].kind in {nkTypeDef}:
+    if n[i].kind in {nkTypeDef, nkConstDef}:
       ## delete `type SomeType* = SomeType` that occurs with typedef's sometimes
       if cmpIgnoreStyle(identName(n[i][0]), identName(n[i][2])) == 0:
         delete(n.sons, i)
