@@ -14,6 +14,7 @@
 ## - Tries to rewrite braced initializers to be more accurate.
 
 import std / [tables, sets, strutils]
+from macros import eqIdent
 
 import compiler/[ast, renderer, idents]
 
@@ -270,14 +271,15 @@ proc deletesNode(c: Context, n: var PNode) =
   proc hasChild(n: PNode): bool = n.len() > 0
 
   template checkDupliate(n, def: untyped) =
-    if def in duplicateNodeCheck:
-      let idx = duplicateNodeCheck[def]
+    let ndef = nimIdentNormalize(def)
+    if ndef in duplicateNodeCheck:
+      let idx = duplicateNodeCheck[ndef]
       if idx != n[i].info.line.int:
         # echo "DEL:DUPE: ", "idx: ", idx, " n.idx: ", n[i].info.line, " def: ", def
         delete(n.sons, i)
         continue
     else:
-      duplicateNodeCheck[def] = n[i].info.line.int
+      duplicateNodeCheck[ndef] = n[i].info.line.int
 
   var i = 0
   while i < n.safeLen:
@@ -290,8 +292,7 @@ proc deletesNode(c: Context, n: var PNode) =
 
     if n[i].kind in {nkTypeDef}:
       ## delete `type SomeType* = SomeType` that occurs with typedef's sometimes
-      if identName(n[i][0]) == identName(n[i][2]):
-        dumpTree(n[i])
+      if cmpIgnoreStyle(identName(n[i][0]), identName(n[i][2])) == 0:
         delete(n.sons, i)
         continue
 
