@@ -262,23 +262,42 @@ proc mergeSimilarBlocks(n: PNode) =
 var
   duplicateNodeCheck: Table[string, int]
 
+proc identName(n: PNode): string =
+  if n.kind == nkPostFix: return $n[^1] else: result = $n
+
 proc deletesNode(c: Context, n: var PNode) = 
   ## deletes nodes which match the names found in context.deletes
-  ## 
   proc hasChild(n: PNode): bool = n.len() > 0
+
+  template checkDupliate(n, def: untyped) =
+    if def in duplicateNodeCheck:
+      let idx = duplicateNodeCheck[def]
+      if idx != n[i].info.line.int:
+        # echo "DEL:DUPE: ", "idx: ", idx, " n.idx: ", n[i].info.line, " def: ", def
+        delete(n.sons, i)
+        continue
+    else:
+      duplicateNodeCheck[def] = n[i].info.line.int
 
   var i = 0
   while i < n.safeLen:
-    # handle let's
+    ## handle let's / var's
     if n[i].kind in {nkIdentDefs}:
       if n[i].hasChild() and c.deletes.hasKey( split($(n[i][0]), "*")[0] ):
         # echo "DEL:Ident"
         delete(n.sons, i)
         continue
 
+    if n[i].kind in {nkTypeDef}:
+      ## delete `type SomeType* = SomeType` that occurs with typedef's sometimes
+      if identName(n[i][0]) == identName(n[i][2]):
+        dumpTree(n[i])
+        delete(n.sons, i)
+        continue
+
     if n[i].kind in {nkProcDef}:
-      # delete proc
-      if n[i].hasChild() and c.deletes.hasKey( $(n[i][0]) ):
+      ## delete proc's
+      if n[i].hasChild() and c.deletes.hasKey( identName(n[i][0]) ):
         # echo "DEL:Proc"
         delete(n.sons, i)
         continue
@@ -289,36 +308,29 @@ proc deletesNode(c: Context, n: var PNode) =
         delete(n.sons, i)
         continue
 
-      # delete duplicates
+      ## delete duplicates
       if c.mergeDuplicates:
-        if def in duplicateNodeCheck:
-          let idx = duplicateNodeCheck[def]
-          if idx != n[i].info.line.int:
-            # echo "DEL:DUPE: ", "idx: ", idx, " n.idx: ", n[i].info.line, " def: ", def
-            delete(n.sons, i)
-            continue
-        else:
-          duplicateNodeCheck[def] = n[i].info.line.int
+        checkDupliate(n, def)
 
-    # handle postfix -- e.g. types
+    ## handle postfix -- e.g. types
     if n[i].kind in {nkPostfix}:
       if c.deletes.hasKey($n[i][1]):
         # echo "DEL:PostFix"
         n = newNode(nkEmpty)
         continue
 
-    # handle calls
+    ## handle calls
     if n[i].kind in {nkCall}:
       if c.deletes.hasKey($n[i][0]):
         # echo "DEL:Call"
         n[i] = newNode(nkEmpty)
         continue
     
-    # handle imports
+    ## handle imports
     if n[i].kind in {nkImportStmt}:
       deletesNode(c, n[i])
     
-    # handle generic identifier
+    ## handle generic identifier
     if n[i].kind in {nkIdent}:
       if c.deletes.hasKey($n[i]):
         # echo "DEL:import"

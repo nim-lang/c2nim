@@ -1,4 +1,4 @@
-#delete "`++`*"
+#delete "`++`"
 #cppallops
 
 class foo{
