@@ -8,11 +8,11 @@
 template interrupts*(): untyped =
   sei()
 
-const                         ##  8bit, color or not
+const                       ##  8bit, color or not
   CV_LOAD_IMAGE_UNCHANGED* = -1 ##  8bit, gray
-  CV_LOAD_IMAGE_GRAYSCALE* = 0  ##  ?, color
-  CV_LOAD_IMAGE_COLOR* = 1      ##  any depth, ?
-  CV_LOAD_IMAGE_ANYDEPTH* = 2   ##  ?, any color
+  CV_LOAD_IMAGE_GRAYSCALE* = 0 ##  ?, color
+  CV_LOAD_IMAGE_COLOR* = 1   ##  any depth, ?
+  CV_LOAD_IMAGE_ANYDEPTH* = 2 ##  ?, any color
   CV_LOAD_IMAGE_ANYCOLOR* = 4
 
 type
@@ -51,8 +51,8 @@ var myPrivateVar__: cint
 
 discard "forward decl of XML_ParserStruct"
 type
-  ElementDeclHandler* = proc (userData: pointer; name: ptr Char; model: ptr Content) {.
-      cdecl.}
+  ElementDeclHandler* = proc (userData: pointer; name: ptr Char;
+                              model: ptr Content) {.cdecl.}
 
 var x*: pointer
 
@@ -285,50 +285,51 @@ var c2nimBranch* {.importc: "c2nimBranch", dynlib: iupdll.}: cint
 when defined(Windows):
   var WindowsTrue* {.importc: "WindowsTrue", dynlib: iupdll.}: cint
 proc spawn*(a1: ptr pid_t; a2: cstring; a3: ptr spawn_file_actions_t;
-           a4: ptr spawnattr_t; a5: ptr cstring; a6: ptr cstring): cint {.cdecl,
-    importc: "posix_spawn", dynlib: iupdll.}
+            a4: ptr spawnattr_t; a5: ptr cstring; a6: ptr cstring): cint {.
+    cdecl, importc: "posix_spawn", dynlib: iupdll.}
 proc spawn_file_actions_addclose*(a1: ptr spawn_file_actions_t; a2: cint): cint {.
     cdecl, importc: "posix_spawn_file_actions_addclose", dynlib: iupdll.}
-proc spawn_file_actions_adddup2*(a1: ptr spawn_file_actions_t; a2: cint; a3: cint): cint {.
-    cdecl, importc: "posix_spawn_file_actions_adddup2", dynlib: iupdll.}
-proc spawn_file_actions_addopen*(a1: ptr spawn_file_actions_t; a2: cint; a3: cstring;
-                                a4: cint; a5: mode_t): cint {.cdecl,
-    importc: "posix_spawn_file_actions_addopen", dynlib: iupdll.}
+proc spawn_file_actions_adddup2*(a1: ptr spawn_file_actions_t; a2: cint;
+                                 a3: cint): cint {.cdecl,
+    importc: "posix_spawn_file_actions_adddup2", dynlib: iupdll.}
+proc spawn_file_actions_addopen*(a1: ptr spawn_file_actions_t; a2: cint;
+                                 a3: cstring; a4: cint; a5: mode_t): cint {.
+    cdecl, importc: "posix_spawn_file_actions_addopen", dynlib: iupdll.}
 proc spawn_file_actions_destroy*(a1: ptr spawn_file_actions_t): cint {.cdecl,
     importc: "posix_spawn_file_actions_destroy", dynlib: iupdll.}
 proc spawn_file_actions_init*(a1: ptr spawn_file_actions_t): cint {.cdecl,
     importc: "posix_spawn_file_actions_init", dynlib: iupdll.}
 proc spawnattr_destroy*(a1: ptr spawnattr_t): cint {.cdecl,
     importc: "posix_spawnattr_destroy", dynlib: iupdll.}
-proc spawnattr_getsigdefault*(a1: ptr spawnattr_t; a2: ptr sigset_t): cint {.cdecl,
-    importc: "posix_spawnattr_getsigdefault", dynlib: iupdll.}
+proc spawnattr_getsigdefault*(a1: ptr spawnattr_t; a2: ptr sigset_t): cint {.
+    cdecl, importc: "posix_spawnattr_getsigdefault", dynlib: iupdll.}
 proc spawnattr_getflags*(a1: ptr spawnattr_t; a2: ptr cshort): cint {.cdecl,
     importc: "posix_spawnattr_getflags", dynlib: iupdll.}
 proc spawnattr_getpgroup*(a1: ptr spawnattr_t; a2: ptr pid_t): cint {.cdecl,
     importc: "posix_spawnattr_getpgroup", dynlib: iupdll.}
-proc spawnattr_getschedparam*(a1: ptr spawnattr_t; a2: ptr sched_param): cint {.cdecl,
-    importc: "posix_spawnattr_getschedparam", dynlib: iupdll.}
+proc spawnattr_getschedparam*(a1: ptr spawnattr_t; a2: ptr sched_param): cint {.
+    cdecl, importc: "posix_spawnattr_getschedparam", dynlib: iupdll.}
 proc spawnattr_getschedpolicy*(a1: ptr spawnattr_t; a2: ptr cint): cint {.cdecl,
     importc: "posix_spawnattr_getschedpolicy", dynlib: iupdll.}
 proc spawnattr_getsigmask*(a1: ptr spawnattr_t; a2: ptr sigset_t): cint {.cdecl,
     importc: "posix_spawnattr_getsigmask", dynlib: iupdll.}
 proc spawnattr_init*(a1: ptr spawnattr_t): cint {.cdecl,
     importc: "posix_spawnattr_init", dynlib: iupdll.}
-proc spawnattr_setsigdefault*(a1: ptr spawnattr_t; a2: ptr sigset_t): cint {.cdecl,
-    importc: "posix_spawnattr_setsigdefault", dynlib: iupdll.}
+proc spawnattr_setsigdefault*(a1: ptr spawnattr_t; a2: ptr sigset_t): cint {.
+    cdecl, importc: "posix_spawnattr_setsigdefault", dynlib: iupdll.}
 proc spawnattr_setflags*(a1: ptr spawnattr_t; a2: cshort): cint {.cdecl,
     importc: "posix_spawnattr_setflags", dynlib: iupdll.}
 proc spawnattr_setpgroup*(a1: ptr spawnattr_t; a2: pid_t): cint {.cdecl,
     importc: "posix_spawnattr_setpgroup", dynlib: iupdll.}
-proc spawnattr_setschedparam*(a1: ptr spawnattr_t; a2: ptr sched_param): cint {.cdecl,
-    importc: "posix_spawnattr_setschedparam", dynlib: iupdll.}
+proc spawnattr_setschedparam*(a1: ptr spawnattr_t; a2: ptr sched_param): cint {.
+    cdecl, importc: "posix_spawnattr_setschedparam", dynlib: iupdll.}
 proc spawnattr_setschedpolicy*(a1: ptr spawnattr_t; a2: cint): cint {.cdecl,
     importc: "posix_spawnattr_setschedpolicy", dynlib: iupdll.}
 proc spawnattr_setsigmask*(a1: ptr spawnattr_t; a2: ptr sigset_t): cint {.cdecl,
     importc: "posix_spawnattr_setsigmask", dynlib: iupdll.}
 proc spawnp*(a1: ptr pid_t; a2: cstring; a3: ptr spawn_file_actions_t;
-            a4: ptr spawnattr_t; a5: ptr cstring; a6: ptr cstring): cint {.cdecl,
-    importc: "posix_spawnp", dynlib: iupdll.}
+             a4: ptr spawnattr_t; a5: ptr cstring; a6: ptr cstring): cint {.
+    cdecl, importc: "posix_spawnp", dynlib: iupdll.}
 type
   RGBType* {.bycopy.} = object
     R*: cfloat
@@ -365,8 +366,8 @@ proc RGB_to_HWB*(RGB: RGBType; HWB: ptr HWBType): ptr HWBType {.cdecl.} =
   i = if (R == w): 3 else: (if (G == w): 5 else: 1)
   RETURN_HWB(i - f div (v - w), w, b)
 
-proc clip_1d*(x0: ptr cint; y0: ptr cint; x1: ptr cint; y1: ptr cint; mindim: cint;
-             maxdim: cint): cint {.cdecl.} =
+proc clip_1d*(x0: ptr cint; y0: ptr cint; x1: ptr cint; y1: ptr cint;
+              mindim: cint; maxdim: cint): cint {.cdecl.} =
   var m: cdouble
   ##  gradient of line
   if x0[] < mindim:
@@ -523,7 +524,7 @@ proc gdImageSetPixel*(im: gdImagePtr; x: cint; y: cint; color: cint) {.cdecl.} =
   of gdTiled:
     gdImageTileApply(im, x, y)
   of gdAntiAliased: ##  This shouldn't happen (2.0.26) because we just call
-                  ##  gdImageAALine now, but do something sane.
+                     ##  gdImageAALine now, but do something sane.
     gdImageSetPixel(im, x, y, im.AA_color)
   else:
     if gdImageBoundsSafeMacro(im, x, y):
