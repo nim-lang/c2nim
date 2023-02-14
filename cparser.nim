@@ -3101,6 +3101,14 @@ proc parseMethod(p: var Parser, origName: string, rettyp, pragmas: PNode,
     # declare 'this':
     thisDef = createThis(p, genericParamsThis)
     params.add(thisDef)
+  elif not isNil(p.currentClass):
+    # bind to type
+    var typ = newNodeP(nkIdentDefs, p)
+    var t = newNodeP(nkCommand, p)
+    t.add(newIdentNodeP("type", p))
+    t.add(p.currentClass.applyGenericParams(genericParamsThis))
+    addSon(typ, newIdentNodeP("_", p), t, emptyNode)
+    params.add(typ)
 
   parseFormalParams(p, params, pragmas)
   if p.tok.xkind == pxSymbol and p.tok.s == "const":

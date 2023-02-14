@@ -1,4 +1,4 @@
-version       = "0.9.19"
+version       = "0.10.0"
 author        = "Andreas Rumpf"
 description   = "c2nim is a tool to translate Ansi C code to Nim."
 license       = "MIT"
