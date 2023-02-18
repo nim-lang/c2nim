@@ -42,6 +42,7 @@ Options:
   --stdcall              annotate procs with ``{.stdcall.}``
   --importc              annotate procs with ``{.importc.}``
   --importDefines        import C defines as procs or vars with ``{.importc.}``
+  --skipFuncDefines      skip C proc defines
   --importFuncDefines    import C define funcs as procs with ``{.importc.}``
   --def:SYM='macro()'    define a C macro that gets replaced with the given
                          definition. It's parsed by the lexer. Use it to fix

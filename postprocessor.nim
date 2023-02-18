@@ -341,17 +341,20 @@ proc deletesNode(c: Context, n: var PNode) =
 
   n.removeBlankSections()
 
-proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
-
+proc ppComments(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
+  ## post process comments (helper)
   if c.reorderComments:
     reorderComments(n)
+  for i in 0 ..< n.safeLen: ppComments(c, n.sons[i], stmtList, idx)
 
+proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
+  ## recursively post process nodes
+  ## 
   if c.deletes.len() > 0:
     deletesNode(c, n)
 
   if c.mergeBlocks:
     mergeSimilarBlocks(n)
-
   
   case n.kind
   of nkIdent:
@@ -419,6 +422,7 @@ proc postprocess*(n: PNode; flags: set[ParserFlag], deletes: Table[string, strin
   if c.reorderTypes:
     reorderTypes(result)
   
+  ppComments(c, result)
   pp(c, result)
 
 proc newIdentNode(s: string; n: PNode): PNode =

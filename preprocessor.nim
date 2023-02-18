@@ -612,6 +612,8 @@ proc parseDir(p: var Parser; sectionParser: SectionParser, recur = false): PNode
       backtrackContext(p)
       if p.options.importdefines:
         result = parseDefineAsDecls(p, hasParams)
+      elif p.options.skipfuncdefines and hasParams:
+        discard parseDefineAsDecls(p, hasParams)
       elif p.options.importfuncdefines and hasParams:
         result = parseDefineAsDecls(p, hasParams)
       else:
@@ -625,7 +627,7 @@ proc parseDir(p: var Parser; sectionParser: SectionParser, recur = false): PNode
   of "if": result = parseIfDir(p, sectionParser)
   of "cdecl", "stdcall", "ref", "skipinclude", "typeprefixes", "skipcomments",
      "keepbodies", "cpp", "cppallops", "nep1", "assumeifistrue", "structstruct",
-     "importfuncdefines", "importdefines", "strict", "importc",
+     "importfuncdefines", "importdefines", "skipfuncdefines", "strict", "importc",
      "stdints", "reordercomments", "reordertypes", "mergeblocks", "mergeduplicates",
      "cppspecialization", "cppskipconverter", "cppskipcallop":
     discard setOption(p.options, p.tok.s)

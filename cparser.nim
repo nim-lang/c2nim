@@ -79,7 +79,7 @@ type
     toPreprocess: StringTableRef
     inheritable: StringTableRef
     debugMode, followNep1: bool
-    useHeader, importdefines, importfuncdefines: bool
+    useHeader, importdefines, skipfuncdefines, importfuncdefines: bool
     discardablePrefixes: seq[string]
     constructor, destructor, importcLit: string
     exportPrefix*: string
@@ -170,6 +170,8 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
     parserOptions.importfuncdefines = true
   of "importdefines":
     parserOptions.importdefines = true
+  of "skipfuncdefines":
+    parserOptions.skipfuncdefines = true
   of "cdecl": incl(parserOptions.flags, pfCdecl)
   of "stdcall": incl(parserOptions.flags, pfStdCall)
   of "importc": incl(parserOptions.flags, pfImportc)
