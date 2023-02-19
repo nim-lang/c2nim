@@ -2082,7 +2082,6 @@ proc declarationWithoutSemicolon(p: var Parser; genericParams: PNode = emptyNode
           addSon(result, newNodeP(nkDiscardStmt, p))
         addSon(result.lastSon, emptyNode)
       else:
-        # if pfCDecl in p.options.flags or pfImportc in p.options.flags:
         if pfImportc in p.options.flags:
           discard compoundStatement(p)
           addSon(result, emptyNode)
