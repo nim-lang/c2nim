@@ -629,7 +629,7 @@ proc parseDir(p: var Parser; sectionParser: SectionParser, recur = false): PNode
      "keepbodies", "cpp", "cppallops", "nep1", "assumeifistrue", "structstruct",
      "importfuncdefines", "importdefines", "skipfuncdefines", "strict", "importc",
      "stdints", "reordercomments", "reordertypes", "mergeblocks", "mergeduplicates",
-     "cppspecialization", "cppskipconverter", "cppskipcallop", "multimangle":
+     "cppspecialization", "cppskipconverter", "cppskipcallop", "nomultimangle":
     discard setOption(p.options, p.tok.s)
     getTok(p)
     eatNewLine(p, nil)
