@@ -58,6 +58,7 @@ type
     pfCppSpecialization, ## parse c++ template specializations
     pfCppSkipConverter  ## skip C++ converters
     pfCppSkipCallOp     ## skip C++ converters
+    pfMultiMangle       ## allow multiple mangles
 
   Macro* = object
     name*: string
@@ -212,6 +213,7 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "cppskipconverter": incl(parserOptions.flags, pfCppSkipConverter)
   of "cppspecialization":incl(parserOptions.flags, pfCppSpecialization)
   of "cppskipcallop":incl(parserOptions.flags, pfCppSkipCallOp)
+  of "multimangle":incl(parserOptions.flags, pfMultiMangle)
   of "isarray": parserOptions.isArray[val] = "true"
   of "delete": parserOptions.deletes[val] = ""
   else: result = false

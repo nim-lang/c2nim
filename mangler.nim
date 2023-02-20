@@ -66,6 +66,8 @@ proc mangleRules(s: string, p: Parser; kind: TSymKind): string =
     for pattern, frmt in items(p.options.mangleRules):
       if result.match(pattern):
         result = result.replacef(pattern, frmt)
+        if pfMultiMangle notin p.options.flags:
+          break mangle
     block prefixes:
       for prefix in items(p.options.prefixes):
         if result.startsWith(prefix):
