@@ -19,7 +19,8 @@ type
   baz* {.importcpp: "baz", header: "reordertypes.hpp", bycopy.} = object
 
 
-converter `int`*(this: foo): cint {.noSideEffect, importcpp: "foo::operator int",
-                                header: "reordertypes.hpp".}
+converter `int`*(this: foo): cint {.noSideEffect,
+                                    importcpp: "foo::operator int",
+                                    header: "reordertypes.hpp".}
 proc `+`*(this: var bar; b: cint): cint {.importcpp: "(# + #)",
-                                   header: "reordertypes.hpp".}
+    header: "reordertypes.hpp".}
