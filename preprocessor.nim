@@ -292,6 +292,7 @@ proc parseInclude(p: var Parser): PNode =
   while isDir(p, "include"):
     getTok(p) # skip "include"
     if p.tok.xkind == pxStrLit and pfSkipInclude notin p.options.flags:
+      # enable nep1 without breaking module imports
       let kind = if renderNonNep1Imports in p.options.renderFlags: skDontMangle
                  else: skModule
       let file = mangledIdent(changeFileExt(p.tok.s, ""), p, kind)
