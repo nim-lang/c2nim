@@ -292,8 +292,9 @@ proc parseInclude(p: var Parser): PNode =
   while isDir(p, "include"):
     getTok(p) # skip "include"
     if p.tok.xkind == pxStrLit and pfSkipInclude notin p.options.flags:
-      let file = mangledIdent(changeFileExt(p.tok.s, ""), p, skVar)
-      #newStrNodeP(nkStrLit, changeFileExt(p.tok.s, ""), p)
+      let kind = if renderNonNep1Imports in p.options.renderFlags: skDontMangle
+                 else: skModule
+      let file = mangledIdent(changeFileExt(p.tok.s, ""), p, kind)
       addSon(result, file)
       getTok(p)
       skipStarCom(p, file)
