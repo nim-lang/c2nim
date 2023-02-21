@@ -14,11 +14,12 @@
 ## - Tries to rewrite braced initializers to be more accurate.
 
 import std / [tables, sets, strutils]
+from macros import eqIdent
 
 import compiler/[ast, renderer, idents]
 
 import clexer
-from cparser import ParserFlag
+from cparser import ParserFlag, dumpTree
 
 template emptyNode: untyped = newNode(nkEmpty)
 
@@ -31,7 +32,9 @@ type
     deletes: Table[string, string]
     structStructMode: bool
     reorderComments: bool
+    reorderTypes: bool
     mergeBlocks: bool
+    mergeDuplicates: bool
 
 proc getName(n: PNode): PNode =
   result = n
@@ -147,6 +150,97 @@ proc reorderComments(n: PNode) =
         moveComment(i, +1)
     inc i
 
+proc removeBlankSections(n: var PNode) =
+  if n.kind in {nkLetSection, nkTypeSection, nkVarSection, nkImportStmt}:
+    for c in n:
+      if c.kind in {nkIdent}:
+        return
+      if not (c.kind in {nkEmpty, nkCommentStmt} or c.len() == 0):
+        return
+    # echo "[warning] postprocessor: removing blank section: ", $n.info
+    n = newNode(nkEmpty)
+
+proc hasIdentChildren(n: PNode): bool = 
+  case n.kind
+  of nkCharLit..nkUInt64Lit, nkFloatLit..nkFloat128Lit, nkStrLit..nkTripleStrLit:
+    return false
+  of nkSym:
+    return false
+  of nkIdent:
+    return true
+  of nkInfix:
+    return hasIdentChildren(n[1]) or hasIdentChildren(n[2])
+  else:
+    for c in n:
+      if hasIdentChildren(c):
+        return true
+
+proc reorderTypes(n: var PNode) = 
+  ## reorder C types to be at start of file
+  
+  # reorder type sections
+  var
+    firstTypeSection = -1
+    postTypeSection = -1
+    typeSections: seq[PNode]
+  for i in 0..<n.safeLen:
+    if n[i].kind == nkTypeSection:
+      firstTypeSection = i; break
+  var i = n.safeLen - 1
+  while i > max(firstTypeSection, 0):
+    if n[i].kind == nkTypeSection:
+      typeSections.add(n[i])
+      n.delSon(i)
+    dec(i)
+  postTypeSection = firstTypeSection
+  for st in typeSections:
+    n.sons.insert(st, firstTypeSection+1)
+    postTypeSection.inc() 
+
+  # reorder const sections
+  var
+    firstConstSection = -1
+    postTypeConstSection = -1
+    preTypeConstSection = -1
+    constSections: seq[PNode]
+  for j in 0..<n.safeLen:
+    if n[j].kind == nkConstSection:
+      firstConstSection = j; break
+
+  if firstTypeSection == -1:
+    return
+
+  # always create new const sects... this merge them together
+  let csPost = nkConstSection.newTree()
+  let csPre = nkConstSection.newTree()
+  n.sons.insert(csPost, postTypeSection)
+  n.sons.insert(csPre, firstTypeSection)
+  # adjust nodes after the inserts
+  preTypeConstSection = firstTypeSection
+  firstTypeSection.inc()
+  postTypeSection.inc()
+  postTypeConstSection = postTypeSection
+  firstConstSection.inc(2)
+  
+  # find any normal const sections
+  var j = n.safeLen - 1
+  while j >= max(firstConstSection, 0):
+    if n[j].kind == nkConstSection:
+      constSections.add(n[j])
+      n.delSon(j)
+    dec(j)
+
+  for sect in constSections:
+    for st in sect:
+      let litType = not st[^1].hasIdentChildren()
+      # echo "ST: ", " valKind: ", litType, " childIdent: ", hasIdentChildren(st[^1])
+      # dumpTree(st[^1])
+      if litType:
+        n[preTypeConstSection].sons.insert(st, 0)
+      else:
+        n[postTypeConstSection].sons.insert(st, 0)
+
+
 proc mergeSimilarBlocks(n: PNode) = 
   ## merge similar types of blocks
   ## 
@@ -166,62 +260,102 @@ proc mergeSimilarBlocks(n: PNode) =
         continue
     inc i
  
+var
+  duplicateNodeCheck: Table[string, int]
+
+proc identName(n: PNode): string =
+  if n.kind == nkPostFix: return $n[^1] else: result = $n
+
 proc deletesNode(c: Context, n: var PNode) = 
   ## deletes nodes which match the names found in context.deletes
-  ## 
   proc hasChild(n: PNode): bool = n.len() > 0
+
+  template checkDupliate(n, def: untyped) =
+    let ndef = nimIdentNormalize(def)
+    if ndef in duplicateNodeCheck:
+      let idx = duplicateNodeCheck[ndef]
+      if idx != n[i].info.line.int:
+        # echo "DEL:DUPE: ", "idx: ", idx, " n.idx: ", n[i].info.line, " def: ", def
+        delete(n.sons, i)
+        continue
+    else:
+      duplicateNodeCheck[ndef] = n[i].info.line.int
 
   var i = 0
   while i < n.safeLen:
-    # handle let's
+    ## handle let's / var's
     if n[i].kind in {nkIdentDefs}:
       if n[i].hasChild() and c.deletes.hasKey( split($(n[i][0]), "*")[0] ):
+        # echo "DEL:Ident"
         delete(n.sons, i)
         continue
 
-    # handle postfix -- e.g. types
+    if n[i].kind in {nkTypeDef, nkConstDef}:
+      ## delete `type SomeType* = SomeType` that occurs with typedef's sometimes
+      if cmpIgnoreStyle(identName(n[i][0]), identName(n[i][2])) == 0:
+        delete(n.sons, i)
+        continue
+
+    if n[i].kind in {nkProcDef}:
+      ## delete proc's
+      if n[i].hasChild() and c.deletes.hasKey( identName(n[i][0]) ):
+        # echo "DEL:Proc"
+        delete(n.sons, i)
+        continue
+
+      let def = $n[i]
+      if c.deletes.hasKey( def ):
+        # echo "DEL:Proc"
+        delete(n.sons, i)
+        continue
+
+      ## delete duplicates
+      if c.mergeDuplicates:
+        checkDupliate(n, def)
+
+    ## handle postfix -- e.g. types
     if n[i].kind in {nkPostfix}:
       if c.deletes.hasKey($n[i][1]):
+        # echo "DEL:PostFix"
         n = newNode(nkEmpty)
         continue
 
-    # handle calls
+    ## handle calls
     if n[i].kind in {nkCall}:
       if c.deletes.hasKey($n[i][0]):
+        # echo "DEL:Call"
         n[i] = newNode(nkEmpty)
         continue
     
-    # handle imports
+    ## handle imports
     if n[i].kind in {nkImportStmt}:
       deletesNode(c, n[i])
+    
+    ## handle generic identifier
     if n[i].kind in {nkIdent}:
       if c.deletes.hasKey($n[i]):
+        # echo "DEL:import"
         delete(n.sons, i)
         continue
     inc i
 
-  block removeBlank:
-    if n.kind in {nkLetSection, nkTypeSection, nkVarSection, nkImportStmt}:
-      for c in n:
-        if c.kind in [nkIdent]:
-          break removeBlank
-        if not (c.kind in [nkEmpty, nkCommentStmt] or c.len() == 0):
-          break removeBlank
-      echo "[warning] postprocessor: removing blank section: ", $n.info
-      n = newNode(nkEmpty)
+  n.removeBlankSections()
 
-
-proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
-
+proc ppComments(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
+  ## post process comments (helper)
   if c.reorderComments:
     reorderComments(n)
+  for i in 0 ..< n.safeLen: ppComments(c, n.sons[i], stmtList, idx)
 
+proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
+  ## recursively post process nodes
+  ## 
   if c.deletes.len() > 0:
     deletesNode(c, n)
 
   if c.mergeBlocks:
     mergeSimilarBlocks(n)
-
+  
   case n.kind
   of nkIdent:
     if renderer.isKeyword(n.ident):
@@ -280,8 +414,15 @@ proc postprocess*(n: PNode; flags: set[ParserFlag], deletes: Table[string, strin
                   deletes: deletes,
                   structStructMode: pfStructStruct in flags,
                   reorderComments: pfReorderComments in flags,
-                  mergeBlocks: pfMergeBlocks in flags)
+                  reorderTypes: pfReorderTypes in flags,
+                  mergeBlocks: pfMergeBlocks in flags,
+                  mergeDuplicates: pfMergeDuplicates in flags)
   result = n
+
+  if c.reorderTypes:
+    reorderTypes(result)
+  
+  ppComments(c, result)
   pp(c, result)
 
 proc newIdentNode(s: string; n: PNode): PNode =
