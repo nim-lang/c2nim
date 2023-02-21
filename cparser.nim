@@ -51,6 +51,7 @@ type
     pfReorderComments   ## reorder comments to match Nim's style
     pfFileNameIsPP      ## fixup pre-processor file name
     pfMergeBlocks       ## fixup pre-processor file name
+    pfCppBindStatic     ## bind cpp static methods to types
 
   Macro* = object
     name*: string
@@ -197,6 +198,7 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "structstruct": incl(parserOptions.flags, pfStructStruct)
   of "reordercomments": incl(parserOptions.flags, pfReorderComments)
   of "mergeblocks": incl(parserOptions.flags, pfMergeBlocks)
+  of "cppbindstatic": incl(parserOptions.flags, pfCppBindStatic)
   of "isarray": parserOptions.isArray[val] = "true"
   of "delete": parserOptions.deletes[val] = ""
   else: result = false
@@ -3101,7 +3103,7 @@ proc parseMethod(p: var Parser, origName: string, rettyp, pragmas: PNode,
     # declare 'this':
     thisDef = createThis(p, genericParamsThis)
     params.add(thisDef)
-  elif not isNil(p.currentClass):
+  elif not isNil(p.currentClass) and pfCppBindStatic in p.options.flags:
     # bind to type
     var typ = newNodeP(nkIdentDefs, p)
     var t = newNodeP(nkCommand, p)

@@ -8,7 +8,7 @@ const
   c2nimCmd = dotslash & "c2nim $#"
   cpp2nimCmd = dotslash & "c2nim --cpp $#"
   cpp2nimCmdKeepBodies = dotslash & "c2nim --cpp --keepBodies $#"
-  hpp2nimCmd = dotslash & "c2nim --cpp --header $#"
+  hpp2nimCmd = dotslash & "c2nim --cpp --header --cppbindstatic $#"
   c2nimExtrasCmd = dotslash & "c2nim --stdints --strict --header --reordercomments --mergeblocks --render:reindentlongcomments --def:RCL_PUBLIC='__attribute__ (())' --def:RCL_WARN_UNUSED='__attribute__ (())' --def:'RCL_ALIGNAS(N)=__attribute__((align))' --render:extranewlines $#"
   dir = "testsuite/"
   usage = """

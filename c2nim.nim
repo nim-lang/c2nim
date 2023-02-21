@@ -72,6 +72,7 @@ Options:
   --mergeBlocks          merge similar adjacent blocks like two let sections
   --ignoreRValueRefs     translate C++'s ``T&&`` to ``T`` instead ``of var T``
   --keepBodies           keep C++'s method bodies
+  --cppBindStatic        bind cpp methods to their types
   --concat               concat the list of files into a single .nim file
   --concat:all           concat the list of files including c2nim files
   --debug                prints a c2nim stack trace in case of an error
