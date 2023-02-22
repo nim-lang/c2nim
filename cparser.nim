@@ -21,6 +21,7 @@ import
   os, compiler/llstream, compiler/renderer, clexer, compiler/idents, strutils,
   pegs, tables, compiler/ast, compiler/msgs,
   strtabs, hashes, algorithm, compiler/nversion
+from sequtils import mapIt
 
 when declared(NimCompilerApiVersion):
   import compiler / lineinfos
@@ -44,13 +45,19 @@ type
     pfTypePrefixes,     ## all generated types start with 'T' or 'P'
     pfSkipComments,     ## do not generate comments
     pfCpp,              ## process C++
+    pfCppAllOps,        ## do not skip C++ trivial operators
     pfIgnoreRValueRefs, ## transform C++'s 'T&&' to 'T'
     pfKeepBodies,       ## do not skip C++ method bodies
     pfAssumeIfIsTrue,   ## assume #if is true
     pfStructStruct,     ## do not treat struct Foo Foo as a forward decl
-    pfReorderComments   ## reorder comments to match Nim's style
-    pfFileNameIsPP      ## fixup pre-processor file name
-    pfMergeBlocks       ## fixup pre-processor file name
+    pfReorderComments,  ## reorder comments to match Nim's style
+    pfReorderTypes,     ## reorder types to be at top of file
+    pfFileNameIsPP,     ## fixup pre-processor file name
+    pfMergeBlocks,      ## merge similar blocks
+    pfMergeDuplicates,  ## merge similar blocks
+    pfCppSpecialization, ## parse c++ template specializations
+    pfCppSkipConverter  ## skip C++ converters
+    pfCppSkipCallOp     ## skip C++ converters
     pfCppBindStatic     ## bind cpp static methods to types
 
   Macro* = object
@@ -73,7 +80,7 @@ type
     toPreprocess: StringTableRef
     inheritable: StringTableRef
     debugMode, followNep1: bool
-    useHeader, importdefines, importfuncdefines: bool
+    useHeader, importdefines, skipfuncdefines, importfuncdefines: bool
     discardablePrefixes: seq[string]
     constructor, destructor, importcLit: string
     exportPrefix*: string
@@ -164,6 +171,8 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
     parserOptions.importfuncdefines = true
   of "importdefines":
     parserOptions.importdefines = true
+  of "skipfuncdefines":
+    parserOptions.skipfuncdefines = true
   of "cdecl": incl(parserOptions.flags, pfCdecl)
   of "stdcall": incl(parserOptions.flags, pfStdCall)
   of "importc": incl(parserOptions.flags, pfImportc)
@@ -186,6 +195,7 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "cpp":
     incl(parserOptions.flags, pfCpp)
     parserOptions.importcLit = "importcpp"
+  of "cppallops": incl(parserOptions.flags, pfCppAllOps)
   of "keepbodies": incl(parserOptions.flags, pfKeepBodies)
   of "ignorervaluerefs": incl(parserOptions.flags, pfIgnoreRValueRefs)
   of "class": parserOptions.classes[val] = "true"
@@ -197,8 +207,13 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "discardableprefix": parserOptions.discardablePrefixes.add(val)
   of "structstruct": incl(parserOptions.flags, pfStructStruct)
   of "reordercomments": incl(parserOptions.flags, pfReorderComments)
+  of "reordertypes": incl(parserOptions.flags, pfReorderTypes)
   of "mergeblocks": incl(parserOptions.flags, pfMergeBlocks)
   of "cppbindstatic": incl(parserOptions.flags, pfCppBindStatic)
+  of "mergeduplicates": incl(parserOptions.flags, pfMergeDuplicates)
+  of "cppskipconverter": incl(parserOptions.flags, pfCppSkipConverter)
+  of "cppspecialization":incl(parserOptions.flags, pfCppSpecialization)
+  of "cppskipcallop":incl(parserOptions.flags, pfCppSkipCallOp)
   of "isarray": parserOptions.isArray[val] = "true"
   of "delete": parserOptions.deletes[val] = ""
   else: result = false
@@ -416,6 +431,17 @@ proc eat(p: var Parser, tok: string, n: PNode) =
   if p.tok.s == tok: getTok(p, n)
   else: parError(p, "token expected: " & tok & " but got: " & tokKindToStr(p.tok.xkind))
 
+proc skipBody*(p: var Parser): bool =
+  ## skip bodies
+  if p.tok.xkind == pxCurlyLe:
+    eat(p, pxCurlyLe)
+    while p.tok.xkind != pxCurlyRi:
+      getTok(p)
+      if p.tok.xkind == pxCurlyLe:
+        discard skipBody(p)
+    eat(p, pxCurlyRi)
+    return true
+
 proc opt(p: var Parser, xkind: Tokkind, n: PNode) =
   if p.tok.xkind == xkind: getTok(p, n)
 
@@ -589,6 +615,8 @@ proc isBaseIntType(s: string): bool =
   case s
   of "short", "int", "long", "float", "double", "signed", "unsigned":
     result = true
+  of "__int16", "__int32", "__int64":
+    result = true
   else: discard
 
 proc isIntType(s: string): bool =
@@ -646,6 +674,17 @@ proc isTemplateAngleBracket(p: var Parser): bool =
 proc hasValue(t: StringTableRef, s: string): bool =
   for v in t.values:
     if v == s: return true
+
+proc skipOperator(p: Parser, s: string, isConverter: bool): bool =
+  # don't add trivial operators that Nim ends up using anyway:
+  if pfCppAllOps in p.options.flags:
+    return false
+  elif isConverter and pfCppSkipConverter in p.options.flags:
+    return true
+  elif s == "()" and pfCppSkipCallOp in p.options.flags:
+    return true
+  elif s in ["=", "!=", ">", ">="]:
+    return true
 
 proc optScope(p: var Parser, n: PNode; kind: TSymKind): PNode =
   result = n
@@ -738,7 +777,19 @@ proc typeAtom(p: var Parser; isTypeDef=false): PNode =
       else:
         isDone = true
         add(x, p.tok.s)
+      
+      ## handle standalone unsigned here using hueristic
+      saveContextB(p)
       getTok(p, nil)
+      if isUnsigned and not p.tok.s.isBaseIntType():
+        backtrackContextB(p)
+        # add(x, p.tok.s)
+        # x = ""
+        getTok(p, nil)
+        isDone = true
+      else:
+        closeContextB(p)
+      
       if skipConst(p):
         isConst = true
 
@@ -1370,9 +1421,11 @@ proc createConst(name, typ, val: PNode, p: Parser): PNode =
   result = newNodeP(nkConstDef, p)
   addSon(result, name, typ, val)
 
-proc extractNumber(s: string): tuple[succ: bool, val: BiggestInt] =
+proc extractNumber(s: string, values: TableRef[string, BiggestInt] = nil): tuple[succ: bool, val: BiggestInt] =
   try:
-    if s.startsWith("0x"):
+    if values != nil and s in values:
+      result = (true, values[s])
+    elif s.startsWith("0x"):
       result = (true, fromHex[BiggestInt](s))
     elif s.startsWith("0o"):
       result = (true, fromOct[BiggestInt](s))
@@ -1383,22 +1436,32 @@ proc extractNumber(s: string): tuple[succ: bool, val: BiggestInt] =
   except ValueError:
     result = (false, 0'i64)
 
-proc exprToNumber(n: PNode): tuple[succ: bool, val: BiggestInt] =
+proc exprToNumber(n: PNode, values: TableRef[string, BiggestInt]): tuple[succ: bool, val: BiggestInt] =
   result = (false, 0.BiggestInt)
-  case n.kind:
+  case n.kind
   of nkPrefix:
     # Check for negative/positive numbers  -3  or  +6
     if n.sons.len == 2 and n.sons[0].kind == nkIdent and n.sons[1].kind == nkIntLit:
       let pre = n.sons[0]
       let num = n.sons[1]
       if pre.ident.s == "-":
-        result = extractNumber("-" & num.strVal)
+        result = extractNumber("-" & num.strVal, values)
       elif pre.ident.s == "+":
-        result = extractNumber(num.strVal)
+        result = extractNumber(num.strVal, values)
   of nkIntLit..nkUInt64Lit:
-    result = extractNumber(n.strVal)
+    result = extractNumber(n.strVal, values)
   of nkCharLit:
     result = (true, BiggestInt n.strVal[0])
+  of nkInfix:
+    let n1 = extractNumber($n[1], values)
+    let n2 = extractNumber($n[2], values)
+    case $n[0]
+    of "shl": result = (true, n1[1] shl n2[1])
+    of "shr": result = (true, n1[1] shr n2[1])
+    of "+": result = (true, n1[1] + n2[1])
+    of "-": result = (true, n1[1] - n2[1])
+    of "*": result = (true, n1[1] * n2[1])
+    of "/": result = (true, n1[1] div n2[1])
   else: discard
 
 template any(x, cond: untyped): untyped =
@@ -1424,6 +1487,7 @@ proc enumFields(p: var Parser, constList, stmtList: PNode): PNode =
   var field: tuple[id: BiggestInt, kind: EnumFieldKind, node, value: PNode]
   var fields = newSeq[type(field)]()
   var fieldsComplete = false
+  var fieldValues = newTable[string, BiggestInt]()
   while p.tok.xkind != pxCurlyRi:
     if p.tok.xkind == pxDirective or p.tok.xkind == pxDirectiveParLe:
       var define = parseDir(p, statement)
@@ -1441,7 +1505,8 @@ proc enumFields(p: var Parser, constList, stmtList: PNode): PNode =
       addSon(e, a, c)
       skipCom(p, e)
       field.value = c
-      var (success, number) = exprToNumber(c)
+      var (success, number) = exprToNumber(c, fieldValues)
+      fieldValues[$a] = number
       if success:
         i = number
         field.kind = isNumber
@@ -1471,7 +1536,7 @@ proc enumFields(p: var Parser, constList, stmtList: PNode): PNode =
     of isNumber:
       if f.id == lastId and count > 0:
         var currentIdent: PNode
-        case f.node.kind:
+        case f.node.kind
         of nkEnumFieldDef:
           if f.node.sons.len > 0 and f.node.sons[0].kind == nkIdent:
             currentIdent = f.node.sons[0]
@@ -1483,7 +1548,7 @@ proc enumFields(p: var Parser, constList, stmtList: PNode): PNode =
       else:
         addSon(result, f.node)
         lastId = f.id
-        case f.node.kind:
+        case f.node.kind
         of nkEnumFieldDef:
           if f.node.sons.len > 0 and f.node.sons[0].kind == nkIdent:
             lastIdent = f.node.sons[0]
@@ -1666,7 +1731,7 @@ proc inheritedGenericParams(p: Parser) : PNode =
   else:
     result = emptyNode
 
-proc parseTypename(p: var Parser, result: PNode) =
+proc parseTypename(p: var Parser, result: PNode, skipIdent = true) =
   getTok(p) #skip "typename"
   let t = typeAtom(p)
   let genericParams = inheritedGenericParams(p)
@@ -1678,7 +1743,9 @@ proc parseTypename(p: var Parser, result: PNode) =
         if t[i].kind == nkIdent and findGenericParam(genericParams, t.sons[i]):
           gpl.add(t.sons[i])
     if gpl.len < 1: gpl = emptyNode
-  let lname = skipIdentExport(p, skType, true)
+  let lname =
+    if skipIdent: skipIdentExport(p, skType, true)
+    else: newNodeP(nkStmtList, p)
   addTypeDef(result, lname, t, gpl)
 
 proc parseTypeBody(p: var Parser; result, typeSection, afterStatements: PNode) =
@@ -1957,10 +2024,10 @@ proc declarationWithoutSemicolon(p: var Parser; genericParams: PNode = emptyNode
     origName = ""
     var isConverter = parseOperator(p, origName)
     result = parseMethod(p, origName, rettyp, pragmas, true, true,
-                         emptyNode, emptyNode)
+                         genericParams, emptyNode)
     if isConverter: result.kind = nkConverterDef
     # don't add trivial operators that Nim ends up using anyway:
-    if origName in ["=", "!=", ">", ">="]:
+    if skipOperator(p, origName, isConverter):
       result = emptyNode
     return
   else:
@@ -1988,7 +2055,7 @@ proc declarationWithoutSemicolon(p: var Parser; genericParams: PNode = emptyNode
         p.tok.s == "const":
       addSon(pragmas, newIdentNodeP("noSideEffect", p))
       getTok(p)
-    if pfCDecl in p.options.flags:
+    if pfCDecl in p.options.flags and pfKeepBodies notin p.options.flags:
       addSon(pragmas, newIdentNodeP("cdecl", p))
     elif pfStdcall in p.options.flags:
       addSon(pragmas, newIdentNodeP("stdcall", p))
@@ -2011,10 +2078,17 @@ proc declarationWithoutSemicolon(p: var Parser; genericParams: PNode = emptyNode
     of pxCurlyLe:
       if {pfCpp, pfKeepBodies} * p.options.flags == {pfCpp}:
         discard compoundStatement(p)
-        addSon(result, newNodeP(nkDiscardStmt, p))
+        if pfCDecl in p.options.flags or pfImportc in p.options.flags:
+          addSon(result, emptyNode)
+        else:
+          addSon(result, newNodeP(nkDiscardStmt, p))
         addSon(result.lastSon, emptyNode)
       else:
-        addSon(result, compoundStatement(p))
+        if pfImportc in p.options.flags:
+          discard compoundStatement(p)
+          addSon(result, emptyNode)
+        else:
+          addSon(result, compoundStatement(p))
     else:
       parError(p, "expected ';'")
     if sonsLen(result.sons[pragmasPos]) == 0:
@@ -3218,8 +3292,13 @@ proc parseTemplate(p: var Parser): PNode =
                 var identDefs = newNodeP(nkIdentDefs, p)
                 identDefs.addSon(skipIdent(p, skType), staticTy, emptyNode)
                 result.add identDefs
+          if p.tok.xkind == pxAsgn:
+            getTok(p)
+            result[^1][^1] = mangledIdent(p.tok.s, p, skType)
+            getTok(p)
           if p.tok.xkind != pxComma: break
           getTok(p)
+      # getTok(p)
       eat(p, pxAngleRi)
 
 proc getConverterCppType(p: var Parser): string =
@@ -3287,6 +3366,10 @@ proc parseClassEntity(p: var Parser; genericParams: PNode; private: bool): PNode
   result = newNodeP(nkStmtList, p)
   let tmpl = parseTemplate(p)
   var gp: PNode
+  var comm: PNode = nil
+  if p.tok.xkind in {pxStarComment, pxLineComment}:
+    comm = newNodeP(nkCommentStmt, p)
+    skipCom(p, comm)
   if tmpl.kind != nkEmpty:
     if genericParams.kind != nkEmpty:
       gp = genericParams.copyTree
@@ -3297,8 +3380,14 @@ proc parseClassEntity(p: var Parser; genericParams: PNode; private: bool): PNode
     gp = genericParams
   if p.tok.xkind == pxSymbol and p.tok.s == "friend":
     # we skip friend declarations:
-    while p.tok.xkind notin {pxEof, pxSemicolon}: getTok(p)
-    eat(p, pxSemicolon)
+    var hasBody = false
+    while p.tok.xkind notin {pxEof, pxSemicolon}:
+      if skipBody(p): 
+        hasBody = true
+        break
+      getTok(p)
+    if not hasBody:
+      eat(p, pxSemicolon)
   elif p.tok.xkind == pxSymbol and p.tok.s == "using":
     result = usingStatement(p)
   elif p.tok.xkind == pxSymbol and p.tok.s == "enum":
@@ -3356,7 +3445,7 @@ proc parseClassEntity(p: var Parser; genericParams: PNode; private: bool): PNode
       if not private or pfKeepBodies in p.options.flags:
         meth.kind = nkConverterDef
         # don't add trivial operators that Nim ends up using anyway:
-        if origName notin ["=", "!=", ">", ">="]:
+        if not skipOperator(p, origName, true):
           result.add(meth)
     else:
       # field declaration or method:
@@ -3377,7 +3466,7 @@ proc parseClassEntity(p: var Parser; genericParams: PNode; private: bool): PNode
             if not private or pfKeepBodies in p.options.flags:
               if isConverter: meth.kind = nkConverterDef
               # don't add trivial operators that Nim ends up using anyway:
-              if origName notin ["=", "!=", ">", ">="]:
+              if not skipOperator(p, origName, isConverter):
                 result.add(meth)
             break
           origName = p.tok.s
@@ -3411,6 +3500,8 @@ proc parseClassEntity(p: var Parser; genericParams: PNode; private: bool): PNode
           getTok(p, lastSon(result))
         else:
           getTok(p, result)
+  if not comm.isNil and result.len() > 0:
+    result[0].comment = comm.comment
 
 proc parseClassEntityPp(p: var Parser; genericParams: PNode;
                        private: bool): PNode =
@@ -3512,6 +3603,40 @@ proc parseClass(p: var Parser; isStruct: bool;
 
   eat(p, pxCurlyRi, result)
 
+let tmplTypeMangleChars = @[" ",";", ":","{","}","[","]","(",")"].mapIt((it, ""))
+
+proc parseTemplateSpecialization(p: var Parser, genericParams: PNode) =
+  # handle type specialization params
+  # Nim doesn't support this directly. It does support `when`
+  # inside type definitions, but we just do a literal translation
+  # TODO: should this print a warning or just error out?
+  getTok(p)
+  var letter = 'T'
+  genericParams.sons = @[]
+  while true:
+    var identDefs = newNodeP(nkIdentDefs, p)
+    let lt = newIdentNodeP($letter, p)
+    if p.tok.s == "typename":
+      let n = newNodeP(nkStmtList, p)
+      parseTypename(p, n, false)
+      identDefs.addSon(lt, n[0][^1], emptyNode)
+      genericParams.addSon identDefs
+    else:
+      var n = typeAtom(p, true)
+      identDefs.addSon(lt, n, emptyNode)
+      letter.inc()
+      genericParams.addSon identDefs
+    if p.tok.xkind != pxComma:
+      break
+    else:
+      getTok(p)
+  eat(p, pxGt)
+
+  var postfix = $(genericParams)
+  postfix = postfix.multiReplace(tmplTypeMangleChars)
+  p.currentClassOrig &= "_" & postfix
+  p.currentClass = newIdentNodeP(p.currentClassOrig, p)
+
 proc parseStandaloneClass(p: var Parser, isStruct: bool;
                           genericParams: PNode,
                           tmplParams: PNode = emptyNode): PNode =
@@ -3521,6 +3646,7 @@ proc parseStandaloneClass(p: var Parser, isStruct: bool;
   let oldClass = p.currentClass
   var oldClassOrig = p.currentClassOrig
   var oldToMangle: StringTableRef
+  var isSpecialization = false
   p.currentClassOrig = ""
   if p.tok.xkind == pxSymbol:
     markTypeIdent(p, nil)
@@ -3539,6 +3665,11 @@ proc parseStandaloneClass(p: var Parser, isStruct: bool;
     p.currentClass = nil
     p.classHierarchy.add("")
     p.classHierarchyGP.add(emptyNode)
+  
+  if p.tok.xkind == pxLt:
+    isSpecialization = true
+    parseTemplateSpecialization(p, genericParams)
+
   if p.tok.xkind in {pxCurlyLe, pxSemiColon, pxColon}:
     if p.currentClass != nil:
       p.options.classes[p.currentClassOrig] = p.currentClass.ident.s
@@ -3571,6 +3702,12 @@ proc parseStandaloneClass(p: var Parser, isStruct: bool;
   p.currentClass = oldClass
   p.currentClassOrig = oldClassOrig
   p.options.toMangle = oldToMangle
+
+  if isSpecialization and pfCppSpecialization notin p.options.flags:
+    let spec = result
+    result = newNodeP(nkCommentStmt, p)
+    result.comment = "# ignored specialization: "
+    result.comment.add $spec
 
 proc unwrap(a: PNode): PNode =
   if a.kind == nkPar:

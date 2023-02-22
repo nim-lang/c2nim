@@ -389,6 +389,14 @@ proc defines(p: Parser, s: string): bool =
 proc isIdent(n: PNode, id: string): bool =
   n.kind == nkIdent and n.ident.s == id
 
+proc isZeroValue(n: PNode): bool =
+  if n.kind in {nkIntLit..nkInt64Lit}:
+    result = 0 == n.strVal.parseBiggestInt()
+  elif n.kind in {nkUIntLit..nkUInt64Lit}:
+    result = 0 == n.strVal.parseBiggestUInt()
+  elif n.kind == nkNilLit:
+    result = true
+
 proc definedGuard(n: PNode): string =
   if n.len == 2:
     let call = n.sons[0]
@@ -546,7 +554,7 @@ proc parseIfDir(p: var Parser; sectionParser: SectionParser): PNode =
   getTok(p)
   let condition = ppCondExpr(p)
   let simplified = p.simplify(condition)
-  if simplified.isIdent("false"):
+  if simplified.isIdent("false") or simplified.isZeroValue():
     skipUntilEndif(p)
     result = emptyNode
   else:
@@ -604,6 +612,8 @@ proc parseDir(p: var Parser; sectionParser: SectionParser, recur = false): PNode
       backtrackContext(p)
       if p.options.importdefines:
         result = parseDefineAsDecls(p, hasParams)
+      elif p.options.skipfuncdefines and hasParams:
+        discard parseDefineAsDecls(p, hasParams)
       elif p.options.importfuncdefines and hasParams:
         result = parseDefineAsDecls(p, hasParams)
       else:
@@ -616,9 +626,10 @@ proc parseDir(p: var Parser; sectionParser: SectionParser, recur = false): PNode
   of "ifndef": result = parseIfndef(p, sectionParser)
   of "if": result = parseIfDir(p, sectionParser)
   of "cdecl", "stdcall", "ref", "skipinclude", "typeprefixes", "skipcomments",
-     "keepbodies", "cpp", "nep1", "assumeifistrue", "structstruct",
-     "importfuncdefines", "importdefines", "strict",
-     "stdints", "reordercomments", "mergeblocks":
+     "keepbodies", "cpp", "cppallops", "nep1", "assumeifistrue", "structstruct",
+     "importfuncdefines", "importdefines", "skipfuncdefines", "strict", "importc",
+     "stdints", "reordercomments", "reordertypes", "mergeblocks", "mergeduplicates",
+     "cppspecialization", "cppskipconverter", "cppskipcallop":
     discard setOption(p.options, p.tok.s)
     getTok(p)
     eatNewLine(p, nil)
@@ -750,5 +761,4 @@ proc parseRemoveIncludes*(p: var Parser, infile: string): PNode =
     # add code
     if isInFile:
       result.add(code)
-
   

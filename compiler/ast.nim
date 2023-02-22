@@ -1014,6 +1014,61 @@ var ggDebug* {.deprecated.}: bool ## convenience switch for trying out things
 #var
 #  gMainPackageId*: int
 
+proc treeTraverse(n: PNode; res: var string; level = 0; isLisp = false, indented = false) =
+  if level > 0:
+    if indented:
+      res.add("\n")
+      for i in 0 .. level-1:
+        if isLisp:
+          res.add(" ")          # dumpLisp indentation
+        else:
+          res.add("  ")         # dumpTree indentation
+    else:
+      res.add(" ")
+
+  if isLisp:
+    res.add("(")
+  res.add(($n.kind).substr(2))
+
+  case n.kind
+  of nkEmpty, nkNilLit:
+    discard # same as nil node in this representation
+  of nkCharLit..nkUInt64Lit, nkFloatLit..nkFloat128Lit, nkStrLit..nkTripleStrLit:
+    res.add(" " & $n.strVal)
+  of nkSym:
+    res.add(" " & repr n.sym.name)
+  of nkIdent:
+    res.add(" " & n.ident.s)
+  of nkNone:
+    discard
+  # elif n.kind in {nkOpenSymChoice, nkClosedSymChoice} and collapseSymChoice:
+  #   res.add(" " & $n.len)
+  #   if n.len > 0:
+  #     var allSameSymName = true
+  #     for i in 0..<n.len:
+  #       if n[i].kind != nnkSym or not eqIdent(n[i], n[0]):
+  #         allSameSymName = false
+  #         break
+  #     if allSameSymName:
+  #       res.add(" " & $n[0].strVal.newLit.repr)
+  #     else:
+  #       for j in 0 ..< n.len:
+  #         n[j].treeTraverse(res, level+1, isLisp, indented)
+  else:
+    for j in 0 ..< n.sons.len:
+      n.sons[j].treeTraverse(res, level+1, isLisp, indented)
+
+  if isLisp:
+    res.add(")")
+
+proc treeRepr*(n: PNode): string =
+  ## Convert the AST `n` to a human-readable tree-like string.
+  ##
+  ## See also `repr`, `lispRepr`, and `astGenRepr`.
+  result = ""
+  n.treeTraverse(result, isLisp = false, indented = true)
+
+
 proc isCallExpr*(n: PNode): bool =
   result = n.kind in nkCallKinds
 

@@ -329,6 +329,14 @@ merge similar adjacent sections or "blocks" in the generated Nim code. This work
 a few kinds of blocks like ``let`` or ``var`` sections. This is helpful when importing
 C code which produces lots of separate ``let`` sections.
 
+``#mergeDuplicates`` directive
+--------------------------
+**Note**: There is also a ``--mergeDuplicates`` command line option that can be
+used for the same purpose.
+
+The ``#mergeDuplicates`` directive can be put into the C code to make c2nim
+merge duplicate definitions. This is implemented naively so it can be slow.
+
 ``#delete`` directive
 ---------------------
 **Note**: There is also a ``--delete:INDENT`` command line option that can be

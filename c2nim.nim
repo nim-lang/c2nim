@@ -42,6 +42,7 @@ Options:
   --stdcall              annotate procs with ``{.stdcall.}``
   --importc              annotate procs with ``{.importc.}``
   --importDefines        import C defines as procs or vars with ``{.importc.}``
+  --skipFuncDefines      skip C proc defines
   --importFuncDefines    import C define funcs as procs with ``{.importc.}``
   --def:SYM='macro()'    define a C macro that gets replaced with the given
                          definition. It's parsed by the lexer. Use it to fix
@@ -70,6 +71,7 @@ Options:
   --delete:IDENT         post process option to delete nodes with matching
                          idents for procs, types, or vars           
   --mergeBlocks          merge similar adjacent blocks like two let sections
+  --mergeDuplicates      merge similar adjacent blocks like two let sections
   --ignoreRValueRefs     translate C++'s ``T&&`` to ``T`` instead ``of var T``
   --keepBodies           keep C++'s method bodies
   --cppBindStatic        bind cpp methods to their types
