@@ -585,6 +585,33 @@ not nested since the ``|}`` doesn't have to be on a line of its own:
 
   #define foobar {| 5 or 9 |}
 
+C++ static method binding
+=========================
+
+With ``--cppBindStatic``, C++ static methods will be bound to their types
+when possible:
+
+.. code-block:: C++
+
+   class ClassA
+   {
+     public:
+       static void hello();
+   };
+
+Produces for ``hello``:
+
+.. code-block:: Nim
+
+   proc hello*(_: type ClassA)
+
+   # which can be called like in CPP:
+   ClassA.hello()
+
+   # For static methods outside of classes, or when
+   # --cppBindStatic is not present:
+   proc hello*()
+   hello()
 
 
 Limitations

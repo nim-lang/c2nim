@@ -58,6 +58,7 @@ type
     pfCppSpecialization, ## parse c++ template specializations
     pfCppSkipConverter  ## skip C++ converters
     pfCppSkipCallOp     ## skip C++ converters
+    pfCppBindStatic     ## bind cpp static methods to types
 
   Macro* = object
     name*: string
@@ -208,6 +209,7 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "reordercomments": incl(parserOptions.flags, pfReorderComments)
   of "reordertypes": incl(parserOptions.flags, pfReorderTypes)
   of "mergeblocks": incl(parserOptions.flags, pfMergeBlocks)
+  of "cppbindstatic": incl(parserOptions.flags, pfCppBindStatic)
   of "mergeduplicates": incl(parserOptions.flags, pfMergeDuplicates)
   of "cppskipconverter": incl(parserOptions.flags, pfCppSkipConverter)
   of "cppspecialization":incl(parserOptions.flags, pfCppSpecialization)
@@ -3175,6 +3177,14 @@ proc parseMethod(p: var Parser, origName: string, rettyp, pragmas: PNode,
     # declare 'this':
     thisDef = createThis(p, genericParamsThis)
     params.add(thisDef)
+  elif not isNil(p.currentClass) and pfCppBindStatic in p.options.flags:
+    # bind to type
+    var typ = newNodeP(nkIdentDefs, p)
+    var t = newNodeP(nkCommand, p)
+    t.add(newIdentNodeP("type", p))
+    t.add(p.currentClass.applyGenericParams(genericParamsThis))
+    addSon(typ, newIdentNodeP("_", p), t, emptyNode)
+    params.add(typ)
 
   parseFormalParams(p, params, pragmas)
   if p.tok.xkind == pxSymbol and p.tok.s == "const":
