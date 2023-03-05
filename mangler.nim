@@ -68,17 +68,17 @@ proc mangleRules(s: string, p: Parser; kind: TSymKind): string =
         break mangle
     block prefixes:
       for prefix in items(p.options.prefixes):
-        if s.startsWith(prefix):
+        if prefix.len < s.len and s.startsWith(prefix):
           result = s.substr(prefix.len)
           break prefixes
       result = s
     block suffixes:
       for suffix in items(p.options.suffixes):
-        if result.endsWith(suffix):
+        if suffix.len < result.len and result.endsWith(suffix):
           setLen(result, result.len - suffix.len)
           break suffixes
-    if p.options.followNep1 and kind != skDontMangle:
-      result = nep1(result, kind)
+  if p.options.followNep1 and kind != skDontMangle:
+    result = nep1(result, kind)
 
 proc mangleName(s: string, p: Parser; kind: TSymKind): string =
   if p.options.toMangle.hasKey(s): result = p.options.toMangle[s]
