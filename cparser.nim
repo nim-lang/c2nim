@@ -22,7 +22,6 @@ import
   pegs, tables, compiler/ast, compiler/msgs,
   strtabs, hashes, algorithm, compiler/nversion
 from sequtils import mapIt
-from sequtils import mapIt
 
 when declared(NimCompilerApiVersion):
   import compiler / lineinfos
