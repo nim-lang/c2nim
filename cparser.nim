@@ -64,7 +64,7 @@ type
     name*: string
     params*: int # number of parameters; 0 for empty (); -1 for no () at all
     body*: seq[ref Token] # can contain pxMacroParam tokens
-  
+
   Attribute* = object
     name*: string
     params*: seq[ref Token]
@@ -143,7 +143,7 @@ const typeAttributesToPragmas = {
 
   "aligned", "align": AttributeDesk(kind: adFirstFieldPragma, pragma: "align"),
 }.toTable
- 
+
 proc parseDir(p: var Parser; sectionParser: SectionParser, recur = false): PNode
 proc addTypeDef(section, name, t, genericParams: PNode)
 proc parseStruct(p: var Parser, stmtList: PNode): PNode
@@ -207,11 +207,11 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "assumedef": parserOptions.assumeDef.add(val)
   of "assumendef": parserOptions.assumenDef.add(val)
   of "mangle":
-    let params = val.split("=")
-    parserOptions.mangleRules.add((parsePeg(params[0]), params[1]))
+    let vals = val.split("=")
+    parserOptions.mangleRules.add((parsePeg(vals[0]), vals[1]))
   of "stdints":
-    let params = (r"{u?}int{\d+}_t", r"$1int$2")
-    parserOptions.mangleRules.add((parsePeg(params[0]), params[1]))
+    let vals = (r"{u?}int{\d+}_t", r"$1int$2")
+    parserOptions.mangleRules.add((parsePeg(vals[0]), vals[1]))
   of "skipinclude": incl(parserOptions.flags, pfSkipInclude)
   of "typeprefixes": incl(parserOptions.flags, pfTypePrefixes)
   of "skipcomments": incl(parserOptions.flags, pfSkipComments)
@@ -609,7 +609,7 @@ proc skipAttribute(p: var Parser): bool {.discardable.} =
       eat(p, pxParLe, nil)
     while p.tok.xkind != pxParRi:
       getTok(p, nil)
-      ## get params
+      ## get args
       if p.tok.xkind == pxParLe:
         getTok(p, nil)
         while p.tok.xkind != pxParRi:
@@ -657,7 +657,6 @@ proc parseAttribute(p: var Parser): seq[Attribute]=
 
   for i in 1..parens:
     eat(p, pxParRi)
-
 
 proc stmtKeyword(s: string): bool =
   case s
@@ -1073,7 +1072,7 @@ proc cppImportName(p: Parser, origName: string,
     addGenerics(genericParams)
 
 proc structPragmas(p: Parser, name: PNode, origName: string,
-                   isUnion: bool; genericParams: PNode = nil; 
+                   isUnion: bool; genericParams: PNode = nil;
                    externalPragmas: seq[PNode] = @[]): PNode =
   assert name.kind == nkIdent
   result = newNodeP(nkPragmaExpr, p)
@@ -1090,9 +1089,8 @@ proc structPragmas(p: Parser, name: PNode, origName: string,
     addSon(pragmas, newIdentNodeP("pure", p))
   pragmas.add newIdentNodeP("bycopy", p)
   if isUnion: pragmas.add newIdentNodeP("union", p)
-  
-  for i in externalPragmas: pragmas.add i
-
+  for i in externalPragmas:
+    pragmas.add i
   result.add pragmas
 
 proc hashPosition(p: var Parser): string =
@@ -1347,7 +1345,7 @@ proc parseFormalParams(p: var Parser, params, pragmas: PNode) =
   eat(p, pxParLe, params)
   while p.tok.xkind notin {pxEof, pxParRi}:
     if p.tok.xkind == pxDotDotDot:
-      addSon(pragmas, newIdentNodeP("varparams", p))
+      addSon(pragmas, newIdentNodeP("varargs", p))
       getTok(p, pragmas)
       break
     parseParam(p, params)
@@ -2896,6 +2894,7 @@ proc parseStandaloneStruct(p: var Parser, isUnion: bool;
   result = newNodeP(nkStmtList, p)
   saveContext(p)
   getTok(p, result) # skip "struct" or "union"
+  
   var 
     attributes: seq[Attribute]
     pragmas, firstFieldPragmas: seq[PNode]
@@ -2923,7 +2922,7 @@ proc parseStandaloneStruct(p: var Parser, isUnion: bool;
             pragmas.add newIdentNodeP(pragma, p)
           of adFirstFieldPragma:
             firstFieldPragmas.add newIdentNodeP(pragma, p)
-
+  
   var origName = ""
   if p.tok.xkind == pxSymbol:
     markTypeIdent(p, nil)
@@ -2943,7 +2942,7 @@ proc parseStandaloneStruct(p: var Parser, isUnion: bool;
           t[2][0][0],
           firstFieldPragmaNode
         )
-
+      
       if t.isNil:
         result = newNodeP(nkDiscardStmt, p)
         result.add(newStrNodeP(nkStrLit, "forward decl of " & origName, p))
@@ -3467,7 +3466,6 @@ proc parseVisibility(p: var Parser; result: PNode; private: var bool) =
 proc parseClassEntity(p: var Parser; genericParams: PNode; private: bool): PNode =
   result = newNodeP(nkStmtList, p)
   let tmpl = parseTemplate(p)
-  
   var gp: PNode
   var comm: PNode = nil
   if p.tok.xkind in {pxStarComment, pxLineComment}:
