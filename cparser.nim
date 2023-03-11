@@ -146,9 +146,13 @@ const typeAttributesToPragmas = {
 
 proc parseDir(p: var Parser; sectionParser: SectionParser, recur = false): PNode
 proc addTypeDef(section, name, t, genericParams: PNode)
-proc parseStruct(p: var Parser, stmtList: PNode): PNode
+proc parseStruct(p: var Parser, stmtList: PNode, 
+                 attributes: var seq[Attribute] = cast[var seq[Attribute]](nil)
+                 ): PNode
 proc parseStructBody(p: var Parser, stmtList: PNode,
-                     kind: TNodeKind = nkRecList): PNode
+                     kind: TNodeKind = nkRecList,
+                     attributes: var seq[Attribute] = cast[var seq[Attribute]](nil)
+                     ): PNode
 proc parseClass(p: var Parser; isStruct: bool;
                 stmtList, genericParams: PNode): PNode
 proc inheritedGenericParams(p: Parser) : PNode
@@ -658,6 +662,29 @@ proc parseAttribute(p: var Parser): seq[Attribute]=
   for i in 1..parens:
     eat(p, pxParRi)
 
+proc getAttributePragmas(
+  p: var Parser,
+  attributes: seq[Attribute]
+  ): tuple[pragmas, firstFieldPragmas: seq[PNode]]=
+  for i in attributes:
+      if typeAttributesToPragmas.hasKey(i.name):
+        var pragma: string
+        
+        let attributeDesk = typeAttributesToPragmas[i.name]
+        pragma &= attributeDesk.pragma
+        if i.params.len > 0:
+          let paramsStr = i.params.mapIt(it.s).join(", ")
+          if likely(i.params.len == 1):
+            pragma &= ": " & paramsStr
+          else:
+            pragma &= '(' & paramsStr & ')'
+        
+        case attributeDesk.kind:
+          of adOwnPragma:
+            result.pragmas.add newIdentNodeP(pragma, p)
+          of adFirstFieldPragma:
+            result.firstFieldPragmas.add newIdentNodeP(pragma, p)
+
 proc stmtKeyword(s: string): bool =
   case s
   of  "if", "for", "while", "do", "switch", "break", "continue", "return",
@@ -1149,7 +1176,9 @@ proc parseBitfield(p: var Parser, i: PNode): PNode =
 import compiler/nimlexbase
 
 proc parseStructBody(p: var Parser, stmtList: PNode,
-                     kind: TNodeKind = nkRecList): PNode =
+                     kind: TNodeKind = nkRecList,
+                     attributes: var seq[Attribute] = cast[var seq[Attribute]](nil)
+                     ): PNode =
   result = newNodeP(kind, p)
   let com = newNodeP(nkCommentStmt, p)
   eat(p, pxCurlyLe, com)
@@ -1218,7 +1247,11 @@ proc parseStructBody(p: var Parser, stmtList: PNode,
     eat(p, pxSemicolon)
 
   eat(p, pxCurlyRi, result)
-  skipAttributes(p);
+
+  if p.tok.s == "__attribute__" and p.tok.xkind == pxSymbol:
+    attributes = parseAttribute(p)
+  else:
+    skipAttributes(p)
 
 proc enumPragmas(p: Parser, name: PNode; origName: string): PNode =
   result = newNodeP(nkPragmaExpr, p)
@@ -1268,7 +1301,10 @@ proc parseInheritance(p: var Parser; result: PNode) =
         discard typeAtom(p)
     result.sons[0] = inh
 
-proc parseStruct(p: var Parser, stmtList: PNode): PNode =
+proc parseStruct(
+  p: var Parser, stmtList: PNode, 
+  attributes: var seq[Attribute] = cast[var seq[Attribute]](nil)
+  ): PNode =
   result = newNodeP(nkObjectTy, p)
   var pragmas = emptyNode
   addSon(result, pragmas, emptyNode) # no inheritance
@@ -1279,7 +1315,10 @@ proc parseStruct(p: var Parser, stmtList: PNode): PNode =
     eat(p, pxSemicolon, result)
     return nil
   if p.tok.xkind == pxCurlyLe:
-    addSon(result, parseStructBody(p, stmtList))
+    addSon(result, parseStructBody(
+                                   p, stmtList, 
+                                   attributes=attributes
+    ))
   else:
     addSon(result, newNodeP(nkRecList, p))
 
@@ -2900,28 +2939,7 @@ proc parseStandaloneStruct(p: var Parser, isUnion: bool;
     pragmas, firstFieldPragmas: seq[PNode]
 
   if p.tok.s == "__attribute__" and p.tok.xkind == pxSymbol:
-    #parse type attributes
     attributes = parseAttribute(p)
-    
-
-    for i in attributes:
-      if typeAttributesToPragmas.hasKey(i.name):
-        var pragma: string
-        
-        let attributeDesk = typeAttributesToPragmas[i.name]
-        pragma &= attributeDesk.pragma
-        if i.params.len > 0:
-          let paramsStr = i.params.mapIt(it.s).join(", ")
-          if likely(i.params.len == 1):
-            pragma &= ": " & paramsStr
-          else:
-            pragma &= '(' & paramsStr & ')'
-        
-        case attributeDesk.kind:
-          of adOwnPragma:
-            pragmas.add newIdentNodeP(pragma, p)
-          of adFirstFieldPragma:
-            firstFieldPragmas.add newIdentNodeP(pragma, p)
   
   var origName = ""
   if p.tok.xkind == pxSymbol:
@@ -2931,8 +2949,9 @@ proc parseStandaloneStruct(p: var Parser, isUnion: bool;
   if p.tok.xkind in {pxCurlyLe, pxSemiColon, pxColon}:
     if origName.len > 0:
       var name = mangledIdent(origName, p, skType)
-      var t = parseStruct(p, result)
+      var t = parseStruct(p, result, attributes=attributes)
 
+      (pragmas, firstFieldPragmas) = getAttributePragmas(p, attributes)
       if firstFieldPragmas.len > 0:
         var firstFieldPragmaNode = newNodeP(nkPragma, p)
         for i in firstFieldPragmas:
