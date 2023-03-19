@@ -1134,6 +1134,8 @@ proc parseStructBody(p: var Parser, stmtList: PNode,
           if pfAnonUnionsAsFields in p.options.flags:
             echo "BASE AU: ", baseTyp.treeRepr
             echo "SSTMTS AU: ", sstmts.treeRepr
+            var t = pointer(p, baseTyp)
+            t = parseTypeSuffix(p, t)
             getTok(p, nil)
           else:
             let def = newNodeP(nkIdentDefs, p)
