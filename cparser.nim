@@ -1126,14 +1126,23 @@ proc parseStructBody(p: var Parser, stmtList: PNode,
           getTok(p)
         var sstmts = newNodeP(nkStmtList, p)
         baseTyp = parseInnerStruct(p, sstmts, gotUnion, name)
-        echo ""
+        echo "\n"
+        echo "UNION: ", gotUnion
         echo "BASE_AU: ", baseTyp.treeRepr
         # handle anonymous unions
         if p.tok.xkind == pxSemiColon:
           echo "FLAGS: ", p.options.flags
           if pfAnonUnionsAsFields in p.options.flags:
-            echo "BASE AU: ", baseTyp.treeRepr
-            echo "SSTMTS AU: ", sstmts.treeRepr
+            echo "SSTMTS AU:\n", sstmts.treeRepr
+            let tdef = sstmts[^1][0]
+            let odef = tdef[2]
+            for i in 0..<sstmts.len-1:
+              stmtList.add(sstmts[i])
+            let rlist = odef[2]
+            for field in rlist:
+              result.add(field)
+            echo ""
+            echo "PARENT ST:\n", result.treeRepr
             getTok(p, nil)
           else:
             let def = newNodeP(nkIdentDefs, p)
