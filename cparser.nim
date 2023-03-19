@@ -1130,35 +1130,26 @@ proc parseStructBody(p: var Parser, stmtList: PNode,
         baseTyp = parseInnerStruct(p, sstmts, gotUnion, name)
         if gotUnion:
           cntAnonUnions.inc()
-        echo "\n"
-        echo "UNION: ", gotUnion
-        echo "BASE_AU: ", repr baseTyp
         # handle anonymous unions / structs
         if p.tok.xkind == pxSemiColon:
-          echo "FLAGS: ", p.options.flags
           if pfAnonUnionsAsFields in p.options.flags:
-            echo "SSTMTS AU:\n", sstmts.treeRepr
             let tdef = sstmts[^1][0]
             let odef = tdef[2]
             for i in 0..<sstmts.len-1:
               stmtList.add(sstmts[i])
             let rlist = odef[2]
             for field in rlist:
-              echo "FIELD: ", $(field[0][0][1])
               if gotUnion and
                   field[0][0].kind == nkPostfix and
                   not startsWith($(field[0][0][1]),"ano_"):
                 let name = "anon" & $cntAnonUnions & "_" & $field[0][0][1]
                 field[0][0][1] = newIdentNodeP(name, p)
               result.add(field)
-            echo ""
-            echo "PARENT ST:\n", result.treeRepr
             getTok(p, nil)
           else:
             let def = newNodeP(nkIdentDefs, p)
             var t = pointer(p, baseTyp)
             let i = fieldIdent("ano_" & p.hashPosition, p)
-            echo "AU: ", i.treeRepr
             t = parseTypeSuffix(p, t)
             addSon(def, i, t, emptyNode)
             addSon(result, def)
