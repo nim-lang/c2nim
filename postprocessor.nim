@@ -260,26 +260,25 @@ proc mergeSimilarBlocks(n: PNode) =
         continue
     inc i
  
-var
-  duplicateNodeCheck: Table[string, int]
+template checkDuplicate(n, def: untyped) =
+  let ndef = nimIdentNormalize(def)
+  if ndef in duplicateNodeCheck:
+    let idx = duplicateNodeCheck[ndef]
+    if idx != n[i].info.line.int:
+      # echo "DEL:DUPE: ", "idx: ", idx, " n.idx: ", n[i].info.line, " def: ", def
+      delete(n.sons, i)
+      continue
+  else:
+    duplicateNodeCheck[ndef] = n[i].info.line.int
 
 proc identName(n: PNode): string =
   if n.kind == nkPostFix: return $n[^1] else: result = $n
 
 proc deletesNode(c: Context, n: var PNode) = 
   ## deletes nodes which match the names found in context.deletes
-  proc hasChild(n: PNode): bool = n.len() > 0
+  var duplicateNodeCheck: Table[string, int]
 
-  template checkDuplicate(n, def: untyped) =
-    let ndef = nimIdentNormalize(def)
-    if ndef in duplicateNodeCheck:
-      let idx = duplicateNodeCheck[ndef]
-      if idx != n[i].info.line.int:
-        # echo "DEL:DUPE: ", "idx: ", idx, " n.idx: ", n[i].info.line, " def: ", def
-        delete(n.sons, i)
-        continue
-    else:
-      duplicateNodeCheck[ndef] = n[i].info.line.int
+  proc hasChild(n: PNode): bool = n.len() > 0
 
   var i = 0
   while i < n.safeLen:
@@ -365,6 +364,19 @@ proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
   of nkInfix, nkPrefix, nkPostfix:
     for i in 1 ..< n.safeLen: pp(c, n.sons[i], stmtList, idx)
   of nkAccQuoted: discard
+
+  of nkImportStmt:
+    # clean up duplicate imports
+    var names = initHashSet[string]()
+    var i = 0
+    while i < n.safeLen:
+      let name = $n.sons[i]
+      if name in names:
+        delete(n.sons, i)
+      else:
+        names.incl(name)
+        pp(c, n.sons[i], n, i)
+        inc i
 
   of nkStmtList:
     for i in 0 ..< n.safeLen:
