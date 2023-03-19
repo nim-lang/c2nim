@@ -1130,7 +1130,12 @@ proc parseStructBody(p: var Parser, stmtList: PNode,
         echo "BASE_AU: ", baseTyp.treeRepr
         # handle anonymous unions
         if p.tok.xkind == pxSemiColon:
+          echo "FLAGS: ", p.options.flags
           if pfAnonUnionsAsFields in p.options.flags:
+            echo "BASE AU: ", baseTyp.treeRepr
+            echo "SSTMTS AU: ", sstmts.treeRepr
+            getTok(p, nil)
+          else:
             let def = newNodeP(nkIdentDefs, p)
             var t = pointer(p, baseTyp)
             let i = fieldIdent("ano_" & p.hashPosition, p)
@@ -1139,7 +1144,7 @@ proc parseStructBody(p: var Parser, stmtList: PNode,
             addSon(def, i, t, emptyNode)
             addSon(result, def)
             getTok(p, nil)
-          stmtList.add(sstmts)
+            stmtList.add(sstmts)
           continue
         else:
           stmtList.add(sstmts)
