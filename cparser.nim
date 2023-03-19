@@ -1091,6 +1091,8 @@ proc parseBitfield(p: var Parser, i: PNode): PNode =
 
 import compiler/nimlexbase
 
+var cntAnonUnions = 0
+
 proc parseStructBody(p: var Parser, stmtList: PNode,
                      kind: TNodeKind = nkRecList): PNode =
   result = newNodeP(kind, p)
@@ -1126,10 +1128,12 @@ proc parseStructBody(p: var Parser, stmtList: PNode,
           getTok(p)
         var sstmts = newNodeP(nkStmtList, p)
         baseTyp = parseInnerStruct(p, sstmts, gotUnion, name)
+        if gotUnion:
+          cntAnonUnions.inc()
         echo "\n"
         echo "UNION: ", gotUnion
-        echo "BASE_AU: ", baseTyp.treeRepr
-        # handle anonymous unions
+        echo "BASE_AU: ", repr baseTyp
+        # handle anonymous unions / structs
         if p.tok.xkind == pxSemiColon:
           echo "FLAGS: ", p.options.flags
           if pfAnonUnionsAsFields in p.options.flags:
@@ -1141,8 +1145,11 @@ proc parseStructBody(p: var Parser, stmtList: PNode,
             let rlist = odef[2]
             for field in rlist:
               echo "FIELD: ", $(field[0][0][1])
-              if field[0][0].kind == nkPostfix and not startsWith($(field[0][0][1]),"ano_"):
-                field[0][0][1].ident.s = "anon_" & $field[0][0][1]
+              if gotUnion and
+                  field[0][0].kind == nkPostfix and
+                  not startsWith($(field[0][0][1]),"ano_"):
+                let name = "anon" & $cntAnonUnions & "_" & $field[0][0][1]
+                field[0][0][1] = newIdentNodeP(name, p)
               result.add(field)
             echo ""
             echo "PARENT ST:\n", result.treeRepr
