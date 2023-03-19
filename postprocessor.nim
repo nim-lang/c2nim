@@ -270,7 +270,7 @@ proc deletesNode(c: Context, n: var PNode) =
   ## deletes nodes which match the names found in context.deletes
   proc hasChild(n: PNode): bool = n.len() > 0
 
-  template checkDupliate(n, def: untyped) =
+  template checkDuplicate(n, def: untyped) =
     let ndef = nimIdentNormalize(def)
     if ndef in duplicateNodeCheck:
       let idx = duplicateNodeCheck[ndef]
@@ -311,7 +311,7 @@ proc deletesNode(c: Context, n: var PNode) =
 
       ## delete duplicates
       if c.mergeDuplicates:
-        checkDupliate(n, def)
+        checkDuplicate(n, def)
 
     ## handle postfix -- e.g. types
     if n[i].kind in {nkPostfix}:
