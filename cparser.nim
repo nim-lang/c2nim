@@ -1140,6 +1140,9 @@ proc parseStructBody(p: var Parser, stmtList: PNode,
               stmtList.add(sstmts[i])
             let rlist = odef[2]
             for field in rlist:
+              echo "FIELD: ", $(field[0][0][1])
+              if field[0][0].kind == nkPostfix and not startsWith($(field[0][0][1]),"ano_"):
+                field[0][0][1].ident.s = "anon_" & $field[0][0][1]
               result.add(field)
             echo ""
             echo "PARENT ST:\n", result.treeRepr
