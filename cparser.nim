@@ -60,7 +60,7 @@ type
     pfCppSkipCallOp,     ## skip C++ converters
     pfNoMultiMangle,     ## allow multiple mangles
     pfCppBindStatic,     ## bind cpp static methods to types
-    pfAnonUnionsAsFields ## bind cpp static methods to types
+    pfAnonymousAsFields  ## treat anonymous union/struct as fields
 
   Macro* = object
     name*: string
@@ -212,7 +212,7 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "reordertypes": incl(parserOptions.flags, pfReorderTypes)
   of "mergeblocks": incl(parserOptions.flags, pfMergeBlocks)
   of "cppbindstatic": incl(parserOptions.flags, pfCppBindStatic)
-  of "anonunionsasfields": incl(parserOptions.flags, pfAnonUnionsAsFields)
+  of "anonymousasfields": incl(parserOptions.flags, pfAnonymousAsFields)
   of "mergeduplicates": incl(parserOptions.flags, pfMergeDuplicates)
   of "cppskipconverter": incl(parserOptions.flags, pfCppSkipConverter)
   of "cppspecialization":incl(parserOptions.flags, pfCppSpecialization)
@@ -1132,18 +1132,21 @@ proc parseStructBody(p: var Parser, stmtList: PNode,
           cntAnonUnions.inc()
         # handle anonymous unions / structs
         if p.tok.xkind == pxSemiColon:
-          if pfAnonUnionsAsFields in p.options.flags:
+          if pfAnonymousAsFields in p.options.flags:
             let tdef = sstmts[^1][0]
             let odef = tdef[2]
             for i in 0..<sstmts.len-1:
               stmtList.add(sstmts[i])
             let rlist = odef[2]
             for field in rlist:
-              if gotUnion and
-                  field[0][0].kind == nkPostfix and
+              if gotUnion and field[0][0].kind == nkPostfix and
                   not startsWith($(field[0][0][1]),"ano_"):
                 let name = "anon" & $cntAnonUnions & "_" & $field[0][0][1]
                 field[0][0][1] = newIdentNodeP(name, p)
+              elif gotUnion and 
+                  not startsWith($(field[0][1]),"ano_"):
+                let name = "anon" & $cntAnonUnions & "_" & $field[0][1]
+                field[0][1] = newIdentNodeP(name, p)
               result.add(field)
             getTok(p, nil)
           else:
