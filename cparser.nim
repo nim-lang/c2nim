@@ -56,10 +56,11 @@ type
     pfMergeBlocks,      ## merge similar blocks
     pfMergeDuplicates,  ## merge similar blocks
     pfCppSpecialization, ## parse c++ template specializations
-    pfCppSkipConverter  ## skip C++ converters
-    pfCppSkipCallOp     ## skip C++ converters
-    pfNoMultiMangle     ## allow multiple mangles
-    pfCppBindStatic     ## bind cpp static methods to types
+    pfCppSkipConverter,  ## skip C++ converters
+    pfCppSkipCallOp,     ## skip C++ converters
+    pfNoMultiMangle,     ## allow multiple mangles
+    pfCppBindStatic,     ## bind cpp static methods to types
+    pfAnonUnionsAsFields ## bind cpp static methods to types
 
   Macro* = object
     name*: string
@@ -211,6 +212,7 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "reordertypes": incl(parserOptions.flags, pfReorderTypes)
   of "mergeblocks": incl(parserOptions.flags, pfMergeBlocks)
   of "cppbindstatic": incl(parserOptions.flags, pfCppBindStatic)
+  of "anonunionsasfields": incl(parserOptions.flags, pfAnonUnionsAsFields)
   of "mergeduplicates": incl(parserOptions.flags, pfMergeDuplicates)
   of "cppskipconverter": incl(parserOptions.flags, pfCppSkipConverter)
   of "cppspecialization":incl(parserOptions.flags, pfCppSpecialization)
@@ -1122,16 +1124,25 @@ proc parseStructBody(p: var Parser, stmtList: PNode,
         if p.tok.xkind == pxSymbol:
           name = p.tok.s
           getTok(p)
-        baseTyp = parseInnerStruct(p, stmtList, gotUnion, name)
+        var sstmts = newNodeP(nkStmtList, p)
+        baseTyp = parseInnerStruct(p, sstmts, gotUnion, name)
+        echo ""
+        echo "BASE_AU: ", baseTyp.treeRepr
+        # handle anonymous unions
         if p.tok.xkind == pxSemiColon:
-          let def = newNodeP(nkIdentDefs, p)
-          var t = pointer(p, baseTyp)
-          let i = fieldIdent("ano_" & p.hashPosition, p)
-          t = parseTypeSuffix(p, t)
-          addSon(def, i, t, emptyNode)
-          addSon(result, def)
-          getTok(p, nil)
+          if pfAnonUnionsAsFields in p.options.flags:
+            let def = newNodeP(nkIdentDefs, p)
+            var t = pointer(p, baseTyp)
+            let i = fieldIdent("ano_" & p.hashPosition, p)
+            echo "AU: ", i.treeRepr
+            t = parseTypeSuffix(p, t)
+            addSon(def, i, t, emptyNode)
+            addSon(result, def)
+            getTok(p, nil)
+          stmtList.add(sstmts)
           continue
+        else:
+          stmtList.add(sstmts)
     elif p.tok.xkind == pxDirective or p.tok.xkind == pxDirectiveParLe:
       var define = parseDir(p, statement)
       addSon(result, define)
