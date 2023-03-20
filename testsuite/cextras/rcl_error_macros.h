@@ -1,13 +1,8 @@
 #pragma c2nim strict
 #pragma c2nim header
-#pragma c2nim mergeDuplicates
-#pragma c2nim importFuncDefines
 
 #pragma c2nim reorderComments
 #pragma c2nim reorderTypes
-#pragma c2nim anonymousAsFields
-#pragma c2nim mergeblocks
-#pragma c2nim stdints
 
 #pragma c2nim render extranewlines
 #pragma c2nim render reindentlongcomments
