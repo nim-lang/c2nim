@@ -1,14 +1,7 @@
 #pragma c2nim strict
 #pragma c2nim header
 
-#pragma c2nim reorderComments
 #pragma c2nim reorderTypes
-
-#pragma c2nim render extranewlines
-#pragma c2nim render reindentlongcomments
-#pragma c2nim render NonNep1Imports
-
-
 
 /// The maximum length a formatted number is allowed to have.
 #define RCUTILS_ERROR_STATE_LINE_NUMBER_STR_MAX_LENGTH 20 /* "18446744073709551615"*/
@@ -28,10 +21,6 @@
 /**
  */
 #define RCUTILS_ERROR_STATE_FILE_MAX_LENGTH ( RCUTILS_ERROR_MESSAGE_MAX_LENGTH - RCUTILS_ERROR_STATE_MESSAGE_MAX_LENGTH - RCUTILS_ERROR_STATE_LINE_NUMBER_STR_MAX_LENGTH - RCUTILS_ERROR_FORMATTING_CHARACTERS - 1)
-
-
-
-
 
 /// Struct wrapping a fixed-size c string used for returning the formatted error string.
 typedef struct rcutils_error_string_s

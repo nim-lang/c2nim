@@ -183,6 +183,7 @@ proc reorderTypes(n: var PNode) =
     firstTypeSection = -1
     postTypeSection = -1
     typeSections: seq[PNode]
+  
   for i in 0..<n.safeLen:
     if n[i].kind == nkTypeSection:
       firstTypeSection = i; break
