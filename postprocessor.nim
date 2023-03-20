@@ -185,7 +185,7 @@ proc findMin(n: Pnode, kd: TNodeKind, start: int = 0): int =
   result = int.high
   for i in countdown(n.safeLen()-1, 0):
     if n[i].kind == kd: result = min(i, result)
-    if i <= start: return
+    if i <= start: break
   if result == int.high:
     result = -1
 
@@ -212,9 +212,6 @@ proc reorderTypes(n: PNode) =
 
   block:
     # adjust const nodes after the inserts
-    let firstTypeSection = n.findMin(nkTypeSection)
-    let firstConstSection = n.findMax(nkConstSection, firstTypeSection)
-    
     # find any normal const sections
     var j = n.safeLen - 1
     while j > 0:
