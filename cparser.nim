@@ -2873,7 +2873,15 @@ proc declarationOrStatement(p: var Parser): PNode =
   if p.tok.xkind != pxSymbol:
     result = expressionStatement(p)
   elif declKeyword(p, p.tok.s):
-    result = declaration(p)
+    var parser = 
+      proc (p: var Parser): PNode= 
+        declaration(p)
+
+    if p.tok.s == "__declspec":
+      var attributes = parseAttribute(p)
+      if p.tok.s == "struct":
+        parser = statement
+    result = parser(p)
   else:
     # ordinary identifier:
     saveContext(p)
