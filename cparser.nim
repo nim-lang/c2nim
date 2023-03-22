@@ -565,6 +565,7 @@ proc constantExpression(p: var Parser; parent: PNode = nil): PNode = expression(
 proc assignmentExpression(p: var Parser): PNode = expression(p, 30)
 proc compoundStatement(p: var Parser; newScope=true): PNode
 proc statement(p: var Parser): PNode
+proc statement(p: var Parser, externalAttributes: seq[Attribute]): PNode
 template initExpr(p: untyped): untyped = expression(p, 11)
 
 proc declKeyword(p: Parser, s: string): bool =
@@ -2873,15 +2874,17 @@ proc declarationOrStatement(p: var Parser): PNode =
   if p.tok.xkind != pxSymbol:
     result = expressionStatement(p)
   elif declKeyword(p, p.tok.s):
-    var parser = 
-      proc (p: var Parser): PNode= 
-        declaration(p)
+    var 
+      parser = 
+        proc (p: var Parser, attrs: seq[Attribute]): PNode= 
+          declaration(p)
+      attributes: seq[Attribute]
 
     if p.tok.s == "__declspec":
-      var attributes = parseAttribute(p)
+      attributes = parseAttribute(p)
       if p.tok.s == "struct":
         parser = statement
-    result = parser(p)
+    result = parser(p, attributes)
   else:
     # ordinary identifier:
     saveContext(p)
@@ -2937,13 +2940,14 @@ proc parseTrailingDefinedIdents(p: var Parser, result, baseTyp: PNode) =
     addSon(result, varSection)
 
 proc parseStandaloneStruct(p: var Parser, isUnion: bool;
-                           genericParams: PNode): PNode =
+                           genericParams: PNode,
+                           externalAttributes: seq[Attribute] = @[]): PNode =
   result = newNodeP(nkStmtList, p)
   saveContext(p)
   getTok(p, result) # skip "struct" or "union"
   
   var 
-    attributes: seq[Attribute]
+    attributes = externalAttributes
     pragmas, firstFieldPragmas: seq[PNode]
 
   if p.tok.s == "__attribute__" and p.tok.xkind == pxSymbol:
@@ -3865,7 +3869,9 @@ proc parseContinue(p: var Parser): PNode =
   else:
     result = cont
 
-proc statement(p: var Parser): PNode =
+proc statement(p: var Parser, 
+               externalAttributes: seq[Attribute]
+               ): PNode =
   case p.tok.xkind
   of pxSymbol:
     case p.tok.s
@@ -3912,7 +3918,9 @@ proc statement(p: var Parser): PNode =
       if pfCpp in p.options.flags:
         result = parseStandaloneClass(p, isStruct=true, emptyNode)
       else:
-        result = parseStandaloneStruct(p, isUnion=false, emptyNode)
+        result = parseStandaloneStruct(p, isUnion=false, 
+                                       emptyNode, 
+                                       externalAttributes=externalAttributes)
     of "class":
       if pfCpp in p.options.flags:
         result = parseStandaloneClass(p, isStruct=false, emptyNode)
@@ -3962,6 +3970,7 @@ proc statement(p: var Parser): PNode =
     result = expressionStatement(p)
   assert result != nil
 
+proc statement(p: var Parser): PNode=statement(p, @[])
 proc parseStrict(p: var Parser): PNode =
   try:
     result = newNodeP(nkStmtList, p)
