@@ -1494,6 +1494,7 @@ proc otherTypeDef(p: var Parser, section, typ: PNode) =
     gp.add(typ)
   var name: PNode
   var t = typ
+  var pragmas = newNodeP(nkPragma, p)
   if p.tok.xkind in {pxStar, pxAmp, pxAmpAmp}:
     t = pointer(p, t)
   if p.tok.xkind == pxParLe:
@@ -1506,6 +1507,20 @@ proc otherTypeDef(p: var Parser, section, typ: PNode) =
     if t.kind == nkNilLit: t = newIdentNodeP("void", p)
     markTypeIdent(p, t)
     name = skipIdentExport(p, skType, true)
+  
+  if declKeyword(p, p.tok.s):
+    let attributes = parseAttribute(p)
+    let (newPragmas, 
+        firstFieldPragmas) = getAttributePragmas(p, attributes)
+    for i in newPragmas:
+      pragmas.add i
+    
+  var pragmaExpr = newNodeP(nkPragmaExpr, p)
+  addSon(pragmaExpr, name)
+  pragmaExpr.add pragmas
+  if pragmas.sonsLen > 0:
+    name = pragmaExpr
+  
   t = parseTypeSuffix(p, t)
   addTypeDef(section, name, t, gp)
 
