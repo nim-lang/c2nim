@@ -12,12 +12,12 @@ type
     val* {.importc: "val".}: cint
 
 
-const
-  bazZ1* = B1
-
 type
   baz* {.importcpp: "baz", header: "reordertypes.hpp", bycopy.} = object
 
+
+const
+  bazZ1* = B1
 
 converter `int`*(this: foo): cint {.noSideEffect,
                                     importcpp: "foo::operator int",

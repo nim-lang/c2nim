@@ -292,8 +292,10 @@ proc parseInclude(p: var Parser): PNode =
   while isDir(p, "include"):
     getTok(p) # skip "include"
     if p.tok.xkind == pxStrLit and pfSkipInclude notin p.options.flags:
-      let file = mangledIdent(changeFileExt(p.tok.s, ""), p, skVar)
-      #newStrNodeP(nkStrLit, changeFileExt(p.tok.s, ""), p)
+      # enable nep1 without breaking module imports
+      let kind = if renderNonNep1Imports in p.options.renderFlags: skDontMangle
+                 else: skModule
+      let file = mangledIdent(changeFileExt(p.tok.s, ""), p, kind)
       addSon(result, file)
       getTok(p)
       skipStarCom(p, file)
@@ -629,7 +631,8 @@ proc parseDir(p: var Parser; sectionParser: SectionParser, recur = false): PNode
      "keepbodies", "cpp", "cppallops", "nep1", "assumeifistrue", "structstruct",
      "importfuncdefines", "importdefines", "skipfuncdefines", "strict", "importc",
      "stdints", "reordercomments", "reordertypes", "mergeblocks", "mergeduplicates",
-     "cppspecialization", "cppskipconverter", "cppskipcallop":
+     "cppspecialization", "cppskipconverter", "cppskipcallop", "nomultimangle",
+     "cppbindstatic", "anonymousasfields":
     discard setOption(p.options, p.tok.s)
     getTok(p)
     eatNewLine(p, nil)

@@ -175,70 +175,78 @@ proc hasIdentChildren(n: PNode): bool =
       if hasIdentChildren(c):
         return true
 
-proc reorderTypes(n: var PNode) = 
+proc findMax(n: Pnode, kd: TNodeKind, stop: int = int.high): int =
+  result = -1
+  for i in countup(0, n.safeLen()-1):
+    if n[i].kind == kd: result = max(i, result)
+    if i >= stop: return
+
+proc findMin(n: Pnode, kd: TNodeKind, start: int = 0): int =
+  result = int.high
+  for i in countdown(n.safeLen()-1, 0):
+    if n[i].kind == kd: result = min(i, result)
+    if i <= start: break
+  if result == int.high:
+    result = -1
+
+proc reorderTypes(n: PNode) = 
   ## reorder C types to be at start of file
   
-  # reorder type sections
-  var
-    firstTypeSection = -1
-    postTypeSection = -1
-    typeSections: seq[PNode]
-  for i in 0..<n.safeLen:
-    if n[i].kind == nkTypeSection:
-      firstTypeSection = i; break
-  var i = n.safeLen - 1
-  while i > max(firstTypeSection, 0):
-    if n[i].kind == nkTypeSection:
-      typeSections.add(n[i])
-      n.delSon(i)
-    dec(i)
-  postTypeSection = firstTypeSection
-  for st in typeSections:
-    n.sons.insert(st, firstTypeSection+1)
-    postTypeSection.inc() 
+  block:
+    # reorder type sections
+    # find first type section
+    # then move all type sections after it
+    let firstTypeSection = n.findMin(nkTypeSection)
+    var i = n.len - 1
+    var typeSections: seq[PNode]
+    while i > max(firstTypeSection, 0):
+      if n[i].kind == nkTypeSection:
+        typeSections.add(n[i])
+        n.delSon(i)
+      dec(i)
 
-  # reorder const sections
-  var
-    firstConstSection = -1
-    postTypeConstSection = -1
-    preTypeConstSection = -1
-    constSections: seq[PNode]
-  for j in 0..<n.safeLen:
-    if n[j].kind == nkConstSection:
-      firstConstSection = j; break
+    for st in typeSections:
+      n.sons.insert(st, firstTypeSection+1)
 
-  if firstTypeSection == -1:
-    return
+  var constSections: seq[PNode]
 
-  # always create new const sects... this merge them together
-  let csPost = nkConstSection.newTree()
-  let csPre = nkConstSection.newTree()
-  n.sons.insert(csPost, postTypeSection)
-  n.sons.insert(csPre, firstTypeSection)
-  # adjust nodes after the inserts
-  preTypeConstSection = firstTypeSection
-  firstTypeSection.inc()
-  postTypeSection.inc()
-  postTypeConstSection = postTypeSection
-  firstConstSection.inc(2)
-  
-  # find any normal const sections
-  var j = n.safeLen - 1
-  while j >= max(firstConstSection, 0):
-    if n[j].kind == nkConstSection:
-      constSections.add(n[j])
-      n.delSon(j)
-    dec(j)
+  block:
+    # adjust const nodes after the inserts
+    # find any normal const sections
+    var j = n.safeLen - 1
+    while j > 0:
+      if n[j].kind == nkConstSection:
+        constSections.add(n[j])
+        n.delSon(j)
+      dec(j)
 
-  for sect in constSections:
-    for st in sect:
-      let litType = not st[^1].hasIdentChildren()
-      # echo "ST: ", " valKind: ", litType, " childIdent: ", hasIdentChildren(st[^1])
-      # dumpTree(st[^1])
-      if litType:
-        n[preTypeConstSection].sons.insert(st, 0)
-      else:
-        n[postTypeConstSection].sons.insert(st, 0)
+  block:
+    # reorder const sections
+    let firstTypeSection = n.findMin(nkTypeSection)
+    if firstTypeSection == -1:
+      return
+
+    n.sons.insert(nkConstSection.newTree(), firstTypeSection)
+
+    let postTypeSection = n.findMax(nkTypeSection) + 1
+    n.sons.insert(nkConstSection.newTree(), postTypeSection)
+
+  block:
+    let firstTypeSection = n.findMin(nkTypeSection)
+    let constPreTypes = n.findMax(nkConstSection, firstTypeSection)
+    let constPostTypes = n.findMax(nkConstSection)
+    assert constPreTypes != constPostTypes
+
+    for sect in constSections:
+      for cnode in sect:
+        let litType = not cnode[^1].hasIdentChildren()
+        # echo "CONST NODE: ", " valKind: ", litType, " childIdent: ", hasIdentChildren(cnode[^1])
+        # dumpTree(cnode[^1])
+
+        if litType:
+          n[constPreTypes].sons.insert(cnode,0)
+        else:
+          n[constPostTypes].sons.insert(cnode,0)
 
 
 proc mergeSimilarBlocks(n: PNode) = 
@@ -260,26 +268,25 @@ proc mergeSimilarBlocks(n: PNode) =
         continue
     inc i
  
-var
-  duplicateNodeCheck: Table[string, int]
+template checkDuplicate(n, def: untyped) =
+  let ndef = nimIdentNormalize(def)
+  if ndef in duplicateNodeCheck:
+    let idx = duplicateNodeCheck[ndef]
+    if idx != n[i].info.line.int:
+      # echo "DEL:DUPE: ", "idx: ", idx, " n.idx: ", n[i].info.line, " def: ", def
+      delete(n.sons, i)
+      continue
+  else:
+    duplicateNodeCheck[ndef] = n[i].info.line.int
 
 proc identName(n: PNode): string =
   if n.kind == nkPostFix: return $n[^1] else: result = $n
 
 proc deletesNode(c: Context, n: var PNode) = 
   ## deletes nodes which match the names found in context.deletes
-  proc hasChild(n: PNode): bool = n.len() > 0
+  var duplicateNodeCheck: Table[string, int]
 
-  template checkDupliate(n, def: untyped) =
-    let ndef = nimIdentNormalize(def)
-    if ndef in duplicateNodeCheck:
-      let idx = duplicateNodeCheck[ndef]
-      if idx != n[i].info.line.int:
-        # echo "DEL:DUPE: ", "idx: ", idx, " n.idx: ", n[i].info.line, " def: ", def
-        delete(n.sons, i)
-        continue
-    else:
-      duplicateNodeCheck[ndef] = n[i].info.line.int
+  proc hasChild(n: PNode): bool = n.len() > 0
 
   var i = 0
   while i < n.safeLen:
@@ -311,7 +318,7 @@ proc deletesNode(c: Context, n: var PNode) =
 
       ## delete duplicates
       if c.mergeDuplicates:
-        checkDupliate(n, def)
+        checkDuplicate(n, def)
 
     ## handle postfix -- e.g. types
     if n[i].kind in {nkPostfix}:
@@ -345,7 +352,8 @@ proc ppComments(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = 
   ## post process comments (helper)
   if c.reorderComments:
     reorderComments(n)
-  for i in 0 ..< n.safeLen: ppComments(c, n.sons[i], stmtList, idx)
+  for i in 0 ..< n.safeLen:
+    ppComments(c, n.sons[i], stmtList, idx)
 
 proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
   ## recursively post process nodes
@@ -365,6 +373,19 @@ proc pp(c: var Context; n: var PNode, stmtList: PNode = nil, idx: int = -1) =
   of nkInfix, nkPrefix, nkPostfix:
     for i in 1 ..< n.safeLen: pp(c, n.sons[i], stmtList, idx)
   of nkAccQuoted: discard
+
+  of nkImportStmt:
+    # clean up duplicate imports
+    var names = initHashSet[string]()
+    var i = 0
+    while i < n.safeLen:
+      let name = $n.sons[i]
+      if name in names:
+        delete(n.sons, i)
+      else:
+        names.incl(name)
+        pp(c, n.sons[i], n, i)
+        inc i
 
   of nkStmtList:
     for i in 0 ..< n.safeLen:
@@ -419,10 +440,11 @@ proc postprocess*(n: PNode; flags: set[ParserFlag], deletes: Table[string, strin
                   mergeDuplicates: pfMergeDuplicates in flags)
   result = n
 
+  ppComments(c, result)
+
   if c.reorderTypes:
     reorderTypes(result)
   
-  ppComments(c, result)
   pp(c, result)
 
 proc newIdentNode(s: string; n: PNode): PNode =
