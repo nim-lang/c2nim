@@ -979,6 +979,19 @@ proc addPragmas(father, pragmas: PNode) =
   if sonsLen(pragmas) > 0: addSon(father, pragmas)
   else: addSon(father, emptyNode)
 
+proc addFirstFieldStructPragmas(p: var Parser,
+                                struct: PNode, 
+                                firstFieldPragmas: seq[PNode])=
+  if firstFieldPragmas.len > 0:
+        var firstFieldPragmaNode = newNodeP(nkPragma, p)
+        for i in firstFieldPragmas:
+          firstFieldPragmaNode.add i
+
+        struct[2][0][0] = nkPragmaExpr.newTree(
+          struct[2][0][0],
+          firstFieldPragmaNode
+        )
+
 proc addReturnType(params, rettyp: PNode): bool =
   if rettyp == nil: addSon(params, emptyNode)
   elif rettyp.kind != nkNilLit:
@@ -1739,6 +1752,11 @@ proc parseTypedefStruct(p: var Parser, result, stmtList: PNode,
     oldClassOrig: string
     oldToMangle: StringTableRef
   getTok(p, result)
+  var pragmas, firstFieldPragmas: seq[PNode]
+  if declKeyword(p, p.tok.s):
+    var attributes = parseAttribute(p)
+    (pragmas, firstFieldPragmas) = getAttributePragmas(p, attributes)
+
   if p.tok.xkind == pxCurlyLe:
     saveContext(p)
     var tstmtList = newNodeP(nkStmtList, p)
@@ -1751,8 +1769,9 @@ proc parseTypedefStruct(p: var Parser, result, stmtList: PNode,
     var name = skipIdent(p, skType, true)
     backtrackContext(p)
     parseStruct(t, name, origName, stmtList, emptyNode)
+    addFirstFieldStructPragmas(p, t, firstFieldPragmas)
     getTok(p)
-    addTypeDef(result, structPragmas(p, name, origName, isUnion), t, genericParams)
+    addTypeDef(result, structPragmas(p, name, origName, isUnion, externalPragmas=pragmas), t, genericParams)
     p.options.classes[origName] = name.ident.s
     parseTrailingDefinedTypes(p, result, name)
   elif p.tok.xkind == pxSymbol:
@@ -1771,6 +1790,7 @@ proc parseTypedefStruct(p: var Parser, result, stmtList: PNode,
         id = mangledIdent(origName, p, skType)
       var tstmtList = newNodeP(nkStmtList, p)
       parseStruct(t, id, origName, tstmtList, emptyNode)
+      addFirstFieldStructPragmas(p, t, firstFieldPragmas)
       if p.tok.xkind == pxSymbol:
         # typedef struct tagABC {} abc, *pabc;
         # --> abc is a better type name than tagABC!
@@ -1779,14 +1799,15 @@ proc parseTypedefStruct(p: var Parser, result, stmtList: PNode,
         var name = skipIdent(p, skType, true)
         backtrackContext(p)
         parseStruct(t, name, origName, stmtList, emptyNode)
+        addFirstFieldStructPragmas(p, t, firstFieldPragmas)
         getTok(p)
-        addTypeDef(result, structPragmas(p, name, origName, isUnion), t, genericParams)
+        addTypeDef(result, structPragmas(p, name, origName, isUnion, externalPragmas=pragmas), t, genericParams)
         p.options.classes[origName] = name.ident.s
         parseTrailingDefinedTypes(p, result, name)
       else:
         for a in tstmtList:
           stmtList.add(a)
-        addTypeDef(result, structPragmas(p, nameOrType, origName, isUnion), t,
+        addTypeDef(result, structPragmas(p, nameOrType, origName, isUnion, externalPragmas=pragmas), t,
                    genericParams)
         p.options.classes[origName] = nameOrType.ident.s
     of pxSymbol:
@@ -3013,15 +3034,7 @@ proc parseStandaloneStruct(p: var Parser, isUnion: bool;
       var t = parseStruct(p, result, attributes=attributes)
 
       (pragmas, firstFieldPragmas) = getAttributePragmas(p, attributes)
-      if firstFieldPragmas.len > 0:
-        var firstFieldPragmaNode = newNodeP(nkPragma, p)
-        for i in firstFieldPragmas:
-          firstFieldPragmaNode.add i
-
-        t[2][0][0] = nkPragmaExpr.newTree(
-          t[2][0][0],
-          firstFieldPragmaNode
-        )
+      addFirstFieldStructPragmas(p, t, firstFieldPragmas)
       
       if t.isNil:
         result = newNodeP(nkDiscardStmt, p)
