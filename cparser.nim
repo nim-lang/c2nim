@@ -56,9 +56,11 @@ type
     pfMergeBlocks,      ## merge similar blocks
     pfMergeDuplicates,  ## merge similar blocks
     pfCppSpecialization, ## parse c++ template specializations
-    pfCppSkipConverter  ## skip C++ converters
-    pfCppSkipCallOp     ## skip C++ converters
-    pfCppBindStatic     ## bind cpp static methods to types
+    pfCppSkipConverter,  ## skip C++ converters
+    pfCppSkipCallOp,     ## skip C++ converters
+    pfNoMultiMangle,     ## allow multiple mangles
+    pfCppBindStatic,     ## bind cpp static methods to types
+    pfAnonymousAsFields  ## treat anonymous union/struct as fields
 
   Macro* = object
     name*: string
@@ -237,10 +239,12 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "reordertypes": incl(parserOptions.flags, pfReorderTypes)
   of "mergeblocks": incl(parserOptions.flags, pfMergeBlocks)
   of "cppbindstatic": incl(parserOptions.flags, pfCppBindStatic)
+  of "anonymousasfields": incl(parserOptions.flags, pfAnonymousAsFields)
   of "mergeduplicates": incl(parserOptions.flags, pfMergeDuplicates)
   of "cppskipconverter": incl(parserOptions.flags, pfCppSkipConverter)
   of "cppspecialization":incl(parserOptions.flags, pfCppSpecialization)
   of "cppskipcallop":incl(parserOptions.flags, pfCppSkipCallOp)
+  of "nomultimangle":incl(parserOptions.flags, pfNoMultiMangle)
   of "isarray": parserOptions.isArray[val] = "true"
   of "delete": parserOptions.deletes[val] = ""
   else: result = false
@@ -1176,6 +1180,8 @@ proc parseBitfield(p: var Parser, i: PNode): PNode =
 
 import compiler/nimlexbase
 
+var cntAnonUnions = 0
+
 proc parseStructBody(p: var Parser, stmtList: PNode,
                      kind: TNodeKind = nkRecList,
                      attributes: var seq[Attribute] = cast[var seq[Attribute]](nil)
@@ -1211,16 +1217,41 @@ proc parseStructBody(p: var Parser, stmtList: PNode,
         if p.tok.xkind == pxSymbol:
           name = p.tok.s
           getTok(p)
-        baseTyp = parseInnerStruct(p, stmtList, gotUnion, name)
+        var sstmts = newNodeP(nkStmtList, p)
+        baseTyp = parseInnerStruct(p, sstmts, gotUnion, name)
+        if gotUnion:
+          cntAnonUnions.inc()
+        # handle anonymous unions / structs
         if p.tok.xkind == pxSemiColon:
-          let def = newNodeP(nkIdentDefs, p)
-          var t = pointer(p, baseTyp)
-          let i = fieldIdent("ano_" & p.hashPosition, p)
-          t = parseTypeSuffix(p, t)
-          addSon(def, i, t, emptyNode)
-          addSon(result, def)
-          getTok(p, nil)
+          if pfAnonymousAsFields in p.options.flags:
+            let tdef = sstmts[^1][0]
+            let odef = tdef[2]
+            for i in 0..<sstmts.len-1:
+              stmtList.add(sstmts[i])
+            let rlist = odef[2]
+            for field in rlist:
+              if gotUnion and field[0][0].kind == nkPostfix and
+                  not startsWith($(field[0][0][1]),"ano_"):
+                let name = "anon" & $cntAnonUnions & "_" & $field[0][0][1]
+                field[0][0][1] = newIdentNodeP(name, p)
+              elif gotUnion and 
+                  not startsWith($(field[0][1]),"ano_"):
+                let name = "anon" & $cntAnonUnions & "_" & $field[0][1]
+                field[0][1] = newIdentNodeP(name, p)
+              result.add(field)
+            getTok(p, nil)
+          else:
+            let def = newNodeP(nkIdentDefs, p)
+            var t = pointer(p, baseTyp)
+            let i = fieldIdent("ano_" & p.hashPosition, p)
+            t = parseTypeSuffix(p, t)
+            addSon(def, i, t, emptyNode)
+            addSon(result, def)
+            getTok(p, nil)
+            stmtList.add(sstmts)
           continue
+        else:
+          stmtList.add(sstmts)
     elif p.tok.xkind == pxDirective or p.tok.xkind == pxDirectiveParLe:
       var define = parseDir(p, statement)
       addSon(result, define)
