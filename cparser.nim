@@ -672,10 +672,13 @@ proc getAttributePragmas(
   attributes: seq[Attribute]
   ): tuple[pragmas, firstFieldPragmas: seq[PNode]]=
   for i in attributes:
-      if typeAttributesToPragmas.hasKey(i.name):
+      var name = i.name
+      name.removePrefix("__")
+      name.removeSuffix("__")
+      if typeAttributesToPragmas.hasKey(name):
         var pragma: string
         
-        let attributeDesk = typeAttributesToPragmas[i.name]
+        let attributeDesk = typeAttributesToPragmas[name]
         pragma &= attributeDesk.pragma
         if i.params.len > 0:
           let paramsStr = i.params.mapIt(it.s).join(", ")
