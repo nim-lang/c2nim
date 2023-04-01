@@ -2950,7 +2950,7 @@ proc declarationOrStatement(p: var Parser): PNode =
           declaration(p)
       attributes: seq[Attribute]
 
-    if p.tok.s == "__declspec":
+    if p.tok.s in ["__declspec", "__attribute__"]:
       attributes = parseAttribute(p)
       if p.tok.s == "struct":
         parser = statement
@@ -3019,8 +3019,8 @@ proc parseStandaloneStruct(p: var Parser, isUnion: bool;
   var 
     attributes = externalAttributes
     pragmas, firstFieldPragmas: seq[PNode]
-
-  if p.tok.s == "__attribute__" and p.tok.xkind == pxSymbol:
+  
+  if p.tok.s in ["__attribute__", "__declspec"] and p.tok.xkind == pxSymbol:
     attributes = parseAttribute(p)
   
   var origName = ""
