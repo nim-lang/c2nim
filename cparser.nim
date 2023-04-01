@@ -149,12 +149,15 @@ const typeAttributesToPragmas = {
 proc parseDir(p: var Parser; sectionParser: SectionParser, recur = false): PNode
 proc addTypeDef(section, name, t, genericParams: PNode)
 proc parseStruct(p: var Parser, stmtList: PNode, 
-                 attributes: var seq[Attribute] = cast[var seq[Attribute]](nil)
+                 attributes: var seq[Attribute]
                  ): PNode
+proc parseStruct(p: var Parser, stmtList: PNode): PNode
 proc parseStructBody(p: var Parser, stmtList: PNode,
                      kind: TNodeKind = nkRecList,
-                     attributes: var seq[Attribute] = cast[var seq[Attribute]](nil)
+                     attributes: var seq[Attribute]
                      ): PNode
+proc parseStructBody(p: var Parser, stmtList: PNode,
+                     kind: TNodeKind = nkRecList): PNode
 proc parseClass(p: var Parser; isStruct: bool;
                 stmtList, genericParams: PNode): PNode
 proc inheritedGenericParams(p: Parser) : PNode
@@ -1200,7 +1203,7 @@ var cntAnonUnions = 0
 
 proc parseStructBody(p: var Parser, stmtList: PNode,
                      kind: TNodeKind = nkRecList,
-                     attributes: var seq[Attribute] = cast[var seq[Attribute]](nil)
+                     attributes: var seq[Attribute]
                      ): PNode =
   result = newNodeP(kind, p)
   let com = newNodeP(nkCommentStmt, p)
@@ -1301,6 +1304,10 @@ proc parseStructBody(p: var Parser, stmtList: PNode,
   else:
     skipAttributes(p)
 
+proc parseStructBody(p: var Parser, stmtList: PNode,
+                     kind: TNodeKind = nkRecList): PNode=
+  var attributes: seq[Attribute]
+  parseStructBody(p, stmtList, kind, attributes)
 proc enumPragmas(p: Parser, name: PNode; origName: string): PNode =
   result = newNodeP(nkPragmaExpr, p)
   addSon(result, name)
@@ -1351,7 +1358,7 @@ proc parseInheritance(p: var Parser; result: PNode) =
 
 proc parseStruct(
   p: var Parser, stmtList: PNode, 
-  attributes: var seq[Attribute] = cast[var seq[Attribute]](nil)
+  attributes: var seq[Attribute]
   ): PNode =
   result = newNodeP(nkObjectTy, p)
   var pragmas = emptyNode
@@ -1369,6 +1376,9 @@ proc parseStruct(
     ))
   else:
     addSon(result, newNodeP(nkRecList, p))
+proc parseStruct(p: var Parser, stmtList: PNode): PNode=
+  var attributes: seq[Attribute]
+  parseStruct(p, stmtList, attributes)
 
 proc declarator(p: var Parser, a: PNode, ident: ptr PNode; origName: var string): PNode
 
@@ -1728,7 +1738,8 @@ proc enumFields(p: var Parser, constList, stmtList: PNode): PNode =
 proc parseTypedefStruct(p: var Parser, result, stmtList: PNode,
                         isUnion, isStruct: bool) =
   template parseStruct(res, name: PNode, origName: string,
-                        stmtList, gp: PNode) =
+                        stmtList, gp: PNode, 
+                        attributes: var seq[Attribute])=
     oldClass = p.currentClass
     oldClassOrig = p.currentClassOrig
     p.currentClass = name
@@ -1737,7 +1748,7 @@ proc parseTypedefStruct(p: var Parser, result, stmtList: PNode,
     p.classHierarchy.add(origName)
     p.classHierarchyGP.add(gp)
     res = if isUnion or (isStruct and not (pfCpp in p.options.flags)):
-            parseStruct(p, stmtList)
+            parseStruct(p, stmtList, attributes)
           else:
             parseClass(p, isStruct, stmtList, genericParams)
     p.currentClass = oldClass
@@ -1745,6 +1756,10 @@ proc parseTypedefStruct(p: var Parser, result, stmtList: PNode,
     p.options.toMangle = oldToMangle
     discard p.classHierarchy.pop()
     discard p.classHierarchyGP.pop()
+  template parseStruct(res, name: PNode, origName: string,
+                        stmtList, gp: PNode)=
+    var attributes: seq[Attribute]
+    parseStruct(res, name, origName, stmtList, gp, attributes)
 
   let genericParams = inheritedGenericParams(p)
   var
@@ -1753,9 +1768,9 @@ proc parseTypedefStruct(p: var Parser, result, stmtList: PNode,
     oldToMangle: StringTableRef
   getTok(p, result)
   var pragmas, firstFieldPragmas: seq[PNode]
+  var attributes: seq[Attribute]
   if declKeyword(p, p.tok.s):
-    var attributes = parseAttribute(p)
-    (pragmas, firstFieldPragmas) = getAttributePragmas(p, attributes)
+    attributes = parseAttribute(p)
 
   if p.tok.xkind == pxCurlyLe:
     saveContext(p)
@@ -1768,7 +1783,9 @@ proc parseTypedefStruct(p: var Parser, result, stmtList: PNode,
     markTypeIdent(p, nil)
     var name = skipIdent(p, skType, true)
     backtrackContext(p)
-    parseStruct(t, name, origName, stmtList, emptyNode)
+    parseStruct(t, name, origName, stmtList, emptyNode, attributes)
+    if attributes.len > 0:
+      (pragmas, firstFieldPragmas) = getAttributePragmas(p, attributes)
     addFirstFieldStructPragmas(p, t, firstFieldPragmas)
     getTok(p)
     addTypeDef(result, structPragmas(p, name, origName, isUnion, externalPragmas=pragmas), t, genericParams)
