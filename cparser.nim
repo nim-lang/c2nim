@@ -1299,7 +1299,7 @@ proc parseStructBody(p: var Parser, stmtList: PNode,
 
   eat(p, pxCurlyRi, result)
 
-  if p.tok.s == "__attribute__" and p.tok.xkind == pxSymbol:
+  if p.tok.s in ["__attribute__", "__declspec"] and p.tok.xkind == pxSymbol:
     attributes = parseAttribute(p)
   else:
     skipAttributes(p)
