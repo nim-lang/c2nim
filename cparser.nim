@@ -645,6 +645,11 @@ proc parseAttribute(p: var Parser): seq[Attribute]=
   eat(p, pxSymbol)
   for i in 1..parens:
     eat(p, pxParLe)
+  if p.tok.xkind == pxParRi:
+    #without attributes
+    for i in 1..parens:
+      eat(p, pxParRi)
+    return @[]
 
   result = @[Attribute(name: p.tok.s)]  
   while p.tok.xkind != pxParRi or level > -1:
