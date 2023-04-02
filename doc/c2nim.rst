@@ -248,7 +248,7 @@ too, there is no need to quote them:
 To fix leading/trailing/underscore identifiers in C code use `#mangle "^'_'*{@}('_'*$)" "$1"`
 
 ``#assumedef`` and ``#assumendef`` directives
-----------------------------------------------
+---------------------------------------------
 
 **Note**: There are also ``--assumedef`` and ``--assumendef`` command line
 options that can be used for the same purpose.
@@ -308,7 +308,7 @@ The ``#skipcomments`` directive can be put into the C code to make c2nim
 ignore comments and not copy them into the generated Nim file.
 
 ``#headerprefix`` directive
---------------------------
+---------------------------
 **Note**: There is also a ``--headerprefix`` command line option that can be
 used for the same purpose.
 
@@ -330,7 +330,7 @@ a few kinds of blocks like ``let`` or ``var`` sections. This is helpful when imp
 C code which produces lots of separate ``let`` sections.
 
 ``#mergeDuplicates`` directive
---------------------------
+------------------------------
 **Note**: There is also a ``--mergeDuplicates`` command line option that can be
 used for the same purpose.
 
