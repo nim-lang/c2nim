@@ -267,7 +267,23 @@ proc mergeSimilarBlocks(n: PNode) =
         moveBlock(i+1, i)
         continue
     inc i
- 
+
+when not declared(nimIdentNormalize):
+  func nimIdentNormalize(s: string): string =
+    result = newString(s.len)
+    if s.len == 0:
+      return
+    result[0] = s[0]
+    var j = 1
+    for i in 1..len(s) - 1:
+      if s[i] in UppercaseLetters:
+        result[j] = chr(ord(s[i]) + (ord('a') - ord('A')))
+        inc j
+      elif s[i] != '_':
+        result[j] = s[i]
+        inc j
+    if j != s.len: setLen(result, j)
+
 template checkDuplicate(n, def: untyped) =
   let ndef = nimIdentNormalize(def)
   if ndef in duplicateNodeCheck:
