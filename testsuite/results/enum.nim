@@ -15,7 +15,8 @@ type
   food* = enum
     cucumber = 2, bread = 4, chocolate = 6
   numbers* = enum
-    nten = -10, nnine, nfour = -4, one = 1, two, three = +3, four = 4, positivenine = +9
+    nten = -10, nnine, nfour = -4, one = 1, two, three = +3, four = 4,
+    positivenine = +9
 
 const
   toast = bread

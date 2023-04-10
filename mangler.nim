@@ -17,7 +17,8 @@ proc `=~`(s: string, a: openArray[string]): bool =
 
 proc nep1(s: string, k: TSymKind): string =
   let allUpper = allCharsInSet(s, {'A'..'Z', '0'..'9', '_'})
-  if allUpper and k in {skConst, skEnumField, skVar}: return s
+  if allUpper and k in {skConst, skEnumField, skVar}:
+    return s
   var L = s.len
   while L > 0 and s[L-1] == '_': dec L
   result = newStringOfCap(L)
@@ -61,16 +62,17 @@ proc nep1(s: string, k: TSymKind): string =
 
 proc mangleRules(s: string, p: Parser; kind: TSymKind): string =
   block mangle:
+    result = s
     for pattern, frmt in items(p.options.mangleRules):
-      if s.match(pattern):
-        result = s.replacef(pattern, frmt)
-        break mangle
+      if result.match(pattern):
+        result = result.replacef(pattern, frmt)
+        if pfNoMultiMangle in p.options.flags:
+          break mangle
     block prefixes:
       for prefix in items(p.options.prefixes):
-        if s.startsWith(prefix):
-          result = s.substr(prefix.len)
+        if result.startsWith(prefix):
+          result = result.substr(prefix.len)
           break prefixes
-      result = s
     block suffixes:
       for suffix in items(p.options.suffixes):
         if result.endsWith(suffix):
@@ -92,10 +94,11 @@ proc mangledIdent(ident: string, p: Parser; kind: TSymKind): PNode =
   result.ident = getIdent(mangleName(ident, p, kind))
 
 proc getHeaderPair(p: Parser): PNode =
+  let pre = p.options.headerPrefix
   if p.options.headerOverride.len > 0:
-    newIdentPair("header", p.options.headerOverride, p)
+    newIdentPair("header", pre & p.options.headerOverride, p)
   else:
-    newIdentStrLitPair("header", p.header, p)
+    newIdentStrLitPair("header", pre & p.header, p)
 
 proc addImportToPragma(pragmas: PNode, ident: string, p: Parser) =
   if pfImportc in p.options.flags:

@@ -27,7 +27,7 @@ type
   value_type* = cdouble
   bits_type* = uint64_t
 
-const                         ##  = p   (includes the hidden bit)
+const                       ##  = p   (includes the hidden bit)
   SignificandSize*: int32_t = digits[value_type]
 
 const
@@ -36,10 +36,10 @@ const
 const
   MaxIeeeExponent*: bits_type = bits_type(2 * max_exponent[value_type] - 1)
 
-const                         ##  = 2^(p-1)
+const                       ##  = 2^(p-1)
   HiddenBit*: bits_type = bits_type(1) shl (SignificandSize - 1)
 
-const                         ##  = 2^(p-1) - 1
+const                       ##  = 2^(p-1) - 1
   SignificandMask*: bits_type = HiddenBit - 1
 
 const

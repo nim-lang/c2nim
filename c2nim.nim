@@ -7,7 +7,7 @@
 #    distribution, for details about the copyright.
 #
 
-import std / [strutils, os, times, parseopt, strscans]
+import std / [strutils, os, osproc, times, md5, parseopt, strscans, sequtils, tables]
 
 import compiler/ [llstream, ast, renderer, options, msgs, nversion]
 
@@ -41,12 +41,25 @@ Options:
   --noconv               annotate procs with ``{.noconv.}``
   --stdcall              annotate procs with ``{.stdcall.}``
   --importc              annotate procs with ``{.importc.}``
+  --importDefines        import C defines as procs or vars with ``{.importc.}``
+  --skipFuncDefines      skip C proc defines
+  --importFuncDefines    import C define funcs as procs with ``{.importc.}``
+  --def:SYM='macro()'    define a C macro that gets replaced with the given
+                         definition. It's parsed by the lexer. Use it to fix
+                         function attributes: ``--def:PUBLIC='__attribute__ ()'``
+  --reordercomments      reorder C comments to match Nim's postfix style
   --ref                  convert typ* to ref typ (default: ptr typ)
   --prefix:PREFIX        strip prefix for the generated Nim identifiers
                          (multiple --prefix options are supported)
   --suffix:SUFFIX        strip suffix for the generated Nim identifiers
                          (multiple --suffix options are supported)
-  --paramprefix:PREFIX   add prefix to parameter name of the generated Nim proc
+  --mangle:PEG=FORMAT    extra PEG expression to mangle identifiers,
+                         for example `--mangle:'{u?}int{\d+}_t=$1int$2'` to
+                         convert C <stdint.h> to Nim equivalents
+                         (multiple --mangle options are supported)
+  --stdints              Mangle C stdint's into Nim style int's
+  --paramPrefix:PREFIX   add prefix to parameter name of the generated Nim proc
+  --headerPrefix:PREFIX  add prefix to C header files of generated Nim imports 
   --assumedef:IDENT      skips #ifndef sections for the given C identifier
                          (multiple --assumedef options are supported)
   --assumendef:IDENT     skips #ifdef sections for the given C identifier
@@ -55,11 +68,18 @@ Options:
   --typeprefixes         generate ``T`` and ``P`` type prefixes
   --nep1                 follow 'NEP 1': Style Guide for Nim Code
   --skipcomments         do not copy comments
+  --delete:IDENT         post process option to delete nodes with matching
+                         idents for procs, types, or vars           
+  --mergeBlocks          merge similar adjacent blocks like two let sections
+  --mergeDuplicates      merge similar adjacent blocks like two let sections
   --ignoreRValueRefs     translate C++'s ``T&&`` to ``T`` instead ``of var T``
   --keepBodies           keep C++'s method bodies
+  --cppBindStatic        bind cpp methods to their types
   --concat               concat the list of files into a single .nim file
+  --concat:all           concat the list of files including c2nim files
   --debug                prints a c2nim stack trace in case of an error
   --exportdll:PREFIX     produce a DLL wrapping the C++ code
+  --render:OPT           various render options. See c2nim.rst for more docs
   -v, --version          write c2nim's version
   -h, --help             show this help
 """
@@ -81,7 +101,7 @@ proc parse(infile: string, options: PParserOptions; dllExport: var PNode): PNode
   var p: Parser
   if isCpp: options.flags.incl pfCpp
   openParser(p, infile, stream, options)
-  result = parseUnit(p).postprocess(pfStructStruct in options.flags)
+  result = parseUnit(p).postprocess(options.flags, options.deletes)
   closeParser(p)
   if isCpp: options.flags.excl pfCpp
   if options.exportPrefix.len > 0:
@@ -94,18 +114,51 @@ proc parse(infile: string, options: PParserOptions; dllExport: var PNode): PNode
 
 proc isC2nimFile(s: string): bool = splitFile(s).ext.toLowerAscii == ".c2nim"
 
+proc parseDefines(val: string): seq[ref Token] =
+  let tpath = getTempDir() / "macro_" & getMD5(val) & ".h"
+  let tfl = (open(tpath, fmReadWrite), tpath)
+  let ss = llStreamOpen(val)
+  var lex: Lexer
+  openLexer(lex, tfl[1], ss)
+  var tk = new Token
+  var idx = 0
+  result = newSeq[ref Token]()
+  while tk.xkind != pxEof:
+    tk = new Token
+    lex.getTok(tk[])
+    if tk.xkind == pxEof:
+      break
+    result.add tk
+    inc idx
+    if idx > 1_000: raise newException(Exception, "parse error")
+  tfl[0].close()
+  tfl[1].removeFile()
+
+proc parseDefineArgs(parserOptions: var PParserOptions, val: string) =
+  let defs = val.split("=")
+  var mc: cparser.Macro
+  let macs = parseDefines(defs[0])
+  let toks = parseDefines(defs[1])
+  mc.name = macs[0].s
+  mc.params = -1
+  mc.body = toks
+  for m in macs[1..^1]:
+    if m.xkind == pxParLe: mc.params = 0
+    if m.xkind == pxSymbol: inc mc.params
+  parserOptions.macros.add(mc)
+
 var dummy: PNode
 
 when not compiles(renderModule(dummy, "")):
   # newer versions of 'renderModule' take 2 parameters. We workaround this
   # problem here:
-  proc renderModule(tree: PNode; filename: string) =
-    renderModule(tree, filename, filename)
+  proc renderModule(tree: PNode; filename: string, renderFlags: TRenderFlags) =
+    renderModule(tree, filename, filename, renderFlags)
 
-proc myRenderModule(tree: PNode; filename: string) =
+proc myRenderModule(tree: PNode; filename: string, renderFlags: TRenderFlags) =
   # also ensure we produced no trailing whitespace:
   let tmpFile = filename & ".tmp"
-  renderModule(tree, tmpFile)
+  renderModule(tree, tmpFile, renderFlags)
 
   let b = readFile(tmpFile)
   removeFile(tmpFile)
@@ -132,32 +185,38 @@ proc myRenderModule(tree: PNode; filename: string) =
     inc(i)
   f.close
 
-proc main(infiles: seq[string], outfile: var string,
-          options: PParserOptions, concat: bool) =
+proc main(infiles: seq[string],
+          outfile: var string,
+          options: PParserOptions,
+          concat: bool) =
   var start = getTime()
   var dllexport: PNode = nil
+  var infiles = infiles
+  
   if concat:
     var tree = newNode(nkStmtList)
     for infile in infiles:
       let m = parse(infile.addFileExt("h"), options, dllexport)
       if not isC2nimFile(infile):
-        if outfile.len == 0: outfile = changeFileExt(infile, "nim")
+        if outfile.len == 0:
+          outfile = changeFileExt(infile, "nim")
+      if not isC2nimFile(infile) or pfC2NimInclude in options.flags:
         for n in m: tree.add(n)
-    myRenderModule(tree, outfile)
+    myRenderModule(tree, outfile, options.renderFlags)
   else:
     for infile in infiles:
       let m = parse(infile, options, dllexport)
       if not isC2nimFile(infile):
         if outfile.len > 0:
-          myRenderModule(m, outfile)
+          myRenderModule(m, outfile, options.renderFlags)
           outfile = ""
         else:
           let outfile = changeFileExt(infile, "nim")
-          myRenderModule(m, outfile)
+          myRenderModule(m, outfile, options.renderFlags)
   if dllexport != nil:
     let (path, name, _) = infiles[0].splitFile
     let outfile = path / name & "_dllimpl" & ".nim"
-    myRenderModule(dllexport, outfile)
+    myRenderModule(dllexport, outfile, options.renderFlags)
   when declared(NimCompilerApiVersion):
     rawMessage(gConfig, hintSuccessX, [$gLinesCompiled, $(getTime() - start),
                               formatSize(getTotalMem()), ""])
@@ -170,6 +229,7 @@ var
   outfile = ""
   concat = false
   parserOptions = newParserOptions()
+
 for kind, key, val in getopt():
   case kind
   of cmdArgument:
@@ -183,12 +243,20 @@ for kind, key, val in getopt():
       stdout.write(Version & "\n")
       quit(0)
     of "o", "out": outfile = val
-    of "concat": concat = true
+    of "concat":
+      concat = true
+      if val == "all":
+        incl(parserOptions.flags, pfC2NimInclude)
     of "spliceheader":
       quit "[Error] 'spliceheader' doesn't exist anymore" &
            " use a list of files and --concat instead"
     of "exportdll":
       parserOptions.exportPrefix = val
+    of "def":
+      parserOptions.parseDefineArgs(val)
+    of "render":
+      if not parserOptions.renderFlags.setOption(val):
+        quit("[Error] unknown option: " & key)
     else:
       if not parserOptions.setOption(key, val):
         quit("[Error] unknown option: " & key)
