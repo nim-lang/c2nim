@@ -75,7 +75,7 @@ type
     assumeDef, assumenDef: seq[string]
     mangleRules: seq[tuple[pattern: Peg, frmt: string]]
     privateRules: seq[Peg]
-    dynlibSym*, headerOverride, headerPrefix: string
+    dynlibSym, headerOverride, headerPrefix: string
     macros*: seq[Macro]
     deletes*: Table[string, string]
     toMangle: StringTableRef
