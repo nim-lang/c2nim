@@ -1,3 +1,4 @@
+#pragma c2nim clibUserPragma
 
 //
 //The default allocator uses malloc(), free(), calloc(), and realloc().

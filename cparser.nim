@@ -59,6 +59,7 @@ type
     pfCppSkipConverter  ## skip C++ converters
     pfCppSkipCallOp     ## skip C++ converters
     pfCppBindStatic     ## bind cpp static methods to types
+    pfClibUserPragma    ## user `clib` pragma instead of dynlib or header
 
   Macro* = object
     name*: string
@@ -72,7 +73,7 @@ type
     assumeDef, assumenDef: seq[string]
     mangleRules: seq[tuple[pattern: Peg, frmt: string]]
     privateRules: seq[Peg]
-    dynlibSym, headerOverride, headerPrefix: string
+    dynlibSym*, headerOverride, headerPrefix: string
     macros*: seq[Macro]
     deletes*: Table[string, string]
     toMangle: StringTableRef
@@ -162,6 +163,7 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "strict": incl(parserOptions.flags, pfStrict)
   of "ref": incl(parserOptions.flags, pfRefs)
   of "dynlib": parserOptions.dynlibSym = val
+  of "clibuserpragma": incl(parserOptions.flags, pfClibUserPragma)
   of "header":
     parserOptions.useHeader = true
     if val.len > 0: parserOptions.headerOverride = val
