@@ -196,6 +196,23 @@ A binding that uses ``dynlib`` is much more preferable over one that uses
 ``header``! The Nim compiler might drop support for the ``header`` pragma
 in the future as it cannot work for backends that do not generate C code.
 
+``#clibuserpragma`` directive
+---------------------
+**Note**: There is also a ``--clibuserpragma`` command line option that can be used for
+the same purpose.
+
+This directive enables using a `clib` user definable pragma instead of a dynlib or 
+header pragmas. This can be used with a user defined pragma to provide a way to
+configure using a dynlib or a header import:
+
+.. code-block:: Nim
+
+  const rcutilsDynlib {.strdefine.}: string = ""
+  when rcutilsDynlib == "":
+    {.pragma: clib, header: "rcutils/cmdline_parser.h" .}
+  else:
+    {.pragma: clib, dynlib: "" & rcutilsDynlib.}
+
 
 ``#prefix`` and ``#suffix`` directives
 --------------------------------------
