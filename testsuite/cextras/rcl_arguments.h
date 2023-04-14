@@ -6,6 +6,7 @@
 #define RCL__ARGUMENTS_H_
 
 #include "rcl/allocator.h"
+#include "rcl/allocator.h"
 #include "rcl/log_level.h"
 #include "rcl/macros.h"
 #include "rcl/types.h"

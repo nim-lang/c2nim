@@ -19,7 +19,8 @@ type
   TRenderFlag* = enum
     renderNone, renderNoBody, renderNoComments, renderDocComments,
     renderNoPragmas, renderIds, renderNoProcDefs, renderSyms,
-    renderExtraNewLines, renderReindentLongComments
+    renderExtraNewLines, renderReindentLongComments,
+    renderNonNep1Imports
 
   TRenderFlags* = set[TRenderFlag]
   TRenderTok* = object
@@ -62,6 +63,7 @@ proc setOption*(renderOptions: var TRenderFlags, val: string): bool =
   of "syms": incl(renderOptions, renderSyms)
   of "extranewlines": incl(renderOptions, renderExtraNewLines)
   of "reindentlongcomments": incl(renderOptions, renderReindentLongComments)
+  of "nonnep1imports": incl(renderOptions, renderNonNep1Imports)
   else: result = false
 
 # We render the source code in a two phases: The first

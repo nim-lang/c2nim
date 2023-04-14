@@ -62,16 +62,17 @@ proc nep1(s: string, k: TSymKind): string =
 
 proc mangleRules(s: string, p: Parser; kind: TSymKind): string =
   block mangle:
+    result = s
     for pattern, frmt in items(p.options.mangleRules):
-      if s.match(pattern):
-        result = s.replacef(pattern, frmt)
-        break mangle
+      if result.match(pattern):
+        result = result.replacef(pattern, frmt)
+        if pfNoMultiMangle in p.options.flags:
+          break mangle
     block prefixes:
       for prefix in items(p.options.prefixes):
-        if s.startsWith(prefix):
-          result = s.substr(prefix.len)
+        if result.startsWith(prefix):
+          result = result.substr(prefix.len)
           break prefixes
-      result = s
     block suffixes:
       for suffix in items(p.options.suffixes):
         if result.endsWith(suffix):
