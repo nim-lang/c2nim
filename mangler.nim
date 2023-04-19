@@ -105,7 +105,9 @@ proc addImportToPragma(pragmas: PNode, ident: string, p: Parser) =
     discard # already added importc pragma
   else:
     addSon(pragmas, newIdentStrLitPair(p.options.importcLit, p.currentNamespace & ident, p))
-  if p.options.dynlibSym.len > 0:
+  if pfClibUserPragma in p.options.flags:
+    addSon(pragmas, newIdentNodeP("clib", p))
+  elif p.options.dynlibSym.len > 0:
     addSon(pragmas, newIdentPair("dynlib", p.options.dynlibSym, p))
   else:
     addSon(pragmas, getHeaderPair(p))

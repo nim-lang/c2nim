@@ -60,7 +60,8 @@ type
     pfCppSkipCallOp,     ## skip C++ converters
     pfNoMultiMangle,     ## allow multiple mangles
     pfCppBindStatic,     ## bind cpp static methods to types
-    pfAnonymousAsFields  ## treat anonymous union/struct as fields
+    pfAnonymousAsFields, ## treat anonymous union/struct as fields
+    pfClibUserPragma     ## user `clib` pragma instead of dynlib or header
 
   Macro* = object
     name*: string
@@ -194,6 +195,7 @@ proc setOption*(parserOptions: PParserOptions, key: string, val=""): bool =
   of "strict": incl(parserOptions.flags, pfStrict)
   of "ref": incl(parserOptions.flags, pfRefs)
   of "dynlib": parserOptions.dynlibSym = val
+  of "clibuserpragma": incl(parserOptions.flags, pfClibUserPragma)
   of "header":
     parserOptions.useHeader = true
     if val.len > 0: parserOptions.headerOverride = val
