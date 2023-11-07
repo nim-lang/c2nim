@@ -20,17 +20,21 @@ jobs:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        nim: ['devel', 'version-2-0', 'version-1-6']
+
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup Nim
         uses: alaviss/setup-nim@0.1.1
         with:
-          path: nim
-          version: version-1-6
-
+          path: 'nim'
+          version: ${{ matrix.nim }}
+          
       - name: c2nim
         shell: bash
         run: |
