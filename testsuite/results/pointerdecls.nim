@@ -22,7 +22,7 @@ proc malloc*(__size: csize_t): pointer
 ##  struct attribute
 
 type
-  _OSUnalignedU16* {.bycopy.} = object
+  _OSUnalignedU16* {.bycopy, packed.} = object
     __val*: uint16_t
 
 
