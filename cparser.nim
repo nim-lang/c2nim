@@ -1135,22 +1135,63 @@ proc parseStructBody(p: var Parser, stmtList: PNode,
         # handle anonymous unions / structs
         if p.tok.xkind == pxSemiColon:
           if pfAnonymousAsFields in p.options.flags:
-            let tdef = sstmts[^1][0]
-            let odef = tdef[2]
-            for i in 0..<sstmts.len-1:
-              stmtList.add(sstmts[i])
-            let rlist = odef[2]
-            for field in rlist:
-              if gotUnion and field[0][0].kind == nkPostfix and
-                  not startsWith($(field[0][0][1]),"ano_"):
-                let name = "anon" & $cntAnonUnions & "_" & $field[0][0][1]
-                field[0][0][1] = newIdentNodeP(name, p)
-              elif gotUnion and 
-                  not startsWith($(field[0][1]),"ano_"):
-                let name = "anon" & $cntAnonUnions & "_" & $field[0][1]
-                field[0][1] = newIdentNodeP(name, p)
-              result.add(field)
-            getTok(p, nil)
+            # Be defensive: inner struct/union may yield no typesection
+            # (e.g. due to preprocessing oddities). If so, fall back to
+            # emitting a regular anonymous field instead of flattening.
+            if sstmts.len > 0 and sstmts[^1].len > 0:
+              let tdef = sstmts[^1][0]
+              if tdef.len > 2:
+                let odef = tdef[2]
+                for i in 0..<sstmts.len-1:
+                  stmtList.add(sstmts[i])
+                if odef.len > 2:
+                  let rlist = odef[2]
+                  for field in rlist:
+                    # Only handle actual field definitions; pass others through
+                    if field.kind == nkIdentDefs and field.len > 0 and gotUnion:
+                      let nameNode = field[0]
+                      if nameNode.kind == nkPostfix:
+                        # postfix form like: name*
+                        if not startsWith($(nameNode[1]), "ano_"):
+                          let name = "anon" & $cntAnonUnions & "_" & $nameNode[1]
+                          nameNode[1] = newIdentNodeP(name, p)
+                      elif nameNode.kind == nkIdent:
+                        if not startsWith($(nameNode), "ano_"):
+                          let name = "anon" & $cntAnonUnions & "_" & $nameNode
+                          # Replace the ident in place
+                          field[0] = newIdentNodeP(name, p)
+                    result.add(field)
+                  getTok(p, nil)
+                else:
+                  # Structure node unexpected; degrade gracefully
+                  let def = newNodeP(nkIdentDefs, p)
+                  var t = pointer(p, baseTyp)
+                  let i = fieldIdent("ano_" & p.hashPosition, p)
+                  t = parseTypeSuffix(p, t)
+                  addSon(def, i, t, emptyNode)
+                  addSon(result, def)
+                  getTok(p, nil)
+                  stmtList.add(sstmts)
+              else:
+                # Missing expected child nodes; fallback to anonymous field
+                let def = newNodeP(nkIdentDefs, p)
+                var t = pointer(p, baseTyp)
+                let i = fieldIdent("ano_" & p.hashPosition, p)
+                t = parseTypeSuffix(p, t)
+                addSon(def, i, t, emptyNode)
+                addSon(result, def)
+                getTok(p, nil)
+                stmtList.add(sstmts)
+            else:
+              # No statements collected for inner type; fallback
+              let def = newNodeP(nkIdentDefs, p)
+              var t = pointer(p, baseTyp)
+              let i = fieldIdent("ano_" & p.hashPosition, p)
+              t = parseTypeSuffix(p, t)
+              addSon(def, i, t, emptyNode)
+              addSon(result, def)
+              getTok(p, nil)
+              stmtList.add(sstmts)
           else:
             let def = newNodeP(nkIdentDefs, p)
             var t = pointer(p, baseTyp)
